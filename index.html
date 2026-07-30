@@ -9,10 +9,10 @@
 <title>Raxson Player</title>
 <style>
 :root{
-  --c-p:#e91e63;--c-p-d:#c2185b;--c-bg:#0a0a0f;--c-sf:#14141f;
-  --c-t:#fff;--c-t2:#a0a0b0;--c-tm:#6a6a7a;--c-ok:#00ff99;
-  --g-bg:rgba(255,255,255,0.03);--g-b:rgba(255,255,255,0.08);
-  --r-md:12px;--r-lg:16px;--r-xl:20px;--tr:250ms cubic-bezier(0.4,0,0.2,1);
+ --c-p:#e91e63;--c-p-d:#c2185b;--c-bg:#0a0a0f;--c-sf:#14141f;
+ --c-t:#fff;--c-t2:#a0a0b0;--c-tm:#6a6a7a;--c-ok:#00ff99;
+ --g-bg:rgba(255,255,255,0.03);--g-b:rgba(255,255,255,0.08);
+ --r-md:12px;--r-lg:16px;--r-xl:20px;--tr:250ms cubic-bezier(0.4,0,0.2,1);
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden}
@@ -46,8 +46,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 /* attabeq ar-raeesi */
 .app-container{display:none;height:100vh;flex-direction:column;overflow:hidden}
 .app-container.active{display:flex}
-.app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-.header-brand{display:flex;align-items:center;gap:8px}
+.app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;gap:16px}
+.header-brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .brand-logo{height:36px;width:auto;border-radius:8px;object-fit:contain}
 .header-brand h1{font-size:18px;color:var(--c-p);font-weight:700}
 .header-status{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--c-tm)}
@@ -122,7 +122,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .install-app-info{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;padding:20px;background:rgba(255,255,255,0.03);border-radius:16px;border:1px solid rgba(255,255,255,0.05)}
 .install-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg, #ff6b35, #f7931e, #e91e63);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 4px 20px rgba(233,30,99,0.3)}
 .install-app-name{font-size:17px;font-weight:700;color:var(--c-t)}
-.install-app-url{font-size:12px;color:var(--c-tm);direction:ltr;font-family:monospace}
+
 .install-actions{display:flex;gap:10px}
 .install-actions button{flex:1;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all 150ms;border:none;font-family:inherit}
 .install-btn-cancel{background:rgba(255,255,255,0.06);color:var(--c-t2);border:1px solid rgba(255,255,255,0.1)}
@@ -130,7 +130,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .install-btn-confirm{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;box-shadow:0 4px 20px rgba(233,30,99,0.25)}
 .install-btn-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(233,30,99,0.35)}
 
-.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;order:1}
+.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;order:1;flex-shrink:0}
 .install-header-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all 150ms;white-space:nowrap}
 .install-header-btn:hover{transform:translateY(-1px);box-shadow:0 0 20px rgba(233,30,99,0.25)}
 @media(display-mode:standalone){.install-header-btn{display:none!important}}
@@ -159,139 +159,138 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 <body>
 
 <div id="loginScreen" class="login-screen">
-  <div class="neon-ring ring-1"></div>
-  <div class="neon-ring ring-2"></div>
-  <div class="login-glass">
-    <div class="login-brand">
-      <img src="/images/logo1.png" class="login-logo" alt="Logo">
-      <h1>Raxson Player</h1>
-    </div>
-    <div class="login-form">
-      <div class="input-group">
-        <label>اسم المستخدم</label>
-        <input type="text" id="username" class="input-field" placeholder="أدخل اسم المستخدم" autocomplete="off">
-      </div>
-      <div class="input-group">
-        <label>كلمة المرور</label>
-        <input type="password" id="password" class="input-field" placeholder="أدخل كلمة المرور" autocomplete="off">
-      </div>
-      <div class="save-row">
-        <label class="checkbox-label">
-          <input type="checkbox" id="remember" checked>
-          <span>حفظ البيانات</span>
-        </label>
-      </div>
-      <button type="button" class="btn btn-primary" id="loginBtn">
-        <span id="btnText">دخول</span>
-        <span id="btnLoader" class="btn-loader" style="display:none"></span>
-      </button>
-      <div class="login-error" id="loginError"></div>
-      <div class="login-log" id="loginLog"></div>
-    </div>
+ <div class="neon-ring ring-1"></div>
+ <div class="neon-ring ring-2"></div>
+ <div class="login-glass">
+  <div class="login-brand">
+   <img src="/images/logo1.png" class="login-logo" alt="Logo" onerror="this.style.display='none';this.parentElement.querySelector('h1').style.marginTop='0'">
+   <h1>Raxson Player</h1>
   </div>
+  <div class="login-form">
+   <div class="input-group">
+    <label>اسم المستخدم</label>
+    <input type="text" id="username" class="input-field" placeholder="أدخل اسم المستخدم" autocomplete="off">
+   </div>
+   <div class="input-group">
+    <label>كلمة المرور</label>
+    <input type="password" id="password" class="input-field" placeholder="أدخل كلمة المرور" autocomplete="off">
+   </div>
+   <div class="save-row">
+    <label class="checkbox-label">
+     <input type="checkbox" id="remember" checked>
+     <span>حفظ البيانات</span>
+    </label>
+   </div>
+   <button type="button" class="btn btn-primary" id="loginBtn">
+    <span id="btnText">دخول</span>
+    <span id="btnLoader" class="btn-loader" style="display:none"></span>
+   </button>
+   <div class="login-error" id="loginError"></div>
+   <div class="login-log" id="loginLog"></div>
+  </div>
+ </div>
 </div>
 
 <div id="appScreen" class="app-container">
-  <header class="app-header">
-    <div class="header-brand">
-      <img src="/images/logo1.png" class="brand-logo" alt="Logo">
-      <div>
-        <h1>Raxson Player</h1>
-        <div class="header-status">
-          <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">...</span>
-        </div>
-      </div>
+ <header class="app-header">
+  <div class="header-brand">
+   <img src="/images/logo1.png" class="brand-logo" alt="Logo" onerror="this.style.display='none'">
+   <div>
+    <h1>Raxson Player</h1>
+    <div class="header-status">
+     <span class="status-dot" id="statusDot"></span>
+     <span id="statusText">...</span>
     </div>
-    <div class="header-actions">
-      <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
-      <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
-    </div>
-  </header>
-
-  <div class="tabs-bar" id="tabsBar">
-    <button class="tab-btn active" data-tab="live">&#x1F4FA; بث مباشر</button>
-    <button class="tab-btn" data-tab="vod">&#x1F3AC; أفلام</button>
-    <button class="tab-btn" data-tab="series">&#x1F4C1; مسلسلات</button>
-    <button class="tab-btn" data-tab="watched">&#x1F550; آخر المشاهدات</button>
+   </div>
   </div>
-
-  <div class="search-wrap">
-    <input type="text" class="search-field" id="searchInput" placeholder="بحث...">
+  <div class="header-actions">
+   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
+   <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
   </div>
+ </header>
 
-  <div class="cats-bar" id="catsBar"></div>
-  <div class="back-row" id="backRow">
-    <button class="back-btn" id="backBtn">&#x2190; رجوع</button>
-  </div>
+ <div class="tabs-bar" id="tabsBar">
+  <button class="tab-btn active" data-tab="live">&#x1F4FA; بث مباشر</button>
+  <button class="tab-btn" data-tab="vod">&#x1F3AC; أفلام</button>
+  <button class="tab-btn" data-tab="series">&#x1F4C1; مسلسلات</button>
+  <button class="tab-btn" data-tab="watched">&#x1F550; آخر المشاهدات</button>
+ </div>
 
-  <div class="content-area">
-    <div class="content-grid" id="contentGrid"></div>
-    <div class="episodes-area" id="episodesArea"></div>
-  </div>
+ <div class="search-wrap">
+  <input type="text" class="search-field" id="searchInput" placeholder="بحث...">
+ </div>
+
+ <div class="cats-bar" id="catsBar"></div>
+ <div class="back-row" id="backRow">
+  <button class="back-btn" id="backBtn">&#x2190; رجوع</button>
+ </div>
+
+ <div class="content-area">
+  <div class="content-grid" id="contentGrid"></div>
+  <div class="episodes-area" id="episodesArea"></div>
+ </div>
 </div>
 
 <div id="loadingOverlay" class="loading-overlay" hidden>
-  <div class="loading-spinner"></div>
-  <div class="loading-text" id="loadingText">جاري التحميل...</div>
+ <div class="loading-spinner"></div>
+ <div class="loading-text" id="loadingText">جاري التحميل...</div>
 </div>
 
 <div id="playerOverlay" class="player-overlay">
-  <div class="player-header" id="playerHeader">
-    <span class="player-title" id="playerTitle">...</span>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <span class="live-badge" id="liveBadge" style="display:none;">مباشر</span>
-      <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
-    </div>
+ <div class="player-header" id="playerHeader">
+  <span class="player-title" id="playerTitle">...</span>
+  <div style="display:flex;gap:8px;align-items:center;">
+   <span class="live-badge" id="liveBadge" style="display:none;">مباشر</span>
+   <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
   </div>
-  <video id="playerVideo" class="player-video" playsinline webkit-playsinline></video>
-  <button class="big-play" id="bigPlayBtn">
-    <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-  </button>
-  <div class="player-loader" id="playerLoader"><div></div></div>
-  <div class="gesture-hint left" id="gestureLeft"></div>
-  <div class="gesture-hint right" id="gestureRight"></div>
-  <div class="player-controls" id="playerControls">
-    <div class="progress-wrap" id="progressWrap"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="controls-row">
-      <div class="controls-left">
-        <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف">
-          <svg id="playIcon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-          <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-        </button>
-        <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
-      </div>
-      <div class="controls-right">
-        <button class="ctrl-btn download-btn" id="downloadBtn" title="تحميل">
-          <svg viewBox="0 0 24 24"><path d="M12 16l-4-4h3V4h2v8h3l-4 4zm-6 2v2h12v-2H6z"/></svg>
-        </button>
-        <button class="ctrl-btn" id="pipBtn" title="PiP">
-          <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm2 8V5H3v14h18zM21 3a2 2 0 012 2v14a2 2 0 01-2 2H3a2 2 0 01-2-2V5a2 2 0 012-2h18z"/></svg>
-        </button>
-        <button class="ctrl-btn" id="fullscreenBtn" title="ملء الشاشة">
-          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-        </button>
-      </div>
-    </div>
+ </div>
+ <video id="playerVideo" class="player-video" playsinline webkit-playsinline></video>
+ <button class="big-play" id="bigPlayBtn">
+  <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+ </button>
+ <div class="player-loader" id="playerLoader"><div></div></div>
+ <div class="gesture-hint left" id="gestureLeft"></div>
+ <div class="gesture-hint right" id="gestureRight"></div>
+ <div class="player-controls" id="playerControls">
+  <div class="progress-wrap" id="progressWrap"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="controls-row">
+   <div class="controls-left">
+    <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف">
+     <svg id="playIcon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+     <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+    </button>
+    <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+   </div>
+   <div class="controls-right">
+    <button class="ctrl-btn download-btn" id="downloadBtn" title="تحميل">
+     <svg viewBox="0 0 24 24"><path d="M12 16l-4-4h3V4h2v8h3l-4 4zm-6 2v2h12v-2H6z"/></svg>
+    </button>
+    <button class="ctrl-btn" id="pipBtn" title="PiP">
+     <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm2 8V5H3v14h18zM21 3a2 2 0 012 2v14a2 2 0 01-2 2H3a2 2 0 01-2-2V5a2 2 0 012-2h18z"/></svg>
+    </button>
+    <button class="ctrl-btn" id="fullscreenBtn" title="ملء الشاشة">
+     <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+    </button>
+   </div>
   </div>
+ </div>
 </div>
 
 <div id="installOverlay" class="install-overlay">
-  <div class="install-card">
-    <div class="install-header">
-      <h2>تثبيت التطبيق</h2>
-      <p>أضف Raxson Player إلى شاشتك الرئيسية</p>
-    </div>
-    <div class="install-app-info">
-      <div class="install-icon">&#x1F525;</div>
-      <div class="install-app-name">Raxson Player</div>
-      <div class="install-app-url" id="installUrl">http://127.0.0.1:5000</div>
-    </div>
-    <div class="install-actions">
-      <button class="install-btn-cancel" id="installCancel">لاحقاً</button>
-      <button class="install-btn-confirm" id="installConfirm">تثبيت</button>
-    </div>
+ <div class="install-card">
+  <div class="install-header">
+   <h2>تثبيت التطبيق</h2>
+   <p>أضف Raxson Player إلى شاشتك الرئيسية</p>
   </div>
+  <div class="install-app-info">
+   <div class="install-icon">&#x1F525;</div>
+   <div class="install-app-name">Raxson Player</div>
+  </div>
+  <div class="install-actions">
+   <button class="install-btn-cancel" id="installCancel">لاحقاً</button>
+   <button class="install-btn-confirm" id="installConfirm">تثبيت</button>
+  </div>
+ </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -304,19 +303,19 @@ let HLS = null, SUB_EXPIRY = "", WATCHED = [];
 
 const $ = id => document.getElementById(id);
 const E = {
-  loginScreen: $("loginScreen"), appScreen: $("appScreen"), playerOverlay: $("playerOverlay"), loadingOverlay: $("loadingOverlay"),
-  username: $("username"), password: $("password"), remember: $("remember"),
-  loginBtn: $("loginBtn"), btnText: $("btnText"), btnLoader: $("btnLoader"), loginError: $("loginError"), loginLog: $("loginLog"),
-  statusDot: $("statusDot"), statusText: $("statusText"), logoutBtn: $("logoutBtn"), tabsBar: $("tabsBar"),
-  searchInput: $("searchInput"), catsBar: $("catsBar"), backRow: $("backRow"), backBtn: $("backBtn"),
-  contentGrid: $("contentGrid"), episodesArea: $("episodesArea"), loadingText: $("loadingText"),
-  playerVideo: $("playerVideo"), playerTitle: $("playerTitle"), playerClose: $("playerClose"), playerHeader: $("playerHeader"),
-  playerControls: $("playerControls"), liveBadge: $("liveBadge"), bigPlayBtn: $("bigPlayBtn"), playPauseBtn: $("playPauseBtn"),
-  downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"),
-  progressWrap: $("progressWrap"), progressFill: $("progressFill"), timeDisplay: $("timeDisplay"),
-  playerLoader: $("playerLoader"), gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
-  installOverlay: $("installOverlay"), installUrl: $("installUrl"), installCancel: $("installCancel"), installConfirm: $("installConfirm"),
-  installHeaderBtn: $("installHeaderBtn")
+ loginScreen: $("loginScreen"), appScreen: $("appScreen"), playerOverlay: $("playerOverlay"), loadingOverlay: $("loadingOverlay"),
+ username: $("username"), password: $("password"), remember: $("remember"),
+ loginBtn: $("loginBtn"), btnText: $("btnText"), btnLoader: $("btnLoader"), loginError: $("loginError"), loginLog: $("loginLog"),
+ statusDot: $("statusDot"), statusText: $("statusText"), logoutBtn: $("logoutBtn"), tabsBar: $("tabsBar"),
+ searchInput: $("searchInput"), catsBar: $("catsBar"), backRow: $("backRow"), backBtn: $("backBtn"),
+ contentGrid: $("contentGrid"), episodesArea: $("episodesArea"), loadingText: $("loadingText"),
+ playerVideo: $("playerVideo"), playerTitle: $("playerTitle"), playerClose: $("playerClose"), playerHeader: $("playerHeader"),
+ playerControls: $("playerControls"), liveBadge: $("liveBadge"), bigPlayBtn: $("bigPlayBtn"), playPauseBtn: $("playPauseBtn"),
+ downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"),
+ progressWrap: $("progressWrap"), progressFill: $("progressFill"), timeDisplay: $("timeDisplay"),
+ playerLoader: $("playerLoader"), gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
+ installOverlay: $("installOverlay"), installCancel: $("installCancel"), installConfirm: $("installConfirm"),
+ installHeaderBtn: $("installHeaderBtn")
 };
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -325,40 +324,47 @@ const isStandalone = () => window.matchMedia('(display-mode: standalone)').match
 let deferredPrompt = null;
 
 function init() {
-  initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
-  }
-  try {
-    const u = localStorage.getItem("rp_u"), p = localStorage.getItem("rp_p");
-    const w = localStorage.getItem("rp_w");
-    if (w) { try { WATCHED = JSON.parse(w); } catch(e) { WATCHED = []; } }
-    if (u) E.username.value = u;
-    if (p) E.password.value = p;
-    if (u && p && E.remember.checked) doLogin();
-  } catch (e) {}
+ initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
+ if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+ }
+ try {
+  const u = localStorage.getItem("rp_u"), p = localStorage.getItem("rp_p");
+  const w = localStorage.getItem("rp_w");
+  if (w) { try { WATCHED = JSON.parse(w); } catch(e) { WATCHED = []; } }
+  if (u) E.username.value = u;
+  if (p) E.password.value = p;
+  if (u && p && E.remember.checked) doLogin();
+ } catch (e) {}
 }
 
 function initInstallPrompt() {
-  E.installUrl.textContent = window.location.origin;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-  });
-  window.addEventListener('appinstalled', () => {
-    deferredPrompt = null;
-  });
-  E.installHeaderBtn.addEventListener('click', () => {
-    showInstallPrompt();
-  });
-  E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
-  E.installConfirm.addEventListener('click', async () => {
-    if (!deferredPrompt) { hideInstallPrompt(); return; }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    hideInstallPrompt();
-  });
+ window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+ });
+ window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+ });
+ E.installHeaderBtn.addEventListener('click', () => {
+  showInstallPrompt();
+ });
+ E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
+ E.installConfirm.addEventListener('click', async () => {
+  if (!deferredPrompt) { 
+   // Show message in overlay instead of alert
+   const infoDiv = document.querySelector('.install-app-info');
+   const msg = document.createElement('div');
+   msg.style.cssText = 'color:#f59e0b;font-size:12px;margin-top:8px;text-align:center;';
+   msg.textContent = 'التثبيت غير متاح حالياً. جرب Chrome على Android أو Safari على iOS.';
+   if (!infoDiv.querySelector('[style*="f59e0b"]')) infoDiv.appendChild(msg);
+   return; 
+  }
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  hideInstallPrompt();
+ });
 }
 function showInstallPrompt() { E.installOverlay.classList.add('show'); document.body.style.overflow = 'hidden'; }
 function hideInstallPrompt() { E.installOverlay.classList.remove('show'); document.body.style.overflow = ''; }
@@ -366,20 +372,20 @@ function hideInstallPrompt() { E.installOverlay.classList.remove('show'); docume
 function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
 
 async function doLogin() {
-  const u = E.username.value.trim(), p = E.password.value.trim();
-  if (!u || !p) { showErr("اكمل البيانات"); return; }
-  showErr(""); setBtnLoad(true);
-  AUTH.user = u; AUTH.pass = p;
-  try {
-    const info = await api("get_account_info");
-    if (info?.user_info?.status === "Active") {
-      if (E.remember.checked) { localStorage.setItem("rp_u", u); localStorage.setItem("rp_p", p); }
-      SUB_EXPIRY = info.user_info.exp_date ? new Date(info.user_info.exp_date * 1000).toLocaleDateString("ar-SA") : "غير محدد";
-      setStatus(SUB_EXPIRY, "ok");
-      E.loginScreen.style.display = "none"; E.appScreen.style.display = "flex"; E.appScreen.classList.add("active");
-      await loadTabData("live");
-    } else { showErr("الاشتراك غير نشط"); setBtnLoad(false); }
-  } catch (err) { showErr("خطأ: " + (err.message || err)); setBtnLoad(false); }
+ const u = E.username.value.trim(), p = E.password.value.trim();
+ if (!u || !p) { showErr("اكمل البيانات"); return; }
+ showErr(""); setBtnLoad(true);
+ AUTH.user = u; AUTH.pass = p;
+ try {
+  const info = await api("get_account_info");
+  if (info?.user_info?.status === "Active") {
+   if (E.remember.checked) { localStorage.setItem("rp_u", u); localStorage.setItem("rp_p", p); }
+   SUB_EXPIRY = info.user_info.exp_date ? new Date(info.user_info.exp_date * 1000).toLocaleDateString("ar-SA") : "غير محدد";
+   setStatus(SUB_EXPIRY, "ok");
+   E.loginScreen.style.display = "none"; E.appScreen.style.display = "flex"; E.appScreen.classList.add("active");
+   await loadTabData("live");
+  } else { showErr("الاشتراك غير نشط"); setBtnLoad(false); }
+ } catch (err) { showErr("خطأ: " + (err.message || err)); setBtnLoad(false); }
 }
 
 function showErr(msg) { E.loginError.textContent = msg; E.loginError.classList.toggle("show", !!msg); }
@@ -387,424 +393,424 @@ function setBtnLoad(v) { E.loginBtn.disabled = v; E.btnText.style.display = v ? 
 function setStatus(t, type) { E.statusText.textContent = t; E.statusDot.className = "status-dot" + (type === "ok" ? "" : type === "warn" ? " warn" : " err"); }
 
 async function api(action, extra = "") {
-  const url = "/api?host=" + encodeURIComponent(AUTH.host)
-            + "&user=" + encodeURIComponent(AUTH.user)
-            + "&pass=" + encodeURIComponent(AUTH.pass)
-            + "&action=" + encodeURIComponent(action)
-            + "&extra=" + encodeURIComponent(extra);
-  const ctrl = new AbortController();
-  const isHeavy = ["get_live_streams","get_vod_streams","get_series"].includes(action);
-  const to = setTimeout(() => ctrl.abort(), isHeavy ? 90000 : 40000);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(to);
-    if (!res.ok) { const txt = await res.text(); throw new Error("HTTP " + res.status + (txt ? ": " + txt : "")); }
-    return await res.json();
-  } catch (e) { clearTimeout(to); throw e; }
+ const url = "/api?host=" + encodeURIComponent(AUTH.host)
+      + "&user=" + encodeURIComponent(AUTH.user)
+      + "&pass=" + encodeURIComponent(AUTH.pass)
+      + "&action=" + encodeURIComponent(action)
+      + "&extra=" + encodeURIComponent(extra);
+ const ctrl = new AbortController();
+ const isHeavy = ["get_live_streams","get_vod_streams","get_series"].includes(action);
+ const to = setTimeout(() => ctrl.abort(), isHeavy ? 90000 : 40000);
+ try {
+  const res = await fetch(url, { signal: ctrl.signal });
+  clearTimeout(to);
+  if (!res.ok) { const txt = await res.text(); throw new Error("HTTP " + res.status + (txt ? ": " + txt : "")); }
+  return await res.json();
+ } catch (e) { clearTimeout(to); throw e; }
 }
 
 async function loadTabData(tabKey) {
-  if (DATA[tabKey].ok || DATA[tabKey].loading) return;
-  DATA[tabKey].loading = true;
-  showLoad(true, tabKey === "live" ? "جاري تجهيز المحتوى..." : "جاري تحميل " + (tabKey === "vod" ? "الأفلام" : "المسلسلات") + "...");
-  setStatus("جاري التحميل...", "warn");
-  const map = {
-    live:   { cat: "get_live_categories",   stream: "get_live_streams" },
-    vod:    { cat: "get_vod_categories",    stream: "get_vod_streams" },
-    series: { cat: "get_series_categories", stream: "get_series" }
-  };
-  const t = map[tabKey];
-  try {
-    const [cats, items] = await Promise.all([api(t.cat), api(t.stream)]);
-    DATA[tabKey].cats = Array.isArray(cats) ? cats : []; 
-    DATA[tabKey].items = Array.isArray(items) ? items : [];
-    DATA[tabKey].ok = true;
-    DATA[tabKey].error = null;
-    setStatus(SUB_EXPIRY || "جاهز", "ok");
-  } catch (e) {
-    console.error(tabKey, e);
-    DATA[tabKey].ok = false;
-    DATA[tabKey].error = e.message || "فشل الاتصال";
-    setStatus("تأكد من صحة البيانات", "err");
-  } finally {
-    DATA[tabKey].loading = false;
-    showLoad(false);
-  }
-  renderTab();
+ if (DATA[tabKey].ok || DATA[tabKey].loading) return;
+ DATA[tabKey].loading = true;
+ showLoad(true, tabKey === "live" ? "جاري تجهيز المحتوى..." : "جاري تحميل " + (tabKey === "vod" ? "الأفلام" : "المسلسلات") + "...");
+ setStatus("جاري التحميل...", "warn");
+ const map = {
+  live:  { cat: "get_live_categories",  stream: "get_live_streams" },
+  vod:  { cat: "get_vod_categories",  stream: "get_vod_streams" },
+  series: { cat: "get_series_categories", stream: "get_series" }
+ };
+ const t = map[tabKey];
+ try {
+  const [cats, items] = await Promise.all([api(t.cat), api(t.stream)]);
+  DATA[tabKey].cats = Array.isArray(cats) ? cats : []; 
+  DATA[tabKey].items = Array.isArray(items) ? items : [];
+  DATA[tabKey].ok = true;
+  DATA[tabKey].error = null;
+  setStatus(SUB_EXPIRY || "جاهز", "ok");
+ } catch (e) {
+  console.error(tabKey, e);
+  DATA[tabKey].ok = false;
+  DATA[tabKey].error = e.message || "فشل الاتصال";
+  setStatus("تأكد من صحة البيانات", "err");
+ } finally {
+  DATA[tabKey].loading = false;
+  showLoad(false);
+ }
+ renderTab();
 }
 
 function initApp() {
-  E.tabsBar.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const tab = btn.dataset.tab;
-      if (tab === "watched") { showWatched(); return; }
-      STATE.tab = tab; STATE.cat = "all"; STATE.count = 30; STATE.seriesView = false;
-      E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
-      E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
-      if (!DATA[tab].ok && !DATA[tab].loading) {
-        await loadTabData(tab);
-      } else {
-        renderTab();
-      }
-    });
+ E.tabsBar.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+   const tab = btn.dataset.tab;
+   if (tab === "watched") { showWatched(); return; }
+   STATE.tab = tab; STATE.cat = "all"; STATE.count = 30; STATE.seriesView = false;
+   E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
+   E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+   if (!DATA[tab].ok && !DATA[tab].loading) {
+    await loadTabData(tab);
+   } else {
+    renderTab();
+   }
   });
-  let timer;
-  E.searchInput.addEventListener("input", e => { clearTimeout(timer); timer = setTimeout(() => { STATE.search = e.target.value; STATE.count = 30; renderTab(); }, 200); });
-  E.backBtn.addEventListener("click", () => { STATE.seriesView = false; STATE.seriesInfo = null; E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid"; renderTab(); });
-  E.logoutBtn.addEventListener("click", () => { localStorage.removeItem("rp_u"); localStorage.removeItem("rp_p"); localStorage.removeItem("rp_w"); location.reload(); });
+ });
+ let timer;
+ E.searchInput.addEventListener("input", e => { clearTimeout(timer); timer = setTimeout(() => { STATE.search = e.target.value; STATE.count = 30; renderTab(); }, 200); });
+ E.backBtn.addEventListener("click", () => { STATE.seriesView = false; STATE.seriesInfo = null; E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid"; renderTab(); });
+ E.logoutBtn.addEventListener("click", () => { localStorage.removeItem("rp_u"); localStorage.removeItem("rp_p"); localStorage.removeItem("rp_w"); location.reload(); });
 }
 
 function renderTab() {
-  const d = DATA[STATE.tab];
-  if (d.loading) {
-    E.contentGrid.innerHTML = '<div class="empty-state"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>جاري التحميل...</div>';
-    E.catsBar.innerHTML = "";
-    return;
-  }
-  if (!d.ok) {
-    E.contentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div style="font-size:40px;margin-bottom:12px;">&#x26A0;&#xFE0F;</div><div>تأكد من صحة البيانات</div><button class="load-more-btn" style="margin-top:16px;" onclick="retryCurrentTab()">&#x1F504; إعادة المحاولة</button></div>';
-    E.catsBar.innerHTML = "";
-    return;
-  }
-  renderCats(d.cats);
-  let items = d.items || [];
-  if (STATE.cat !== "all") items = items.filter(i => (i.category_id || "").toString() === STATE.cat);
-  if (STATE.search.length >= 2) { const q = STATE.search.toLowerCase(); items = items.filter(i => (i.name || i.title || "").toLowerCase().includes(q)); }
-  renderGrid(items);
+ const d = DATA[STATE.tab];
+ if (d.loading) {
+  E.contentGrid.innerHTML = '<div class="empty-state"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>جاري التحميل...</div>';
+  E.catsBar.innerHTML = "";
+  return;
+ }
+ if (!d.ok) {
+  E.contentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div style="font-size:40px;margin-bottom:12px;">&#x26A0;&#xFE0F;</div><div>تأكد من صحة البيانات</div><button class="load-more-btn" style="margin-top:16px;" onclick="retryCurrentTab()">&#x1F504; إعادة المحاولة</button></div>';
+  E.catsBar.innerHTML = "";
+  return;
+ }
+ renderCats(d.cats);
+ let items = d.items || [];
+ if (STATE.cat !== "all") items = items.filter(i => (i.category_id || "").toString() === STATE.cat);
+ if (STATE.search.length >= 2) { const q = STATE.search.toLowerCase(); items = items.filter(i => (i.name || i.title || "").toLowerCase().includes(q)); }
+ renderGrid(items);
 }
 
 window.retryCurrentTab = async function() {
-  DATA[STATE.tab].ok = false;
-  DATA[STATE.tab].error = null;
-  await loadTabData(STATE.tab);
+ DATA[STATE.tab].ok = false;
+ DATA[STATE.tab].error = null;
+ await loadTabData(STATE.tab);
 };
 
 function renderCats(cats) {
-  E.catsBar.innerHTML = "";
-  const wrapper = document.createElement("div");
-  wrapper.style.position = "relative";
-  wrapper.style.display = "inline-block";
-  const btn = document.createElement("button");
-  btn.className = "cat-dropdown-btn";
-  const activeCat = (cats || []).find(c => (c.category_id || c.id || "").toString() === STATE.cat);
-  const activeName = STATE.cat === "all" ? "كل التصنيفات" : (activeCat ? (activeCat.category_name || activeCat.name) : "تصنيف محدد");
-  btn.innerHTML = '<span>&#x1F4C2; ' + esc(activeName) + '</span><span style="font-size:10px;opacity:0.6;">&#x25BC;</span>';
-  const dropdown = document.createElement("div");
-  dropdown.className = "cat-dropdown";
-  const searchInput = document.createElement("input");
-  searchInput.type = "text";
-  searchInput.className = "cat-search";
-  searchInput.placeholder = "بحث في التصنيفات...";
-  const list = document.createElement("div");
-  list.className = "cat-list";
-  const allItem = document.createElement("div");
-  allItem.className = "cat-item" + (STATE.cat === "all" ? " active" : "");
-  allItem.textContent = "الكل";
-  allItem.addEventListener("click", () => { STATE.cat = "all"; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
-  list.appendChild(allItem);
-  (cats || []).forEach(c => {
-    const id = (c.category_id || c.id || "").toString();
-    const item = document.createElement("div");
-    item.className = "cat-item" + (STATE.cat === id ? " active" : "");
-    item.textContent = c.category_name || c.name || "بدون اسم";
-    item.addEventListener("click", () => { STATE.cat = id; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
-    list.appendChild(item);
+ E.catsBar.innerHTML = "";
+ const wrapper = document.createElement("div");
+ wrapper.style.position = "relative";
+ wrapper.style.display = "inline-block";
+ const btn = document.createElement("button");
+ btn.className = "cat-dropdown-btn";
+ const activeCat = (cats || []).find(c => (c.category_id || c.id || "").toString() === STATE.cat);
+ const activeName = STATE.cat === "all" ? "كل التصنيفات" : (activeCat ? (activeCat.category_name || activeCat.name) : "تصنيف محدد");
+ btn.innerHTML = '<span>&#x1F4C2; ' + esc(activeName) + '</span><span style="font-size:10px;opacity:0.6;">&#x25BC;</span>';
+ const dropdown = document.createElement("div");
+ dropdown.className = "cat-dropdown";
+ const searchInput = document.createElement("input");
+ searchInput.type = "text";
+ searchInput.className = "cat-search";
+ searchInput.placeholder = "بحث في التصنيفات...";
+ const list = document.createElement("div");
+ list.className = "cat-list";
+ const allItem = document.createElement("div");
+ allItem.className = "cat-item" + (STATE.cat === "all" ? " active" : "");
+ allItem.textContent = "الكل";
+ allItem.addEventListener("click", () => { STATE.cat = "all"; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
+ list.appendChild(allItem);
+ (cats || []).forEach(c => {
+  const id = (c.category_id || c.id || "").toString();
+  const item = document.createElement("div");
+  item.className = "cat-item" + (STATE.cat === id ? " active" : "");
+  item.textContent = c.category_name || c.name || "بدون اسم";
+  item.addEventListener("click", () => { STATE.cat = id; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
+  list.appendChild(item);
+ });
+ searchInput.addEventListener("input", (e) => {
+  const q = e.target.value.toLowerCase();
+  Array.from(list.children).forEach(child => {
+   if (child === allItem) { child.style.display = ""; return; }
+   child.style.display = child.textContent.toLowerCase().includes(q) ? "" : "none";
   });
-  searchInput.addEventListener("input", (e) => {
-    const q = e.target.value.toLowerCase();
-    Array.from(list.children).forEach(child => {
-      if (child === allItem) { child.style.display = ""; return; }
-      child.style.display = child.textContent.toLowerCase().includes(q) ? "" : "none";
-    });
-  });
-  btn.addEventListener("click", (e) => { e.stopPropagation(); dropdown.classList.toggle("visible"); });
-  dropdown.appendChild(searchInput);
-  dropdown.appendChild(list);
-  wrapper.appendChild(btn);
-  wrapper.appendChild(dropdown);
-  E.catsBar.appendChild(wrapper);
-  const closeDropdown = (e) => { if (!wrapper.contains(e.target)) dropdown.classList.remove("visible"); };
-  document.removeEventListener("click", closeDropdown);
-  document.addEventListener("click", closeDropdown);
+ });
+ btn.addEventListener("click", (e) => { e.stopPropagation(); dropdown.classList.toggle("visible"); });
+ dropdown.appendChild(searchInput);
+ dropdown.appendChild(list);
+ wrapper.appendChild(btn);
+ wrapper.appendChild(dropdown);
+ E.catsBar.appendChild(wrapper);
+ const closeDropdown = (e) => { if (!wrapper.contains(e.target)) dropdown.classList.remove("visible"); };
+ document.removeEventListener("click", closeDropdown);
+ document.addEventListener("click", closeDropdown);
 }
 
 function renderGrid(items) {
-  E.contentGrid.innerHTML = "";
-  if (!items.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا يوجد محتوى</div>'; return; }
-  const visible = items.slice(0, STATE.count);
-  const tab = STATE.tab;
-  visible.forEach((item, i) => {
-    const name = item.name || item.title || "بدون اسم";
-    const id = item.stream_id || item.series_id || item.id || 0;
-    const img = item.stream_icon || item.cover || item.cover_big || "";
-    const icon = tab === "live" ? "&#x1F4FA;" : tab === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
-    const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = tab; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
-    card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title line-clamp-2">' + esc(name) + '</div></div>';
-    card.addEventListener("click", () => handleClick(item, tab));
-    E.contentGrid.appendChild(card);
-  });
-  if (STATE.count < items.length) {
-    const more = document.createElement("div"); more.className = "load-more-row";
-    more.innerHTML = '<button class="load-more-btn">تحميل المزيد (' + (items.length - STATE.count) + ')</button>';
-    more.querySelector("button").addEventListener("click", () => { STATE.count += 30; renderTab(); });
-    E.contentGrid.appendChild(more);
-  }
-  lazyImg();
+ E.contentGrid.innerHTML = "";
+ if (!items.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا يوجد محتوى</div>'; return; }
+ const visible = items.slice(0, STATE.count);
+ const tab = STATE.tab;
+ visible.forEach((item, i) => {
+  const name = item.name || item.title || "بدون اسم";
+  const id = item.stream_id || item.series_id || item.id || 0;
+  const img = item.stream_icon || item.cover || item.cover_big || "";
+  const icon = tab === "live" ? "&#x1F4FA;" : tab === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
+  const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = tab; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
+  card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title line-clamp-2">' + esc(name) + '</div></div>';
+  card.addEventListener("click", () => handleClick(item, tab));
+  E.contentGrid.appendChild(card);
+ });
+ if (STATE.count < items.length) {
+  const more = document.createElement("div"); more.className = "load-more-row";
+  more.innerHTML = '<button class="load-more-btn">تحميل المزيد (' + (items.length - STATE.count) + ')</button>';
+  more.querySelector("button").addEventListener("click", () => { STATE.count += 30; renderTab(); });
+  E.contentGrid.appendChild(more);
+ }
+ lazyImg();
 }
 
 async function handleClick(item, tab) {
-  const name = item.name || item.title || "بدون اسم";
-  const id = item.stream_id || item.series_id || item.id;
-  if (tab === "series" && !STATE.seriesView) {
-    showLoad(true, "جاري جلب الحلقات...");
-    try {
-      const info = await api("get_series_info", "&series_id=" + id);
-      STATE.seriesInfo = info; STATE.seriesView = true;
-      E.backRow.classList.add("visible"); E.contentGrid.style.display = "none"; E.episodesArea.style.display = "block";
-      renderEps(info, name);
-    } catch (e) { alert("خطأ: " + e.message); }
-    showLoad(false); return;
-  }
-  const url = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
-  openPlayer(url, name, tab === "live", item);
+ const name = item.name || item.title || "بدون اسم";
+ const id = item.stream_id || item.series_id || item.id;
+ if (tab === "series" && !STATE.seriesView) {
+  showLoad(true, "جاري جلب الحلقات...");
+  try {
+   const info = await api("get_series_info", "&series_id=" + id);
+   STATE.seriesInfo = info; STATE.seriesView = true;
+   E.backRow.classList.add("visible"); E.contentGrid.style.display = "none"; E.episodesArea.style.display = "block";
+   renderEps(info, name);
+  } catch (e) { alert("خطأ: " + e.message); }
+  showLoad(false); return;
+ }
+ const url = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+ openPlayer(url, name, tab === "live", item);
 }
 
 function renderEps(info, sname) {
-  E.episodesArea.innerHTML = "";
-  const eps = info.episodes || {};
-  const seasons = {};
-  if (Array.isArray(eps)) eps.forEach(ep => { const s = ep.season || "1"; if (!seasons[s]) seasons[s] = []; seasons[s].push(ep); });
-  else if (typeof eps === "object") Object.keys(eps).forEach(k => { if (Array.isArray(eps[k])) seasons[k] = eps[k]; });
-  const keys = Object.keys(seasons).sort((a, b) => parseInt(a) - parseInt(b));
-  if (!keys.length) { E.episodesArea.innerHTML = '<div class="empty-state">لا توجد حلقات</div>'; return; }
-  keys.forEach(k => {
-    const sec = document.createElement("div"); sec.style.marginBottom = "20px";
-    sec.innerHTML = '<div class="season-title">الموسم ' + k + ' (' + seasons[k].length + ' حلقة)</div>';
-    const grid = document.createElement("div"); grid.className = "episodes-grid";
-    seasons[k].forEach(ep => {
-      const en = ep.title || ep.name || "حلقة " + ep.episode_num;
-      const btn = document.createElement("button"); btn.className = "ep-btn";
-      btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
-      btn.addEventListener("click", () => openPlayer(AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4", sname + " - " + en, false, ep));
-      grid.appendChild(btn);
-    });
-    sec.appendChild(grid); E.episodesArea.appendChild(sec);
+ E.episodesArea.innerHTML = "";
+ const eps = info.episodes || {};
+ const seasons = {};
+ if (Array.isArray(eps)) eps.forEach(ep => { const s = ep.season || "1"; if (!seasons[s]) seasons[s] = []; seasons[s].push(ep); });
+ else if (typeof eps === "object") Object.keys(eps).forEach(k => { if (Array.isArray(eps[k])) seasons[k] = eps[k]; });
+ const keys = Object.keys(seasons).sort((a, b) => parseInt(a) - parseInt(b));
+ if (!keys.length) { E.episodesArea.innerHTML = '<div class="empty-state">لا توجد حلقات</div>'; return; }
+ keys.forEach(k => {
+  const sec = document.createElement("div"); sec.style.marginBottom = "20px";
+  sec.innerHTML = '<div class="season-title">الموسم ' + k + ' (' + seasons[k].length + ' حلقة)</div>';
+  const grid = document.createElement("div"); grid.className = "episodes-grid";
+  seasons[k].forEach(ep => {
+   const en = ep.title || ep.name || "حلقة " + ep.episode_num;
+   const btn = document.createElement("button"); btn.className = "ep-btn";
+   btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
+   btn.addEventListener("click", () => openPlayer(AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4", sname + " - " + en, false, ep));
+   grid.appendChild(btn);
   });
+  sec.appendChild(grid); E.episodesArea.appendChild(sec);
+ });
 }
 
 function addToWatched(item) {
-  if (!item) return;
-  const id = (item.stream_id || item.series_id || item.id)?.toString();
-  if (!id) return;
-  WATCHED = WATCHED.filter(w => (w.stream_id || w.id)?.toString() !== id);
-  WATCHED.unshift({
-    id, name: item.name || item.title || "بدون اسم",
-    stream_icon: item.stream_icon || item.cover || "",
-    type: item.type || STATE.tab || "live",
-    stream_id: item.stream_id || item.id || null
-  });
-  if (WATCHED.length > 6) WATCHED = WATCHED.slice(0, 6);
-  try { localStorage.setItem("rp_w", JSON.stringify(WATCHED)); } catch(e) {}
+ if (!item) return;
+ const id = (item.stream_id || item.series_id || item.id)?.toString();
+ if (!id) return;
+ WATCHED = WATCHED.filter(w => (w.stream_id || w.id)?.toString() !== id);
+ WATCHED.unshift({
+  id, name: item.name || item.title || "بدون اسم",
+  stream_icon: item.stream_icon || item.cover || "",
+  type: item.type || STATE.tab || "live",
+  stream_id: item.stream_id || item.id || null
+ });
+ if (WATCHED.length > 6) WATCHED = WATCHED.slice(0, 6);
+ try { localStorage.setItem("rp_w", JSON.stringify(WATCHED)); } catch(e) {}
 }
 
 function showWatched() {
-  E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === "watched"));
-  E.catsBar.innerHTML = ""; E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
-  if (!WATCHED.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا توجد مشاهدات حديثة</div>'; return; }
-  WATCHED.forEach((item, i) => {
-    const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = item.type || "live"; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
-    const name = item.name || "بدون اسم"; const img = item.stream_icon || "";
-    const icon = item.type === "live" ? "&#x1F4FA;" : item.type === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
-    card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
-    card.addEventListener("click", () => {
-      const url = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
-      openPlayer(url, name, item.type === "live", item);
-    });
-    E.contentGrid.appendChild(card);
+ E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === "watched"));
+ E.catsBar.innerHTML = ""; E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
+ if (!WATCHED.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا توجد مشاهدات حديثة</div>'; return; }
+ WATCHED.forEach((item, i) => {
+  const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = item.type || "live"; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
+  const name = item.name || "بدون اسم"; const img = item.stream_icon || "";
+  const icon = item.type === "live" ? "&#x1F4FA;" : item.type === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
+  card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
+  card.addEventListener("click", () => {
+   const url = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
+   openPlayer(url, name, item.type === "live", item);
   });
-  lazyImg();
+  E.contentGrid.appendChild(card);
+ });
+ lazyImg();
 }
 
 function lazyImg() {
-  const imgs = document.querySelectorAll("img.lazy");
-  if (!imgs.length) return;
-  const obs = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const img = entry.target; const src = img.dataset.src;
-        if (src) { img.src = src; img.onload = () => img.classList.add("loaded"); img.onerror = () => { img.style.opacity = "0"; const icon = img.parentElement.querySelector(".card-icon"); if(icon) icon.style.opacity = "0.4"; }; }
-        img.classList.remove("lazy"); obs.unobserve(img);
-      }
-    });
-  }, { rootMargin: "100px" });
-  imgs.forEach(img => obs.observe(img));
+ const imgs = document.querySelectorAll("img.lazy");
+ if (!imgs.length) return;
+ const obs = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+   if (entry.isIntersecting) {
+    const img = entry.target; const src = img.dataset.src;
+    if (src) { img.src = src; img.onload = () => img.classList.add("loaded"); img.onerror = () => { img.style.opacity = "0"; const icon = img.parentElement.querySelector(".card-icon"); if(icon) icon.style.opacity = "0.4"; }; }
+    img.classList.remove("lazy"); obs.unobserve(img);
+   }
+  });
+ }, { rootMargin: "100px" });
+ imgs.forEach(img => obs.observe(img));
 }
 
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function showLoad(v, t) { E.loadingOverlay.hidden = !v; if (t) E.loadingText.textContent = t; }
 
 function initPlayer() {
-  E.playerClose.addEventListener("click", closePlayer);
-  E.bigPlayBtn.addEventListener("click", togglePlay);
-  E.playPauseBtn.addEventListener("click", e => { e.stopPropagation(); togglePlay(); });
-  E.downloadBtn.addEventListener("click", e => { e.stopPropagation(); downloadCurrent(); });
-  E.fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFs(); });
-  E.pipBtn.addEventListener("click", e => { e.stopPropagation(); togglePiP(); });
+ E.playerClose.addEventListener("click", closePlayer);
+ E.bigPlayBtn.addEventListener("click", togglePlay);
+ E.playPauseBtn.addEventListener("click", e => { e.stopPropagation(); togglePlay(); });
+ E.downloadBtn.addEventListener("click", e => { e.stopPropagation(); downloadCurrent(); });
+ E.fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFs(); });
+ E.pipBtn.addEventListener("click", e => { e.stopPropagation(); togglePiP(); });
 
-  function seek(clientX) {
-    if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
-    const rect = E.progressWrap.getBoundingClientRect();
-    let pct = (clientX - rect.left) / rect.width;
-    pct = Math.max(0, Math.min(1, pct));
-    E.progressFill.style.width = (pct * 100) + "%";
-    if (E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
-  }
-  E.progressWrap.addEventListener("click", e => seek(e.clientX));
-  let isSeeking = false;
-  E.progressWrap.addEventListener("touchstart", e => { isSeeking = true; seek(e.touches[0].clientX); }, {passive:true});
-  E.progressWrap.addEventListener("touchmove", e => { if(isSeeking) { e.preventDefault(); seek(e.touches[0].clientX); } }, {passive:false});
-  E.progressWrap.addEventListener("touchend", () => { isSeeking = false; });
+ function seek(clientX) {
+  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+  const rect = E.progressWrap.getBoundingClientRect();
+  let pct = (clientX - rect.left) / rect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  E.progressFill.style.width = (pct * 100) + "%";
+  if (E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
+ }
+ E.progressWrap.addEventListener("click", e => seek(e.clientX));
+ let isSeeking = false;
+ E.progressWrap.addEventListener("touchstart", e => { isSeeking = true; seek(e.touches[0].clientX); }, {passive:true});
+ E.progressWrap.addEventListener("touchmove", e => { if(isSeeking) { e.preventDefault(); seek(e.touches[0].clientX); } }, {passive:false});
+ E.progressWrap.addEventListener("touchend", () => { isSeeking = false; });
 
-  E.playerVideo.addEventListener("timeupdate", updateProg);
-  E.playerVideo.addEventListener("play", () => { setPlayIcon(true); E.bigPlayBtn.classList.add("hidden"); });
-  E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); E.bigPlayBtn.classList.remove("hidden"); });
-  E.playerVideo.addEventListener("waiting", () => E.playerLoader.classList.remove("hidden"));
-  E.playerVideo.addEventListener("playing", () => E.playerLoader.classList.add("hidden"));
+ E.playerVideo.addEventListener("timeupdate", updateProg);
+ E.playerVideo.addEventListener("play", () => { setPlayIcon(true); E.bigPlayBtn.classList.add("hidden"); });
+ E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); E.bigPlayBtn.classList.remove("hidden"); });
+ E.playerVideo.addEventListener("waiting", () => E.playerLoader.classList.remove("hidden"));
+ E.playerVideo.addEventListener("playing", () => E.playerLoader.classList.add("hidden"));
 
-  E.playerVideo.addEventListener("click", e => {
-    e.stopPropagation();
-    const rect = E.playerVideo.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const w = rect.width;
-    if (x < w * 0.3) { E.playerVideo.currentTime -= 10; showHint("-10s &#x23EA;"); }
-    else if (x > w * 0.7) { E.playerVideo.currentTime += 10; showHint("+10s &#x23E9;"); }
-    else { togglePlay(); }
-  });
+ E.playerVideo.addEventListener("click", e => {
+  e.stopPropagation();
+  const rect = E.playerVideo.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const w = rect.width;
+  if (x < w * 0.3) { E.playerVideo.currentTime -= 10; showHint("-10s &#x23EA;"); }
+  else if (x > w * 0.7) { E.playerVideo.currentTime += 10; showHint("+10s &#x23E9;"); }
+  else { togglePlay(); }
+ });
 
-  E.playerOverlay.addEventListener("mousemove", showControls);
+ E.playerOverlay.addEventListener("mousemove", showControls);
 }
 
 function setPlayIcon(playing) {
-  const playIcon = document.getElementById("playIcon");
-  const pauseIcon = document.getElementById("pauseIcon");
-  if (playIcon && pauseIcon) {
-    playIcon.style.display = playing ? "none" : "block";
-    pauseIcon.style.display = playing ? "block" : "none";
-  }
+ const playIcon = document.getElementById("playIcon");
+ const pauseIcon = document.getElementById("pauseIcon");
+ if (playIcon && pauseIcon) {
+  playIcon.style.display = playing ? "none" : "block";
+  pauseIcon.style.display = playing ? "block" : "none";
+ }
 }
 
 function openPlayer(url, name, live, item) {
-  window.CURRENT_ITEM = item || null;
-  if (item) addToWatched(item);
-  E.playerOverlay.style.display = "flex"; 
-  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
-  document.body.style.overflow = "hidden";
-  E.playerTitle.textContent = name || "...";
-  E.liveBadge.style.display = "none";
-  E.downloadBtn.style.display = live ? "none" : "flex";
-  E.playerLoader.classList.remove("hidden"); E.bigPlayBtn.classList.remove("hidden");
+ window.CURRENT_ITEM = item || null;
+ if (item) addToWatched(item);
+ E.playerOverlay.style.display = "flex"; 
+ requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
+ document.body.style.overflow = "hidden";
+ E.playerTitle.textContent = name || "...";
+ E.liveBadge.style.display = "none";
+ E.downloadBtn.style.display = live ? "none" : "flex";
+ E.playerLoader.classList.remove("hidden"); E.bigPlayBtn.classList.remove("hidden");
 
-  if (HLS) { HLS.destroy(); HLS = null; }
-  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
+ if (HLS) { HLS.destroy(); HLS = null; }
+ E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
 
-  if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
-    HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
-    HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
-    HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-      E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
-      E.playerVideo.play().catch(() => {});
-    });
-    HLS.on(Hls.Events.ERROR, (e, d) => { 
-      if (d.fatal) { 
-        if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad(); 
-        else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError(); 
-        else { HLS.destroy(); HLS = null; } 
-      } 
-    });
-  } else {
-    E.playerVideo.src = url; 
-    E.playerVideo.play().catch(() => {});
-    E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
-  }
-  showControls();
+ if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
+  HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+  HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
+  HLS.on(Hls.Events.MANIFEST_PARSED, () => {
+   E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
+   E.playerVideo.play().catch(() => {});
+  });
+  HLS.on(Hls.Events.ERROR, (e, d) => { 
+   if (d.fatal) { 
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad(); 
+    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError(); 
+    else { HLS.destroy(); HLS = null; } 
+   } 
+  });
+ } else {
+  E.playerVideo.src = url; 
+  E.playerVideo.play().catch(() => {});
+  E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
+ }
+ showControls();
 }
 
 function closePlayer() {
-  E.playerOverlay.classList.remove("visible");
-  setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
-  if (HLS) { HLS.destroy(); HLS = null; }
-  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+ E.playerOverlay.classList.remove("visible");
+ setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
+ if (HLS) { HLS.destroy(); HLS = null; }
+ E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
+ if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
 function togglePlay() { if (!E.playerVideo) return; E.playerVideo.paused ? E.playerVideo.play().catch(() => {}) : E.playerVideo.pause(); }
 function toggleFs() {
-  if (!E.playerVideo) return;
-  try {
-    const doc = document;
-    const el = E.playerVideo;
-    if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
-      if (doc.exitFullscreen) doc.exitFullscreen().catch(()=>{});
-      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
-      else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
-      else if (doc.msExitFullscreen) doc.msExitFullscreen();
-    } else {
-      if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-      else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
-      else if (el.msRequestFullscreen) el.msRequestFullscreen();
-    }
-  } catch(e) {}
+ if (!E.playerVideo) return;
+ try {
+  const doc = document;
+  const el = E.playerVideo;
+  if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
+   if (doc.exitFullscreen) doc.exitFullscreen().catch(()=>{});
+   else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+   else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
+   else if (doc.msExitFullscreen) doc.msExitFullscreen();
+  } else {
+   if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+   else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+   else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+   else if (el.msRequestFullscreen) el.msRequestFullscreen();
+  }
+ } catch(e) {}
 }
 async function togglePiP() { if (!E.playerVideo) return; try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await E.playerVideo.requestPictureInPicture(); } catch (e) {} }
 
 function downloadCurrent() {
-  if (!window.CURRENT_ITEM) return;
-  const item = window.CURRENT_ITEM;
-  const tab = item.type || STATE.tab || "live";
-  const id = item.stream_id || item.series_id || item.id;
-  let url;
-  if (tab === "live") url = AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8";
-  else if (tab === "vod") url = AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
-  else url = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+ if (!window.CURRENT_ITEM) return;
+ const item = window.CURRENT_ITEM;
+ const tab = item.type || STATE.tab || "live";
+ const id = item.stream_id || item.series_id || item.id;
+ let url;
+ if (tab === "live") url = AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8";
+ else if (tab === "vod") url = AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+ else url = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
 
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = (item.name || item.title || 'video').replace(/[^a-z0-9\u0600-\u06FF]/gi, '_') + (tab === 'live' ? '.m3u8' : '.mp4');
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = (item.name || item.title || 'video').replace(/[^a-z0-9\u0600-\u06FF]/gi, '_') + (tab === 'live' ? '.m3u8' : '.mp4');
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
 }
 
 function updateProg() {
-  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
-  const pct = (E.playerVideo.currentTime / E.playerVideo.duration) * 100;
-  E.progressFill.style.width = pct + "%";
-  E.timeDisplay.textContent = fmt(E.playerVideo.currentTime) + " / " + fmt(E.playerVideo.duration || 0);
+ if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+ const pct = (E.playerVideo.currentTime / E.playerVideo.duration) * 100;
+ E.progressFill.style.width = pct + "%";
+ E.timeDisplay.textContent = fmt(E.playerVideo.currentTime) + " / " + fmt(E.playerVideo.duration || 0);
 }
 function fmt(s) { if (!isFinite(s)) return "0:00"; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = Math.floor(s % 60); if (h > 0) return h + ":" + m.toString().padStart(2, "0") + ":" + sec.toString().padStart(2, "0"); return m + ":" + sec.toString().padStart(2, "0"); }
 
 let ctrlTimer;
 function showControls() {
-  E.playerHeader.classList.remove("hidden"); E.playerControls.classList.remove("hidden"); E.bigPlayBtn.classList.add("hidden");
-  clearTimeout(ctrlTimer);
-  ctrlTimer = setTimeout(() => { if (E.playerVideo && !E.playerVideo.paused) { E.playerHeader.classList.add("hidden"); E.playerControls.classList.add("hidden"); } }, 3000);
+ E.playerHeader.classList.remove("hidden"); E.playerControls.classList.remove("hidden"); E.bigPlayBtn.classList.add("hidden");
+ clearTimeout(ctrlTimer);
+ ctrlTimer = setTimeout(() => { if (E.playerVideo && !E.playerVideo.paused) { E.playerHeader.classList.add("hidden"); E.playerControls.classList.add("hidden"); } }, 3000);
 }
 
 function initKeyboard() {
-  document.addEventListener("keydown", e => {
-    if (E.playerOverlay.style.display !== "flex") return;
-    if (e.target.tagName === "INPUT") return;
-    switch (e.key) {
-      case "Escape": case "Backspace": e.preventDefault(); closePlayer(); break;
-      case " ": case "k": e.preventDefault(); togglePlay(); showHint("&#x25B6;/&#x23F8;"); break;
-      case "f": e.preventDefault(); toggleFs(); showHint("&#x26F6;"); break;
-      case "ArrowRight": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime += 10; showHint("+10s"); break;
-      case "ArrowLeft": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime -= 10; showHint("-10s"); break;
-      case "ArrowUp": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.min(1, E.playerVideo.volume + 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
-      case "ArrowDown": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.max(0, E.playerVideo.volume - 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
-    }
-  });
+ document.addEventListener("keydown", e => {
+  if (E.playerOverlay.style.display !== "flex") return;
+  if (e.target.tagName === "INPUT") return;
+  switch (e.key) {
+   case "Escape": case "Backspace": e.preventDefault(); closePlayer(); break;
+   case " ": case "k": e.preventDefault(); togglePlay(); showHint("&#x25B6;/&#x23F8;"); break;
+   case "f": e.preventDefault(); toggleFs(); showHint("&#x26F6;"); break;
+   case "ArrowRight": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime += 10; showHint("+10s"); break;
+   case "ArrowLeft": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime -= 10; showHint("-10s"); break;
+   case "ArrowUp": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.min(1, E.playerVideo.volume + 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
+   case "ArrowDown": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.max(0, E.playerVideo.volume - 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
+  }
+ });
 }
 
 let hintT;
@@ -815,17 +821,17 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 // Kill any browser-native install prompts
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 (function(){
-  const kill = (node) => {
-    const t = node.textContent || '';
-    if (t.includes('يُعرض موقع') || t.includes('يعرض موقع') || t.includes('لتثبيت التطبيق') || t.includes('Add to Home Screen') || t.includes('حسناً') || t.includes('Chrome')) {
-      let p = node;
-      while (p && p !== document.body && (!p.style || p.style.position !== 'fixed')) p = p.parentElement;
-      if (p && p !== document.body) { p.remove(); return true; }
-    }
-    return false;
-  };
-  document.querySelectorAll('*').forEach(el => kill(el));
-  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType===1) kill(n); }))).observe(document.body, {childList:true, subtree:true});
+ const kill = (node) => {
+  const t = node.textContent || '';
+  if (t.includes('يُعرض موقع') || t.includes('يعرض موقع') || t.includes('لتثبيت التطبيق') || t.includes('Add to Home Screen') || t.includes('حسناً') || t.includes('Chrome')) {
+   let p = node;
+   while (p && p !== document.body && (!p.style || p.style.position !== 'fixed')) p = p.parentElement;
+   if (p && p !== document.body) { p.remove(); return true; }
+  }
+  return false;
+ };
+ document.querySelectorAll('*').forEach(el => kill(el));
+ new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType===1) kill(n); }))).observe(document.body, {childList:true, subtree:true});
 })();
 </script>
 </body>
