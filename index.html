@@ -204,7 +204,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    </div>
   </div>
   <div class="header-actions">
-   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
+   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق" style="display:none;"><span>&#x2B07;</span> تثبيت</button>
    <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
   </div>
  </header>
@@ -346,54 +346,102 @@ function init() {
 }
 
 function initInstallPrompt() {
+  // إخفاء زر التثبيت افتراضياً
+  E.installHeaderBtn.style.display = 'none';
+
   window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('beforeinstallprompt fired');
+    // ⬅️ منع السلوك الافتراضي (إلزامي)
     e.preventDefault();
     deferredPrompt = e;
-    console.log('beforeinstallprompt captured');
+
+    // إظهار زر التثبيت في الهيدر فقط إذا لم يكن مثبتاً
+    if (!isStandalone()) {
+      E.installHeaderBtn.style.display = 'inline-flex';
+    }
   });
+
   window.addEventListener('appinstalled', () => {
+    console.log('App installed successfully');
     deferredPrompt = null;
+    E.installHeaderBtn.style.display = 'none';
     hideInstallPrompt();
-    console.log('App installed');
   });
+
+  // زر التثبيت في الهيدر
   E.installHeaderBtn.addEventListener('click', () => {
     if (deferredPrompt) {
       showInstallPrompt();
     } else {
-      // Show manual instructions if native prompt not available
       showInstallPrompt();
       setTimeout(showManualInstallGuide, 300);
     }
   });
-  E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
+
+  E.installCancel.addEventListener('click', hideInstallPrompt);
+
   E.installConfirm.addEventListener('click', async () => {
     if (!deferredPrompt) {
       showManualInstallGuide();
       return;
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    if (outcome === 'accepted') {
-      hideInstallPrompt();
+
+    try {
+      // ⬅️ إظهار مربع حوار التثبيت الأصلي
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('Install outcome:', outcome);
+
+      // ⬅️ مسح الحدث (لا يمكن استخدامه مرة أخرى)
+      deferredPrompt = null;
+
+      if (outcome === 'accepted') {
+        hideInstallPrompt();
+        E.installHeaderBtn.style.display = 'none';
+      } else {
+        hideInstallPrompt();
+      }
+    } catch (err) {
+      console.error('Prompt error:', err);
+      showManualInstallGuide();
     }
   });
+
+  // التحقق إذا كان التطبيق مثبتاً بالفعل
+  if (isStandalone()) {
+    E.installHeaderBtn.style.display = 'none';
+  }
 }
+
 function showManualInstallGuide() {
   const infoDiv = document.querySelector('.install-app-info');
   if (!infoDiv) return;
   infoDiv.querySelectorAll('.install-msg').forEach(el => el.remove());
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isAndroid = /Android/.test(navigator.userAgent);
-  let msgText = isIOS ? 'Safari: اضغط زر المشاركة ⬆️ ثم "Add to Home Screen"' : isAndroid ? 'Chrome: اضغط القائمة ⋮ ثم "Add to Home screen"' : 'اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع';
+
+  const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroidDevice = /Android/.test(navigator.userAgent);
+  let msgText = isIOSDevice 
+    ? 'Safari: اضغط زر المشاركة ⬆️ ثم "Add to Home Screen"' 
+    : isAndroidDevice 
+      ? 'Chrome: اضغط القائمة ⋮ ثم "Add to Home screen"' 
+      : 'اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع';
+
   const msg = document.createElement('div');
   msg.className = 'install-msg';
   msg.style.cssText = 'color:#f59e0b;font-size:13px;margin-top:12px;text-align:center;line-height:1.6;padding:8px;background:rgba(245,158,11,0.1);border-radius:8px;';
   msg.textContent = msgText;
   infoDiv.appendChild(msg);
 }
-function showInstallPrompt() { E.installOverlay.classList.add('show'); document.body.style.overflow = 'hidden'; }
-function hideInstallPrompt() { E.installOverlay.classList.remove('show'); document.body.style.overflow = ''; }
+
+function showInstallPrompt() { 
+  E.installOverlay.classList.add('show'); 
+  document.body.style.overflow = 'hidden'; 
+}
+
+function hideInstallPrompt() { 
+  E.installOverlay.classList.remove('show'); 
+  document.body.style.overflow = ''; 
+}
 
 function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
 
