@@ -339,32 +339,40 @@ function init() {
 }
 
 function initInstallPrompt() {
- window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
- });
- window.addEventListener('appinstalled', () => {
-  deferredPrompt = null;
- });
- E.installHeaderBtn.addEventListener('click', () => {
-  showInstallPrompt();
- });
- E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
- E.installConfirm.addEventListener('click', async () => {
-  if (!deferredPrompt) { 
-   // Show message in overlay instead of alert
-   const infoDiv = document.querySelector('.install-app-info');
-   const msg = document.createElement('div');
-   msg.style.cssText = 'color:#f59e0b;font-size:12px;margin-top:8px;text-align:center;';
-   msg.textContent = 'التثبيت غير متاح حالياً. جرب Chrome على Android أو Safari على iOS.';
-   if (!infoDiv.querySelector('[style*="f59e0b"]')) infoDiv.appendChild(msg);
-   return; 
-  }
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  hideInstallPrompt();
- });
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    hideInstallPrompt();
+  });
+  E.installHeaderBtn.addEventListener('click', () => {
+    showInstallPrompt();
+  });
+  E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
+  E.installConfirm.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (outcome === 'accepted') { hideInstallPrompt(); return; }
+    }
+    showManualInstallGuide();
+  });
+}
+function showManualInstallGuide() {
+  const infoDiv = document.querySelector('.install-app-info');
+  if (!infoDiv) return;
+  infoDiv.querySelectorAll('.install-msg').forEach(el => el.remove());
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  let msgText = isIOS ? 'Safari: اضغط زر المشاركة ⬆️ ثم "Add to Home Screen"' : isAndroid ? 'Chrome: اضغط القائمة ⋮ ثم "Add to Home screen"' : 'اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع';
+  const msg = document.createElement('div');
+  msg.className = 'install-msg';
+  msg.style.cssText = 'color:#f59e0b;font-size:13px;margin-top:12px;text-align:center;line-height:1.6;padding:8px;background:rgba(245,158,11,0.1);border-radius:8px;';
+  msg.textContent = msgText;
+  infoDiv.appendChild(msg);
 }
 function showInstallPrompt() { E.installOverlay.classList.add('show'); document.body.style.overflow = 'hidden'; }
 function hideInstallPrompt() { E.installOverlay.classList.remove('show'); document.body.style.overflow = ''; }
