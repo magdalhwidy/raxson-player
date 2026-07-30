@@ -597,8 +597,9 @@ async function handleClick(item, tab) {
   } catch (e) { alert("خطأ: " + e.message); }
   showLoad(false); return;
  }
- const url = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
- openPlayer(url, name, tab === "live", item);
+ const streamUrl = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+ const proxyUrl = "/stream?url=" + encodeURIComponent(streamUrl);
+ openPlayer(proxyUrl, name, tab === "live", item);
 }
 
 function renderEps(info, sname) {
@@ -617,7 +618,8 @@ function renderEps(info, sname) {
    const en = ep.title || ep.name || "حلقة " + ep.episode_num;
    const btn = document.createElement("button"); btn.className = "ep-btn";
    btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
-   btn.addEventListener("click", () => openPlayer(AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4", sname + " - " + en, false, ep));
+   const epStreamUrl = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4";
+    btn.addEventListener("click", () => openPlayer("/stream?url=" + encodeURIComponent(epStreamUrl), sname + " - " + en, false, ep));
    grid.appendChild(btn);
   });
   sec.appendChild(grid); E.episodesArea.appendChild(sec);
@@ -649,8 +651,8 @@ function showWatched() {
   const icon = item.type === "live" ? "&#x1F4FA;" : item.type === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
   card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
   card.addEventListener("click", () => {
-   const url = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
-   openPlayer(url, name, item.type === "live", item);
+   const streamUrl = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
+   openPlayer("/stream?url=" + encodeURIComponent(streamUrl), name, item.type === "live", item);
   });
   E.contentGrid.appendChild(card);
  });
