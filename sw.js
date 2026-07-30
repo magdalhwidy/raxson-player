@@ -1,17 +1,32 @@
-const CACHE_NAME = 'raxson-v5';
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/images/logo1.png'];
+const CACHE_NAME = 'raxson-v6';
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/images/logo1.png'
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return Promise.all(
+        STATIC_ASSETS.map((url) =>
+          cache.add(url).catch((err) => {
+            console.log('SW cache skip:', url, err);
+          })
+        )
+      );
+    })
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then(keys => 
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
@@ -20,29 +35,31 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
 
-  // API calls — don't cache
+  // API calls - network only
   if (request.url.includes('player_api.php') || request.url.includes('/api')) {
-    e.respondWith(fetch(request).catch(() => caches.match(request)));
+    e.respondWith(fetch(request));
     return;
   }
 
-  // External images (stream icons) — pass through without caching
+  // External images - network only
   if (request.url.startsWith('http') && !request.url.includes(self.location.origin)) {
     e.respondWith(fetch(request));
     return;
   }
 
-  // Everything else — cache first
+  // Static assets - cache first
   e.respondWith(
-    caches.match(request).then(cached => {
+    caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(request).then(response => {
-        if (request.method === 'GET' && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(c => c.put(request, clone));
-        }
-        return response;
-      }).catch(() => cached);
+      return fetch(request)
+        .then((response) => {
+          if (request.method === 'GET' && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached);
     })
   );
 });
