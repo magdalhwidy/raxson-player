@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="./images/logo1.png">
+<title>Raxson Player</title>
+<style>
+:root{
+  --c-p:#e91e63;--c-p-d:#c2185b;--c-bg:#0a0a0f;--c-sf:#14141f;
+  --c-t:#fff;--c-t2:#a0a0b0;--c-tm:#6a6a7a;--c-ok:#00ff99;
+  --g-bg:rgba(255,255,255,0.03);--g-b:rgba(255,255,255,0.08);
+  --r-md:12px;--r-lg:16px;--r-xl:20px;--tr:250ms cubic-bezier(0.4,0,0.2,1);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden}
+
+/* shasha tsejel dukhool */
+.login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;background:radial-gradient(ellipse at 20% 20%,rgba(233,30,99,0.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,255,208,0.05) 0%,transparent 50%),var(--c-bg)}
+.neon-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,255,208,0.99);opacity:0.15;animation:pr 4s ease-in-out infinite;pointer-events:none}
+.ring-1{width:500px;height:500px;top:-150px;left:-150px}.ring-2{width:400px;height:400px;bottom:-100px;right:-100px;animation-delay:2s}
+@keyframes pr{0%,100%{transform:scale(1);opacity:0.15}50%{transform:scale(1.05);opacity:0.25}}
+.login-glass{position:relative;width:100%;max-width:380px;background:var(--g-bg);border:1px solid var(--g-b);border-radius:var(--r-xl);padding:24px;backdrop-filter:blur(20px);box-shadow:0 4px 24px rgba(0,0,0,0.5),0 0 60px rgba(233,30,99,0.05);animation:su 0.6s both}
+@keyframes su{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.login-brand{text-align:center;margin-bottom:24px}
+.login-logo{width:72px;height:auto;margin:0 auto 8px;border-radius:var(--r-lg);display:block;object-fit:contain}
+.login-brand h1{font-size:24px;font-weight:700;color:var(--c-p)}
+.login-form{display:flex;flex-direction:column;gap:16px}
+.input-group{display:flex;flex-direction:column;gap:4px}
+.input-group label{font-size:11px;color:var(--c-t2);font-weight:600}
+.input-field{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--g-b);border-radius:var(--r-md);padding:13px 16px;color:var(--c-t);font-size:15px;transition:border-color 150ms,box-shadow 150ms}
+.input-field::placeholder{color:var(--c-tm)}.input-field:focus{border-color:var(--c-p);box-shadow:0 0 0 3px rgba(233,30,99,0.15)}
+.save-row{display:flex;justify-content:flex-start;margin:4px 0}
+.checkbox-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--c-t2);user-select:none}
+.checkbox-label input{width:18px;height:18px;accent-color:var(--c-p);cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--r-md);padding:14px 24px;font-size:15px;font-weight:700;cursor:pointer;transition:all 150ms;border:none}
+.btn-primary{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 25px rgba(233,30,99,0.18)}
+.btn-loader{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.login-error{min-height:20px;text-align:center;font-size:13px;color:#ff3366;opacity:0;transition:opacity 150ms}.login-error.show{opacity:1}
+.login-log{text-align:center;font-size:11px;color:var(--c-tm);min-height:16px}
+
+/* attabeq ar-raeesi */
+.app-container{display:none;height:100vh;flex-direction:column;overflow:hidden}
+.app-container.active{display:flex}
+.app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.header-brand{display:flex;align-items:center;gap:8px}
+.brand-logo{height:36px;width:auto;border-radius:8px;object-fit:contain}
+.header-brand h1{font-size:18px;color:var(--c-p);font-weight:700}
+.header-status{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--c-tm)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--c-ok);box-shadow:0 0 6px var(--c-ok)}
+.icon-btn{width:36px;height:36px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t2);font-size:16px;transition:all 150ms}
+.icon-btn:hover{background:rgba(233,30,99,0.1);border-color:rgba(233,30,99,0.3);color:var(--c-p)}
+.tabs-bar{display:flex;gap:4px;padding:10px 16px;overflow-x:auto;border-bottom:1px solid var(--g-b);background:rgba(10,10,15,0.8);scrollbar-width:none}
+.tabs-bar::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;padding:9px 18px;border-radius:9999px;background:var(--g-bg);border:1px solid var(--g-b);font-size:13px;color:var(--c-tm);font-weight:600;cursor:pointer;transition:all 150ms;white-space:nowrap}
+.tab-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:var(--c-t2)}
+.tab-btn.active{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));border-color:transparent;color:#fff;box-shadow:0 0 25px rgba(233,30,99,0.18)}
+.search-wrap{padding:8px 16px}
+.search-field{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--g-b);border-radius:var(--r-lg);padding:11px 16px;color:var(--c-t);font-size:13px;transition:border-color 150ms,box-shadow 150ms}
+.search-field::placeholder{color:var(--c-tm)}.search-field:focus{border-color:var(--c-p);box-shadow:0 0 0 3px rgba(233,30,99,0.1)}
+.cats-bar{display:flex;padding:0 16px 8px;position:relative;z-index:30}
+.back-row{display:none;padding:4px 16px}.back-row.visible{display:block}
+.back-btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:var(--r-md);background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t);font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}
+.back-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15)}
+.content-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 24px}
+.content-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(min-width:500px){.content-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:700px){.content-grid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:900px){.content-grid{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:1200px){.content-grid{grid-template-columns:repeat(6,1fr)}}
+.content-card{background:var(--c-sf);border:1px solid var(--g-b);border-radius:var(--r-lg);overflow:hidden;cursor:pointer;transition:transform 150ms,box-shadow 150ms;animation:fu 0.4s ease both}
+@keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.content-card:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 0 30px rgba(0,255,208,0.12),0 4px 24px rgba(0,0,0,0.5);border-color:rgba(0,255,208,0.25)}
+.card-thumb{width:100%;aspect-ratio:16/9;background:#111;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.content-card[data-tab="vod"] .card-thumb,.content-card[data-tab="series"] .card-thumb{aspect-ratio:2/3}
+.card-img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.4s,transform 0.6s}.card-img.loaded{opacity:1}
+.content-card:hover .card-img{transform:scale(1.08)}
+.card-icon{position:absolute;font-size:28px;opacity:0.15;pointer-events:none}
+.card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,10,15,0.8),transparent 60%);opacity:0;transition:opacity 150ms}.content-card:hover .card-overlay{opacity:1}
+.card-info{padding:10px 12px}.card-title{font-size:11px;line-height:1.4;color:var(--c-t);font-weight:600}
+.empty-state{grid-column:1/-1;text-align:center;padding:24px;color:var(--c-tm);font-size:13px}
+.load-more-row{grid-column:1/-1;text-align:center;padding:16px}
+.load-more-btn{display:inline-flex;align-items:center;gap:8px;background:var(--c-p);border:none;border-radius:var(--r-md);padding:12px 28px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}.load-more-btn:hover{transform:translateY(-1px);box-shadow:0 0 25px rgba(233,30,99,0.18)}
+.episodes-area{display:none;padding:0 16px 24px}.episodes-area.visible{display:block}
+.season-title{font-size:13px;font-weight:700;color:#3b82f6;margin-bottom:10px;padding-right:8px;border-right:3px solid #3b82f6}
+.episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.ep-btn{background:rgba(255,255,255,0.03);border:1px solid var(--g-b);border-radius:10px;padding:12px;text-align:right;color:#fff;cursor:pointer;transition:all 200ms}.ep-btn:hover{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3)}.ep-btn:active{transform:scale(0.98)}
+
+/* mushaghil al-fidyoo */
+.player-overlay{position:fixed;inset:0;background:#000;z-index:99;display:none;flex-direction:column;animation:fi 0.3s ease}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.player-overlay.visible{display:flex}
+.player-header{position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent);z-index:10;transition:opacity 0.3s}.player-header.hidden{opacity:0;pointer-events:none}
+.player-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin-left:16px;color:var(--c-t);text-shadow:0 1px 4px rgba(0,0,0,0.8)}
+.player-close{width:36px;height:36px;border-radius:9999px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(8px)}.player-close:hover{background:#ff3366;border-color:#ff3366;transform:scale(1.05)}
+.player-video{flex:1;width:100%;height:100%;background:#000;object-fit:contain}
+.big-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:50px;border-radius:14px;background:var(--c-p);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;z-index:8;box-shadow:0 0 25px rgba(233,30,99,0.18)}.big-play:hover{transform:translate(-50%,-50%) scale(1.1);background:var(--c-p-d)}.big-play.hidden{opacity:0;pointer-events:none}
+.player-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none}.player-loader.hidden{display:none}.player-loader div{width:48px;height:48px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}
+.gesture-hint{position:absolute;top:50%;transform:translateY(-50%);padding:12px 20px;background:rgba(0,0,0,0.6);border-radius:var(--r-lg);font-size:18px;color:#fff;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:15}.gesture-hint.show{opacity:1}.gesture-hint.left{left:20px}.gesture-hint.right{right:20px}
+.player-controls{position:absolute;bottom:0;left:0;right:0;padding:20px 16px 16px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);display:flex;flex-direction:column;gap:8px;z-index:10;transition:opacity 0.3s}.player-controls.hidden{opacity:0;pointer-events:none}
+.progress-wrap{width:100%;height:6px;background:rgba(255,255,255,0.2);border-radius:9999px;cursor:pointer;position:relative;touch-action:none}.progress-fill{height:100%;background:var(--c-p);border-radius:9999px;width:0%;transition:width 0.1s linear;position:relative}.progress-fill::after{content:"";position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--c-p);border-radius:50%;box-shadow:0 0 10px var(--c-p);opacity:0;transition:opacity 0.2s}.progress-wrap:hover .progress-fill::after,.progress-wrap:active .progress-fill::after{opacity:1}
+.controls-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.controls-left,.controls-right{display:flex;align-items:center;gap:4px}
+.ctrl-btn{width:40px;height:40px;border-radius:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(4px)}.ctrl-btn:hover{background:var(--c-p);border-color:var(--c-p);transform:scale(1.1);box-shadow:0 0 25px rgba(233,30,99,0.18)}
+.ctrl-btn.play-btn{width:auto;height:auto;background:transparent;border:none;padding:8px}.ctrl-btn.play-btn:hover{transform:scale(1.2);background:transparent;border:none;box-shadow:none}
+.time-display{font-size:11px;color:rgba(255,255,255,0.8);font-variant-numeric:tabular-nums;direction:ltr}
+.ctrl-btn.download-btn{color:#3b82f6}.ctrl-btn.download-btn:hover{color:#3b82f6;transform:scale(1.1);background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3)}
+.live-badge{position:absolute;top:12px;left:12px;background:#ff3366;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;z-index:5;display:none;align-items:center;gap:6px;animation:pu 2s infinite}.live-badge::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%}@keyframes pu{0%,100%{opacity:1}50%{opacity:0.7}}
+.loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.9);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:90}.loading-overlay[hidden]{display:none}.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}.loading-text{font-size:13px;color:var(--c-t2)}
+
+/* nafidhat tathbeet attabeq al-mukhasassa */
+.install-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 300ms ease}
+.install-overlay.show{display:flex;opacity:1}
+.install-card{background:linear-gradient(180deg, rgba(30,30,45,0.98), rgba(15,15,25,0.98));border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:28px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(233,30,99,0.08);transform:scale(0.9) translateY(20px);transition:transform 300ms cubic-bezier(0.34,1.56,0.64,1)}
+.install-overlay.show .install-card{transform:scale(1) translateY(0)}
+.install-header{text-align:center;margin-bottom:20px}
+.install-header h2{font-size:18px;font-weight:700;color:var(--c-t);margin-bottom:4px}
+.install-header p{font-size:12px;color:var(--c-t2)}
+.install-app-info{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;padding:20px;background:rgba(255,255,255,0.03);border-radius:16px;border:1px solid rgba(255,255,255,0.05)}
+.install-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg, #ff6b35, #f7931e, #e91e63);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 4px 20px rgba(233,30,99,0.3)}
+.install-app-name{font-size:17px;font-weight:700;color:var(--c-t)}
+.install-app-url{font-size:12px;color:var(--c-tm);direction:ltr;font-family:monospace}
+.install-actions{display:flex;gap:10px}
+.install-actions button{flex:1;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all 150ms;border:none;font-family:inherit}
+.install-btn-cancel{background:rgba(255,255,255,0.06);color:var(--c-t2);border:1px solid rgba(255,255,255,0.1)}
+.install-btn-cancel:hover{background:rgba(255,255,255,0.1)}
+.install-btn-confirm{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;box-shadow:0 4px 20px rgba(233,30,99,0.25)}
+.install-btn-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(233,30,99,0.35)}
+
+.header-actions{display:flex;align-items:center;gap:8px;margin-right:auto;order:-1}
+.install-header-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all 150ms;white-space:nowrap}
+.install-header-btn:hover{transform:translateY(-1px);box-shadow:0 0 20px rgba(233,30,99,0.25)}
+@media(display-mode:standalone){.install-header-btn{display:none!important}}
+.status-dot.warn{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
+.status-dot.err{background:#ef4444;box-shadow:0 0 6px #ef4444}
+.card-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cat-dropdown-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--r-md);background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t);font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}
+.cat-dropdown-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15)}
+.cat-dropdown{position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:linear-gradient(180deg,#1a1a2e,#14141f);border:1px solid var(--g-b);border-radius:var(--r-lg);padding:8px;box-shadow:0 10px 40px rgba(0,0,0,0.6);z-index:100;display:none}
+.cat-dropdown.visible{display:block;animation:ddIn 0.2s ease}
+@keyframes ddIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.cat-search{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--g-b);border-radius:8px;padding:8px 12px;color:var(--c-t);font-size:13px;margin-bottom:6px}
+.cat-search::placeholder{color:var(--c-tm)}
+.cat-list{max-height:240px;overflow-y:auto}
+.cat-item{padding:8px 12px;border-radius:8px;font-size:13px;color:var(--c-t2);cursor:pointer;transition:all 100ms}
+.cat-item:hover{background:rgba(255,255,255,0.05);color:var(--c-t)}
+.cat-item.active{background:rgba(233,30,99,0.15);color:var(--c-p);font-weight:700}
+@media(max-width:360px){.login-glass{padding:16px}.login-brand h1{font-size:18px}.login-logo{width:56px}}
+@media(max-height:500px) and (orientation:landscape){.login-screen{align-items:flex-start;padding-top:20px;overflow-y:auto}.login-glass{margin:20px auto}}
+@media(hover:none) and (pointer:coarse){.card-overlay{opacity:0.3}.ctrl-btn:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}}
+.ctrl-btn svg{width:20px;height:20px;fill:currentColor}
+.big-play svg{width:28px;height:28px;fill:currentColor;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="neon-ring ring-1"></div>
+  <div class="neon-ring ring-2"></div>
+  <div class="login-glass">
+    <div class="login-brand">
+      <img src="./images/logo1.png" class="login-logo" alt="Logo">
+      <h1>Raxson Player</h1>
+    </div>
+    <div class="login-form">
+      <div class="input-group">
+        <label>اسم المستخدم</label>
+        <input type="text" id="username" class="input-field" placeholder="أدخل اسم المستخدم" autocomplete="off">
+      </div>
+      <div class="input-group">
+        <label>كلمة المرور</label>
+        <input type="password" id="password" class="input-field" placeholder="أدخل كلمة المرور" autocomplete="off">
+      </div>
+      <div class="save-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="remember" checked>
+          <span>حفظ البيانات</span>
+        </label>
+      </div>
+      <button type="button" class="btn btn-primary" id="loginBtn">
+        <span id="btnText">دخول</span>
+        <span id="btnLoader" class="btn-loader" style="display:none"></span>
+      </button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-log" id="loginLog"></div>
+    </div>
+  </div>
+</div>
+
+<div id="appScreen" class="app-container">
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="./images/logo1.png" class="brand-logo" alt="Logo">
+      <div>
+        <h1>Raxson Player</h1>
+        <div class="header-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">...</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
+      <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
+    </div>
+  </header>
+
+  <div class="tabs-bar" id="tabsBar">
+    <button class="tab-btn active" data-tab="live">&#x1F4FA; بث مباشر</button>
+    <button class="tab-btn" data-tab="vod">&#x1F3AC; أفلام</button>
+    <button class="tab-btn" data-tab="series">&#x1F4C1; مسلسلات</button>
+    <button class="tab-btn" data-tab="watched">&#x1F550; آخر المشاهدات</button>
+  </div>
+
+  <div class="search-wrap">
+    <input type="text" class="search-field" id="searchInput" placeholder="بحث...">
+  </div>
+
+  <div class="cats-bar" id="catsBar"></div>
+  <div class="back-row" id="backRow">
+    <button class="back-btn" id="backBtn">&#x2190; رجوع</button>
+  </div>
+
+  <div class="content-area">
+    <div class="content-grid" id="contentGrid"></div>
+    <div class="episodes-area" id="episodesArea"></div>
+  </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" hidden>
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">جاري التحميل...</div>
+</div>
+
+<div id="playerOverlay" class="player-overlay">
+  <div class="player-header" id="playerHeader">
+    <span class="player-title" id="playerTitle">...</span>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span class="live-badge" id="liveBadge" style="display:none;">مباشر</span>
+      <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
+    </div>
+  </div>
+  <video id="playerVideo" class="player-video" playsinline webkit-playsinline></video>
+  <button class="big-play" id="bigPlayBtn">
+    <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+  </button>
+  <div class="player-loader" id="playerLoader"><div></div></div>
+  <div class="gesture-hint left" id="gestureLeft"></div>
+  <div class="gesture-hint right" id="gestureRight"></div>
+  <div class="player-controls" id="playerControls">
+    <div class="progress-wrap" id="progressWrap"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="controls-row">
+      <div class="controls-left">
+        <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف">
+          <svg id="playIcon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+          <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        </button>
+        <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+      </div>
+      <div class="controls-right">
+        <button class="ctrl-btn download-btn" id="downloadBtn" title="تحميل">
+          <svg viewBox="0 0 24 24"><path d="M12 16l-4-4h3V4h2v8h3l-4 4zm-6 2v2h12v-2H6z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="pipBtn" title="PiP">
+          <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm2 8V5H3v14h18zM21 3a2 2 0 012 2v14a2 2 0 01-2 2H3a2 2 0 01-2-2V5a2 2 0 012-2h18z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="fullscreenBtn" title="ملء الشاشة">
+          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="installOverlay" class="install-overlay">
+  <div class="install-card">
+    <div class="install-header">
+      <h2>تثبيت التطبيق</h2>
+      <p>أضف Raxson Player إلى شاشتك الرئيسية</p>
+    </div>
+    <div class="install-app-info">
+      <div class="install-icon">&#x1F525;</div>
+      <div class="install-app-name">Raxson Player</div>
+      <div class="install-app-url" id="installUrl">http://127.0.0.1:5000</div>
+    </div>
+    <div class="install-actions">
+      <button class="install-btn-cancel" id="installCancel">لاحقاً</button>
+      <button class="install-btn-confirm" id="installConfirm">تثبيت</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+const DEFAULT_HOST = "http://barqtv.fit:80";
+const AUTH = { host: DEFAULT_HOST, user: "", pass: "" };
+let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false, seriesInfo: null };
+let DATA = { live: { cats: [], items: [], ok: false, loading: false, error: null }, vod: { cats: [], items: [], ok: false, loading: false, error: null }, series: { cats: [], items: [], ok: false, loading: false, error: null } };
+let HLS = null, SUB_EXPIRY = "", WATCHED = [];
+
+const $ = id => document.getElementById(id);
+const E = {
+  loginScreen: $("loginScreen"), appScreen: $("appScreen"), playerOverlay: $("playerOverlay"), loadingOverlay: $("loadingOverlay"),
+  username: $("username"), password: $("password"), remember: $("remember"),
+  loginBtn: $("loginBtn"), btnText: $("btnText"), btnLoader: $("btnLoader"), loginError: $("loginError"), loginLog: $("loginLog"),
+  statusDot: $("statusDot"), statusText: $("statusText"), logoutBtn: $("logoutBtn"), tabsBar: $("tabsBar"),
+  searchInput: $("searchInput"), catsBar: $("catsBar"), backRow: $("backRow"), backBtn: $("backBtn"),
+  contentGrid: $("contentGrid"), episodesArea: $("episodesArea"), loadingText: $("loadingText"),
+  playerVideo: $("playerVideo"), playerTitle: $("playerTitle"), playerClose: $("playerClose"), playerHeader: $("playerHeader"),
+  playerControls: $("playerControls"), liveBadge: $("liveBadge"), bigPlayBtn: $("bigPlayBtn"), playPauseBtn: $("playPauseBtn"),
+  downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"),
+  progressWrap: $("progressWrap"), progressFill: $("progressFill"), timeDisplay: $("timeDisplay"),
+  playerLoader: $("playerLoader"), gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
+  installOverlay: $("installOverlay"), installUrl: $("installUrl"), installCancel: $("installCancel"), installConfirm: $("installConfirm"),
+  installHeaderBtn: $("installHeaderBtn")
+};
+
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+let deferredPrompt = null;
+
+function init() {
+  initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  }
+  try {
+    const u = localStorage.getItem("rp_u"), p = localStorage.getItem("rp_p");
+    const w = localStorage.getItem("rp_w");
+    if (w) { try { WATCHED = JSON.parse(w); } catch(e) { WATCHED = []; } }
+    if (u) E.username.value = u;
+    if (p) E.password.value = p;
+    if (u && p && E.remember.checked) doLogin();
+  } catch (e) {}
+}
+
+function initInstallPrompt() {
+  E.installUrl.textContent = window.location.origin;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+  });
+  E.installHeaderBtn.addEventListener('click', () => {
+    if (isIOS()) { alert('iOS: اضغط زر المشاركة (Share) في Safari ثم "Add to Home Screen"'); }
+    else if (deferredPrompt) { showInstallPrompt(); }
+    else { alert('التثبيت غير متاح. جرب Chrome على Android.'); }
+  });
+  E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
+  E.installConfirm.addEventListener('click', async () => {
+    if (!deferredPrompt) { hideInstallPrompt(); return; }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    hideInstallPrompt();
+  });
+}
+function showInstallPrompt() { E.installOverlay.classList.add('show'); document.body.style.overflow = 'hidden'; }
+function hideInstallPrompt() { E.installOverlay.classList.remove('show'); document.body.style.overflow = ''; }
+
+function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
+
+async function doLogin() {
+  const u = E.username.value.trim(), p = E.password.value.trim();
+  if (!u || !p) { showErr("اكمل البيانات"); return; }
+  showErr(""); setBtnLoad(true);
+  AUTH.user = u; AUTH.pass = p;
+  try {
+    const info = await api("get_account_info");
+    if (info?.user_info?.status === "Active") {
+      if (E.remember.checked) { localStorage.setItem("rp_u", u); localStorage.setItem("rp_p", p); }
+      SUB_EXPIRY = info.user_info.exp_date ? new Date(info.user_info.exp_date * 1000).toLocaleDateString("ar-SA") : "غير محدد";
+      setStatus(SUB_EXPIRY, "ok");
+      E.loginScreen.style.display = "none"; E.appScreen.style.display = "flex"; E.appScreen.classList.add("active");
+      await loadTabData("live");
+    } else { showErr("الاشتراك غير نشط"); setBtnLoad(false); }
+  } catch (err) { showErr("خطأ: " + (err.message || err)); setBtnLoad(false); }
+}
+
+function showErr(msg) { E.loginError.textContent = msg; E.loginError.classList.toggle("show", !!msg); }
+function setBtnLoad(v) { E.loginBtn.disabled = v; E.btnText.style.display = v ? "none" : "inline"; E.btnLoader.style.display = v ? "inline-block" : "none"; }
+function setStatus(t, type) { E.statusText.textContent = t; E.statusDot.className = "status-dot" + (type === "ok" ? "" : type === "warn" ? " warn" : " err"); }
+
+async function api(action, extra = "") {
+  const url = "/api?host=" + encodeURIComponent(AUTH.host)
+            + "&user=" + encodeURIComponent(AUTH.user)
+            + "&pass=" + encodeURIComponent(AUTH.pass)
+            + "&action=" + encodeURIComponent(action)
+            + "&extra=" + encodeURIComponent(extra);
+  const ctrl = new AbortController();
+  const isHeavy = ["get_live_streams","get_vod_streams","get_series"].includes(action);
+  const to = setTimeout(() => ctrl.abort(), isHeavy ? 90000 : 40000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(to);
+    if (!res.ok) { const txt = await res.text(); throw new Error("HTTP " + res.status + (txt ? ": " + txt : "")); }
+    return await res.json();
+  } catch (e) { clearTimeout(to); throw e; }
+}
+
+async function loadTabData(tabKey) {
+  if (DATA[tabKey].ok || DATA[tabKey].loading) return;
+  DATA[tabKey].loading = true;
+  showLoad(true, tabKey === "live" ? "جاري تجهيز المحتوى..." : "جاري تحميل " + (tabKey === "vod" ? "الأفلام" : "المسلسلات") + "...");
+  setStatus("جاري التحميل...", "warn");
+  const map = {
+    live:   { cat: "get_live_categories",   stream: "get_live_streams" },
+    vod:    { cat: "get_vod_categories",    stream: "get_vod_streams" },
+    series: { cat: "get_series_categories", stream: "get_series" }
+  };
+  const t = map[tabKey];
+  try {
+    const [cats, items] = await Promise.all([api(t.cat), api(t.stream)]);
+    DATA[tabKey].cats = Array.isArray(cats) ? cats : []; 
+    DATA[tabKey].items = Array.isArray(items) ? items : [];
+    DATA[tabKey].ok = true;
+    DATA[tabKey].error = null;
+    setStatus(SUB_EXPIRY || "جاهز", "ok");
+  } catch (e) {
+    console.error(tabKey, e);
+    DATA[tabKey].ok = false;
+    DATA[tabKey].error = e.message || "فشل الاتصال";
+    setStatus("تأكد من صحة البيانات", "err");
+  } finally {
+    DATA[tabKey].loading = false;
+    showLoad(false);
+  }
+  renderTab();
+}
+
+function initApp() {
+  E.tabsBar.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const tab = btn.dataset.tab;
+      if (tab === "watched") { showWatched(); return; }
+      STATE.tab = tab; STATE.cat = "all"; STATE.count = 30; STATE.seriesView = false;
+      E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
+      E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+      if (!DATA[tab].ok && !DATA[tab].loading) {
+        await loadTabData(tab);
+      } else {
+        renderTab();
+      }
+    });
+  });
+  let timer;
+  E.searchInput.addEventListener("input", e => { clearTimeout(timer); timer = setTimeout(() => { STATE.search = e.target.value; STATE.count = 30; renderTab(); }, 200); });
+  E.backBtn.addEventListener("click", () => { STATE.seriesView = false; STATE.seriesInfo = null; E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid"; renderTab(); });
+  E.logoutBtn.addEventListener("click", () => { localStorage.removeItem("rp_u"); localStorage.removeItem("rp_p"); localStorage.removeItem("rp_w"); location.reload(); });
+}
+
+function renderTab() {
+  const d = DATA[STATE.tab];
+  if (d.loading) {
+    E.contentGrid.innerHTML = '<div class="empty-state"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>جاري التحميل...</div>';
+    E.catsBar.innerHTML = "";
+    return;
+  }
+  if (!d.ok) {
+    E.contentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div style="font-size:40px;margin-bottom:12px;">&#x26A0;&#xFE0F;</div><div>تأكد من صحة البيانات</div><button class="load-more-btn" style="margin-top:16px;" onclick="retryCurrentTab()">&#x1F504; إعادة المحاولة</button></div>';
+    E.catsBar.innerHTML = "";
+    return;
+  }
+  renderCats(d.cats);
+  let items = d.items || [];
+  if (STATE.cat !== "all") items = items.filter(i => (i.category_id || "").toString() === STATE.cat);
+  if (STATE.search.length >= 2) { const q = STATE.search.toLowerCase(); items = items.filter(i => (i.name || i.title || "").toLowerCase().includes(q)); }
+  renderGrid(items);
+}
+
+window.retryCurrentTab = async function() {
+  DATA[STATE.tab].ok = false;
+  DATA[STATE.tab].error = null;
+  await loadTabData(STATE.tab);
+};
+
+function renderCats(cats) {
+  E.catsBar.innerHTML = "";
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "relative";
+  wrapper.style.display = "inline-block";
+  const btn = document.createElement("button");
+  btn.className = "cat-dropdown-btn";
+  const activeCat = (cats || []).find(c => (c.category_id || c.id || "").toString() === STATE.cat);
+  const activeName = STATE.cat === "all" ? "كل التصنيفات" : (activeCat ? (activeCat.category_name || activeCat.name) : "تصنيف محدد");
+  btn.innerHTML = '<span>&#x1F4C2; ' + esc(activeName) + '</span><span style="font-size:10px;opacity:0.6;">&#x25BC;</span>';
+  const dropdown = document.createElement("div");
+  dropdown.className = "cat-dropdown";
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.className = "cat-search";
+  searchInput.placeholder = "بحث في التصنيفات...";
+  const list = document.createElement("div");
+  list.className = "cat-list";
+  const allItem = document.createElement("div");
+  allItem.className = "cat-item" + (STATE.cat === "all" ? " active" : "");
+  allItem.textContent = "الكل";
+  allItem.addEventListener("click", () => { STATE.cat = "all"; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
+  list.appendChild(allItem);
+  (cats || []).forEach(c => {
+    const id = (c.category_id || c.id || "").toString();
+    const item = document.createElement("div");
+    item.className = "cat-item" + (STATE.cat === id ? " active" : "");
+    item.textContent = c.category_name || c.name || "بدون اسم";
+    item.addEventListener("click", () => { STATE.cat = id; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
+    list.appendChild(item);
+  });
+  searchInput.addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    Array.from(list.children).forEach(child => {
+      if (child === allItem) { child.style.display = ""; return; }
+      child.style.display = child.textContent.toLowerCase().includes(q) ? "" : "none";
+    });
+  });
+  btn.addEventListener("click", (e) => { e.stopPropagation(); dropdown.classList.toggle("visible"); });
+  dropdown.appendChild(searchInput);
+  dropdown.appendChild(list);
+  wrapper.appendChild(btn);
+  wrapper.appendChild(dropdown);
+  E.catsBar.appendChild(wrapper);
+  const closeDropdown = (e) => { if (!wrapper.contains(e.target)) dropdown.classList.remove("visible"); };
+  document.removeEventListener("click", closeDropdown);
+  document.addEventListener("click", closeDropdown);
+}
+
+function renderGrid(items) {
+  E.contentGrid.innerHTML = "";
+  if (!items.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا يوجد محتوى</div>'; return; }
+  const visible = items.slice(0, STATE.count);
+  const tab = STATE.tab;
+  visible.forEach((item, i) => {
+    const name = item.name || item.title || "بدون اسم";
+    const id = item.stream_id || item.series_id || item.id || 0;
+    const img = item.stream_icon || item.cover || item.cover_big || "";
+    const icon = tab === "live" ? "&#x1F4FA;" : tab === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
+    const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = tab; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
+    card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title line-clamp-2">' + esc(name) + '</div></div>';
+    card.addEventListener("click", () => handleClick(item, tab));
+    E.contentGrid.appendChild(card);
+  });
+  if (STATE.count < items.length) {
+    const more = document.createElement("div"); more.className = "load-more-row";
+    more.innerHTML = '<button class="load-more-btn">تحميل المزيد (' + (items.length - STATE.count) + ')</button>';
+    more.querySelector("button").addEventListener("click", () => { STATE.count += 30; renderTab(); });
+    E.contentGrid.appendChild(more);
+  }
+  lazyImg();
+}
+
+async function handleClick(item, tab) {
+  const name = item.name || item.title || "بدون اسم";
+  const id = item.stream_id || item.series_id || item.id;
+  if (tab === "series" && !STATE.seriesView) {
+    showLoad(true, "جاري جلب الحلقات...");
+    try {
+      const info = await api("get_series_info", "&series_id=" + id);
+      STATE.seriesInfo = info; STATE.seriesView = true;
+      E.backRow.classList.add("visible"); E.contentGrid.style.display = "none"; E.episodesArea.style.display = "block";
+      renderEps(info, name);
+    } catch (e) { alert("خطأ: " + e.message); }
+    showLoad(false); return;
+  }
+  const url = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+  openPlayer(url, name, tab === "live", item);
+}
+
+function renderEps(info, sname) {
+  E.episodesArea.innerHTML = "";
+  const eps = info.episodes || {};
+  const seasons = {};
+  if (Array.isArray(eps)) eps.forEach(ep => { const s = ep.season || "1"; if (!seasons[s]) seasons[s] = []; seasons[s].push(ep); });
+  else if (typeof eps === "object") Object.keys(eps).forEach(k => { if (Array.isArray(eps[k])) seasons[k] = eps[k]; });
+  const keys = Object.keys(seasons).sort((a, b) => parseInt(a) - parseInt(b));
+  if (!keys.length) { E.episodesArea.innerHTML = '<div class="empty-state">لا توجد حلقات</div>'; return; }
+  keys.forEach(k => {
+    const sec = document.createElement("div"); sec.style.marginBottom = "20px";
+    sec.innerHTML = '<div class="season-title">الموسم ' + k + ' (' + seasons[k].length + ' حلقة)</div>';
+    const grid = document.createElement("div"); grid.className = "episodes-grid";
+    seasons[k].forEach(ep => {
+      const en = ep.title || ep.name || "حلقة " + ep.episode_num;
+      const btn = document.createElement("button"); btn.className = "ep-btn";
+      btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
+      btn.addEventListener("click", () => openPlayer(AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4", sname + " - " + en, false, ep));
+      grid.appendChild(btn);
+    });
+    sec.appendChild(grid); E.episodesArea.appendChild(sec);
+  });
+}
+
+function addToWatched(item) {
+  if (!item) return;
+  const id = (item.stream_id || item.series_id || item.id)?.toString();
+  if (!id) return;
+  WATCHED = WATCHED.filter(w => (w.stream_id || w.id)?.toString() !== id);
+  WATCHED.unshift({
+    id, name: item.name || item.title || "بدون اسم",
+    stream_icon: item.stream_icon || item.cover || "",
+    type: item.type || STATE.tab || "live",
+    stream_id: item.stream_id || item.id || null
+  });
+  if (WATCHED.length > 6) WATCHED = WATCHED.slice(0, 6);
+  try { localStorage.setItem("rp_w", JSON.stringify(WATCHED)); } catch(e) {}
+}
+
+function showWatched() {
+  E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === "watched"));
+  E.catsBar.innerHTML = ""; E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
+  if (!WATCHED.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا توجد مشاهدات حديثة</div>'; return; }
+  WATCHED.forEach((item, i) => {
+    const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = item.type || "live"; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
+    const name = item.name || "بدون اسم"; const img = item.stream_icon || "";
+    const icon = item.type === "live" ? "&#x1F4FA;" : item.type === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
+    card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
+    card.addEventListener("click", () => {
+      const url = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
+      openPlayer(url, name, item.type === "live", item);
+    });
+    E.contentGrid.appendChild(card);
+  });
+  lazyImg();
+}
+
+function lazyImg() {
+  const imgs = document.querySelectorAll("img.lazy");
+  if (!imgs.length) return;
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target; const src = img.dataset.src;
+        if (src) { img.src = src; img.onload = () => img.classList.add("loaded"); img.onerror = () => img.style.display = "none"; }
+        img.classList.remove("lazy"); obs.unobserve(img);
+      }
+    });
+  }, { rootMargin: "100px" });
+  imgs.forEach(img => obs.observe(img));
+}
+
+function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+function showLoad(v, t) { E.loadingOverlay.hidden = !v; if (t) E.loadingText.textContent = t; }
+
+function initPlayer() {
+  E.playerClose.addEventListener("click", closePlayer);
+  E.bigPlayBtn.addEventListener("click", togglePlay);
+  E.playPauseBtn.addEventListener("click", e => { e.stopPropagation(); togglePlay(); });
+  E.downloadBtn.addEventListener("click", e => { e.stopPropagation(); downloadCurrent(); });
+  E.fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFs(); });
+  E.pipBtn.addEventListener("click", e => { e.stopPropagation(); togglePiP(); });
+
+  function seek(clientX) {
+    if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+    const rect = E.progressWrap.getBoundingClientRect();
+    let pct = (clientX - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    E.progressFill.style.width = (pct * 100) + "%";
+    if (E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
+  }
+  E.progressWrap.addEventListener("click", e => seek(e.clientX));
+  let isSeeking = false;
+  E.progressWrap.addEventListener("touchstart", e => { isSeeking = true; seek(e.touches[0].clientX); }, {passive:true});
+  E.progressWrap.addEventListener("touchmove", e => { if(isSeeking) { e.preventDefault(); seek(e.touches[0].clientX); } }, {passive:false});
+  E.progressWrap.addEventListener("touchend", () => { isSeeking = false; });
+
+  E.playerVideo.addEventListener("timeupdate", updateProg);
+  E.playerVideo.addEventListener("play", () => { setPlayIcon(true); E.bigPlayBtn.classList.add("hidden"); });
+  E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); E.bigPlayBtn.classList.remove("hidden"); });
+  E.playerVideo.addEventListener("waiting", () => E.playerLoader.classList.remove("hidden"));
+  E.playerVideo.addEventListener("playing", () => E.playerLoader.classList.add("hidden"));
+
+  E.playerVideo.addEventListener("click", e => {
+    e.stopPropagation();
+    const rect = E.playerVideo.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const w = rect.width;
+    if (x < w * 0.3) { E.playerVideo.currentTime -= 10; showHint("-10s &#x23EA;"); }
+    else if (x > w * 0.7) { E.playerVideo.currentTime += 10; showHint("+10s &#x23E9;"); }
+    else { togglePlay(); }
+  });
+
+  E.playerOverlay.addEventListener("mousemove", showControls);
+}
+
+function setPlayIcon(playing) {
+  const playIcon = document.getElementById("playIcon");
+  const pauseIcon = document.getElementById("pauseIcon");
+  if (playIcon && pauseIcon) {
+    playIcon.style.display = playing ? "none" : "block";
+    pauseIcon.style.display = playing ? "block" : "none";
+  }
+}
+
+function openPlayer(url, name, live, item) {
+  window.CURRENT_ITEM = item || null;
+  if (item) addToWatched(item);
+  E.playerOverlay.style.display = "flex"; 
+  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
+  document.body.style.overflow = "hidden";
+  E.playerTitle.textContent = name || "...";
+  E.liveBadge.style.display = "none";
+  E.downloadBtn.style.display = live ? "none" : "flex";
+  E.playerLoader.classList.remove("hidden"); E.bigPlayBtn.classList.remove("hidden");
+
+  if (HLS) { HLS.destroy(); HLS = null; }
+  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
+
+  if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
+    HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+    HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
+    HLS.on(Hls.Events.MANIFEST_PARSED, () => {
+      E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
+      E.playerVideo.play().catch(() => {});
+    });
+    HLS.on(Hls.Events.ERROR, (e, d) => { 
+      if (d.fatal) { 
+        if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad(); 
+        else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError(); 
+        else { HLS.destroy(); HLS = null; } 
+      } 
+    });
+  } else {
+    E.playerVideo.src = url; 
+    E.playerVideo.play().catch(() => {});
+    E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
+  }
+  showControls();
+}
+
+function closePlayer() {
+  E.playerOverlay.classList.remove("visible");
+  setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
+  if (HLS) { HLS.destroy(); HLS = null; }
+  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function togglePlay() { if (!E.playerVideo) return; E.playerVideo.paused ? E.playerVideo.play().catch(() => {}) : E.playerVideo.pause(); }
+function toggleFs() {
+  if (!E.playerVideo) return;
+  try {
+    const doc = document;
+    const el = E.playerVideo;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
+      if (doc.exitFullscreen) doc.exitFullscreen().catch(()=>{});
+      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+      else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
+      else if (doc.msExitFullscreen) doc.msExitFullscreen();
+    } else {
+      if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    }
+  } catch(e) {}
+}
+async function togglePiP() { if (!E.playerVideo) return; try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await E.playerVideo.requestPictureInPicture(); } catch (e) {} }
+
+function downloadCurrent() {
+  if (!window.CURRENT_ITEM) return;
+  const item = window.CURRENT_ITEM;
+  const tab = item.type || STATE.tab || "live";
+  const id = item.stream_id || item.series_id || item.id;
+  let url;
+  if (tab === "live") url = AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8";
+  else if (tab === "vod") url = AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+  else url = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (item.name || item.title || 'video').replace(/[^a-z0-9\u0600-\u06FF]/gi, '_') + (tab === 'live' ? '.m3u8' : '.mp4');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function updateProg() {
+  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+  const pct = (E.playerVideo.currentTime / E.playerVideo.duration) * 100;
+  E.progressFill.style.width = pct + "%";
+  E.timeDisplay.textContent = fmt(E.playerVideo.currentTime) + " / " + fmt(E.playerVideo.duration || 0);
+}
+function fmt(s) { if (!isFinite(s)) return "0:00"; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = Math.floor(s % 60); if (h > 0) return h + ":" + m.toString().padStart(2, "0") + ":" + sec.toString().padStart(2, "0"); return m + ":" + sec.toString().padStart(2, "0"); }
+
+let ctrlTimer;
+function showControls() {
+  E.playerHeader.classList.remove("hidden"); E.playerControls.classList.remove("hidden"); E.bigPlayBtn.classList.add("hidden");
+  clearTimeout(ctrlTimer);
+  ctrlTimer = setTimeout(() => { if (E.playerVideo && !E.playerVideo.paused) { E.playerHeader.classList.add("hidden"); E.playerControls.classList.add("hidden"); } }, 3000);
+}
+
+function initKeyboard() {
+  document.addEventListener("keydown", e => {
+    if (E.playerOverlay.style.display !== "flex") return;
+    if (e.target.tagName === "INPUT") return;
+    switch (e.key) {
+      case "Escape": case "Backspace": e.preventDefault(); closePlayer(); break;
+      case " ": case "k": e.preventDefault(); togglePlay(); showHint("&#x25B6;/&#x23F8;"); break;
+      case "f": e.preventDefault(); toggleFs(); showHint("&#x26F6;"); break;
+      case "ArrowRight": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime += 10; showHint("+10s"); break;
+      case "ArrowLeft": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime -= 10; showHint("-10s"); break;
+      case "ArrowUp": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.min(1, E.playerVideo.volume + 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
+      case "ArrowDown": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.max(0, E.playerVideo.volume - 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
+    }
+  });
+}
+
+let hintT;
+function showHint(t) { const h = E.gestureLeft; h.textContent = t; h.classList.add("show"); clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove("show"), 800); }
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
+// Kill any browser-native install prompts
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+(function(){
+  const kill = (node) => {
+    const t = node.textContent || '';
+    if (t.includes('يُعرض موقع') || t.includes('يعرض موقع') || t.includes('لتثبيت التطبيق') || t.includes('Add to Home Screen') || t.includes('حسناً') || t.includes('Chrome')) {
+      let p = node;
+      while (p && p !== document.body && (!p.style || p.style.position !== 'fixed')) p = p.parentElement;
+      if (p && p !== document.body) { p.remove(); return true; }
+    }
+    return false;
+  };
+  document.querySelectorAll('*').forEach(el => kill(el));
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType===1) kill(n); }))).observe(document.body, {childList:true, subtree:true});
+})();
+</script>
+</body>
+</html>

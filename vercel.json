@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "builds": [{ "src": "app.py", "use": "@vercel/python" }],
+  "routes": [
+    { "src": "/sw.js", "dest": "/sw.js", "headers": { "Content-Type": "application/javascript", "Cache-Control": "no-cache" } },
+    { "src": "/manifest.json", "dest": "/manifest.json", "headers": { "Content-Type": "application/json", "Cache-Control": "no-cache" } },
+    { "src": "/images/(.*)", "dest": "/images/$1" },
+    { "src": "/(.*)", "dest": "/app.py" }
+  ]
+}
