@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0a0f">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="./images/logo1.png">
+<link rel="apple-touch-icon" href="/images/logo1.png">
 <title>Raxson Player</title>
 <style>
 :root{
@@ -130,7 +130,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .install-btn-confirm{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;box-shadow:0 4px 20px rgba(233,30,99,0.25)}
 .install-btn-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(233,30,99,0.35)}
 
-.header-actions{display:flex;align-items:center;gap:8px;margin-right:auto;order:-1}
+.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;order:1}
 .install-header-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all 150ms;white-space:nowrap}
 .install-header-btn:hover{transform:translateY(-1px);box-shadow:0 0 20px rgba(233,30,99,0.25)}
 @media(display-mode:standalone){.install-header-btn{display:none!important}}
@@ -163,7 +163,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   <div class="neon-ring ring-2"></div>
   <div class="login-glass">
     <div class="login-brand">
-      <img src="./images/logo1.png" class="login-logo" alt="Logo">
+      <img src="/images/logo1.png" class="login-logo" alt="Logo">
       <h1>Raxson Player</h1>
     </div>
     <div class="login-form">
@@ -194,7 +194,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 <div id="appScreen" class="app-container">
   <header class="app-header">
     <div class="header-brand">
-      <img src="./images/logo1.png" class="brand-logo" alt="Logo">
+      <img src="/images/logo1.png" class="brand-logo" alt="Logo">
       <div>
         <h1>Raxson Player</h1>
         <div class="header-status">
@@ -349,9 +349,7 @@ function initInstallPrompt() {
     deferredPrompt = null;
   });
   E.installHeaderBtn.addEventListener('click', () => {
-    if (isIOS()) { alert('iOS: اضغط زر المشاركة (Share) في Safari ثم "Add to Home Screen"'); }
-    else if (deferredPrompt) { showInstallPrompt(); }
-    else { alert('التثبيت غير متاح. جرب Chrome على Android.'); }
+    showInstallPrompt();
   });
   E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
   E.installConfirm.addEventListener('click', async () => {
@@ -634,7 +632,7 @@ function lazyImg() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const img = entry.target; const src = img.dataset.src;
-        if (src) { img.src = src; img.onload = () => img.classList.add("loaded"); img.onerror = () => img.style.display = "none"; }
+        if (src) { img.src = src; img.onload = () => img.classList.add("loaded"); img.onerror = () => { img.style.opacity = "0"; const icon = img.parentElement.querySelector(".card-icon"); if(icon) icon.style.opacity = "0.4"; }; }
         img.classList.remove("lazy"); obs.unobserve(img);
       }
     });
