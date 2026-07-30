@@ -326,7 +326,14 @@ let deferredPrompt = null;
 function init() {
  initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
  if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then((reg) => {
+      console.log('SW registered:', reg.scope);
+      reg.update();
+    })
+    .catch((err) => {
+      console.log('SW registration failed:', err);
+    });
  }
  try {
   const u = localStorage.getItem("rp_u"), p = localStorage.getItem("rp_p");
@@ -342,23 +349,34 @@ function initInstallPrompt() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    console.log('beforeinstallprompt captured');
   });
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     hideInstallPrompt();
+    console.log('App installed');
   });
   E.installHeaderBtn.addEventListener('click', () => {
-    showInstallPrompt();
+    if (deferredPrompt) {
+      showInstallPrompt();
+    } else {
+      // Show manual instructions if native prompt not available
+      showInstallPrompt();
+      setTimeout(showManualInstallGuide, 300);
+    }
   });
   E.installCancel.addEventListener('click', () => { hideInstallPrompt(); });
   E.installConfirm.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      if (outcome === 'accepted') { hideInstallPrompt(); return; }
+    if (!deferredPrompt) {
+      showManualInstallGuide();
+      return;
     }
-    showManualInstallGuide();
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === 'accepted') {
+      hideInstallPrompt();
+    }
   });
 }
 function showManualInstallGuide() {
@@ -826,21 +844,7 @@ function showHint(t) { const h = E.gestureLeft; h.textContent = t; h.classList.a
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-// Kill any browser-native install prompts
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
-(function(){
- const kill = (node) => {
-  const t = node.textContent || '';
-  if (t.includes('يُعرض موقع') || t.includes('يعرض موقع') || t.includes('لتثبيت التطبيق') || t.includes('Add to Home Screen') || t.includes('حسناً') || t.includes('Chrome')) {
-   let p = node;
-   while (p && p !== document.body && (!p.style || p.style.position !== 'fixed')) p = p.parentElement;
-   if (p && p !== document.body) { p.remove(); return true; }
-  }
-  return false;
- };
- document.querySelectorAll('*').forEach(el => kill(el));
- new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType===1) kill(n); }))).observe(document.body, {childList:true, subtree:true});
-})();
+
 </script>
 </body>
 </html>
