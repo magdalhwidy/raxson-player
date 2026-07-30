@@ -49,14 +49,14 @@ def index():
 def manifest():
     response = make_response(send_from_directory(".", "manifest.json"))
     response.headers['Content-Type'] = 'application/json'
-    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
 
 @app.route("/sw.js")
 def sw():
     response = make_response(send_from_directory(".", "sw.js"))
     response.headers['Content-Type'] = 'application/javascript'
-    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
@@ -81,33 +81,25 @@ def api():
         return jsonify(result), 502
     return jsonify(result)
 
-# STREAM PROXY - solves Mixed Content and timeout issues
 @app.route("/stream")
 def stream_proxy():
     url = request.args.get("url", "").strip()
     if not url:
         return jsonify({"error": "Missing url parameter"}), 400
-
     try:
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
             "Accept": "*/*",
             "Referer": "http://barqtv.fit/"
         })
-
         resp = urllib.request.urlopen(req, timeout=30)
-
-        # Get content type
         content_type = resp.headers.get('Content-Type', 'application/octet-stream')
-
-        # Stream the response
         def generate():
             while True:
                 chunk = resp.read(8192)
                 if not chunk:
                     break
                 yield chunk
-
         return Response(
             generate(),
             content_type=content_type,
@@ -119,6 +111,5 @@ def stream_proxy():
     except Exception as e:
         return jsonify({"error": "Stream failed", "details": str(e)}), 502
 
-# Vercel handler
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
