@@ -43,7 +43,9 @@ def fetch_with_retry(url, max_retries=3, timeout=45):
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    response = make_response(send_from_directory(".", "index.html"))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @app.route("/manifest.json")
 def manifest():
