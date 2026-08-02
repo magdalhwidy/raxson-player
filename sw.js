@@ -1,4 +1,4 @@
-const CACHE_NAME = 'raxson-v7';
+const CACHE_NAME = 'raxson-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -32,30 +32,25 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// ⬅️ fetch handler إلزامي للتثبيت
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   const url = new URL(request.url);
 
-  // API calls - network only
   if (url.pathname.includes('player_api.php') || url.pathname.includes('/api')) {
     e.respondWith(fetch(request));
     return;
   }
 
-  // Stream proxy - network only
   if (url.pathname.includes('/stream')) {
     e.respondWith(fetch(request));
     return;
   }
 
-  // External images - network only
   if (url.origin !== self.location.origin) {
     e.respondWith(fetch(request));
     return;
   }
 
-  // Static assets - cache first, network fallback
   e.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -68,7 +63,6 @@ self.addEventListener('fetch', (e) => {
           return response;
         })
         .catch(() => {
-          // Fallback for navigation requests
           if (request.mode === 'navigate') {
             return caches.match('/index.html');
           }
