@@ -2,8 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Raxson Player">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/logo1.png">
 <title>Raxson Player</title>
@@ -15,9 +18,8 @@
  --r-md:12px;--r-lg:16px;--r-xl:20px;--tr:250ms cubic-bezier(0.4,0,0.2,1);
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden}
+html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden;-webkit-tap-highlight-color:transparent}
 
-/* shasha tsejel dukhool */
 .login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;background:radial-gradient(ellipse at 20% 20%,rgba(233,30,99,0.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,255,208,0.05) 0%,transparent 50%),var(--c-bg)}
 .neon-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,255,208,0.99);opacity:0.15;animation:pr 4s ease-in-out infinite;pointer-events:none}
 .ring-1{width:500px;height:500px;top:-150px;left:-150px}.ring-2{width:400px;height:400px;bottom:-100px;right:-100px;animation-delay:2s}
@@ -43,7 +45,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .login-error{min-height:20px;text-align:center;font-size:13px;color:#ff3366;opacity:0;transition:opacity 150ms}.login-error.show{opacity:1}
 .login-log{text-align:center;font-size:11px;color:var(--c-tm);min-height:16px}
 
-/* attabeq ar-raeesi */
 .app-container{display:none;height:100vh;flex-direction:column;overflow:hidden}
 .app-container.active{display:flex}
 .app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;gap:16px}
@@ -81,7 +82,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .content-card:hover .card-img{transform:scale(1.08)}
 .card-icon{position:absolute;font-size:28px;opacity:0.15;pointer-events:none}
 .card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,10,15,0.8),transparent 60%);opacity:0;transition:opacity 150ms}.content-card:hover .card-overlay{opacity:1}
-.card-info{padding:10px 12px}.card-title{font-size:11px;line-height:1.4;color:var(--c-t);font-weight:600}
+.card-info{padding:10px 12px}.card-title{font-size:11px;line-height:1.4;color:var(--c-t);font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .empty-state{grid-column:1/-1;text-align:center;padding:24px;color:var(--c-tm);font-size:13px}
 .load-more-row{grid-column:1/-1;text-align:center;padding:16px}
 .load-more-btn{display:inline-flex;align-items:center;gap:8px;background:var(--c-p);border:none;border-radius:var(--r-md);padding:12px 28px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}.load-more-btn:hover{transform:translateY(-1px);box-shadow:0 0 25px rgba(233,30,99,0.18)}
@@ -90,28 +91,53 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .ep-btn{background:rgba(255,255,255,0.03);border:1px solid var(--g-b);border-radius:10px;padding:12px;text-align:right;color:#fff;cursor:pointer;transition:all 200ms}.ep-btn:hover{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3)}.ep-btn:active{transform:scale(0.98)}
 
-/* mushaghil al-fidyoo */
+/* PLAYER */
 .player-overlay{position:fixed;inset:0;background:#000;z-index:99;display:none;flex-direction:column;animation:fi 0.3s ease}
 @keyframes fi{from{opacity:0}to{opacity:1}}
 .player-overlay.visible{display:flex}
-.player-header{position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent);z-index:10;transition:opacity 0.3s}.player-header.hidden{opacity:0;pointer-events:none}
+.player-header{position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent);z-index:20;transition:opacity 0.3s}.player-header.hidden{opacity:0;pointer-events:none}
 .player-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin-left:16px;color:var(--c-t);text-shadow:0 1px 4px rgba(0,0,0,0.8)}
-.player-close{width:36px;height:36px;border-radius:9999px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(8px)}.player-close:hover{background:#ff3366;border-color:#ff3366;transform:scale(1.05)}
+.player-close{width:36px;height:36px;border-radius:9999px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(8px);z-index:21}.player-close:hover{background:#ff3366;border-color:#ff3366;transform:scale(1.05)}
 .player-video{flex:1;width:100%;height:100%;background:#000;object-fit:contain}
-.big-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:50px;border-radius:14px;background:var(--c-p);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;z-index:8;box-shadow:0 0 25px rgba(233,30,99,0.18)}.big-play:hover{transform:translate(-50%,-50%) scale(1.1);background:var(--c-p-d)}.big-play.hidden{opacity:0;pointer-events:none}
-.player-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none}.player-loader.hidden{display:none}.player-loader div{width:48px;height:48px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}
-.gesture-hint{position:absolute;top:50%;transform:translateY(-50%);padding:12px 20px;background:rgba(0,0,0,0.6);border-radius:var(--r-lg);font-size:18px;color:#fff;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:15}.gesture-hint.show{opacity:1}.gesture-hint.left{left:20px}.gesture-hint.right{right:20px}
-.player-controls{position:absolute;bottom:0;left:0;right:0;padding:20px 16px 16px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);display:flex;flex-direction:column;gap:8px;z-index:10;transition:opacity 0.3s}.player-controls.hidden{opacity:0;pointer-events:none}
-.progress-wrap{width:100%;height:6px;background:rgba(255,255,255,0.2);border-radius:9999px;cursor:pointer;position:relative;touch-action:none}.progress-fill{height:100%;background:var(--c-p);border-radius:9999px;width:0%;transition:width 0.1s linear;position:relative}.progress-fill::after{content:"";position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--c-p);border-radius:50%;box-shadow:0 0 10px var(--c-p);opacity:0;transition:opacity 0.2s}.progress-wrap:hover .progress-fill::after,.progress-wrap:active .progress-fill::after{opacity:1}
+.big-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:50px;border-radius:14px;background:var(--c-p);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;z-index:15;box-shadow:0 0 25px rgba(233,30,99,0.18)}.big-play:hover{transform:translate(-50%,-50%) scale(1.1);background:var(--c-p-d)}.big-play.hidden{opacity:0;pointer-events:none}
+.player-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;pointer-events:none}.player-loader.hidden{display:none}.player-loader div{width:48px;height:48px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}
+
+/* DOUBLE TAP */
+.dt-zone{position:absolute;top:0;bottom:90px;z-index:5;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.dt-zone.left{left:0;width:25%}
+.dt-zone.center{left:25%;width:50%;z-index:4}
+.dt-zone.right{right:0;width:25%}
+.dt-feedback{position:absolute;top:50%;transform:translateY(-50%);display:none;flex-direction:column;align-items:center;gap:8px;z-index:25;pointer-events:none}
+.dt-feedback.left{left:12%}.dt-feedback.right{right:12%}
+.dt-feedback.show{display:flex;animation:dtFade 0.6s ease-out}
+.dt-ripple{width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08);position:relative}
+.dt-ripple::before,.dt-ripple::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,0.3);animation:dtRipple 0.6s ease-out}
+.dt-ripple::after{animation-delay:0.15s}
+@keyframes dtRipple{0%{transform:scale(0.5);opacity:1}100%{transform:scale(1.5);opacity:0}}
+.dt-text{font-size:13px;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:8px;white-space:nowrap}
+@keyframes dtFade{0%{opacity:0;transform:translateY(-50%) scale(0.8)}20%{opacity:1;transform:translateY(-50%) scale(1)}80%{opacity:1;transform:translateY(-50%) scale(1)}100%{opacity:0;transform:translateY(-50%) scale(1)}}
+
+/* PROGRESS */
+.progress-container{width:100%;height:28px;display:flex;align-items:center;cursor:pointer;position:relative;touch-action:none;-webkit-user-select:none;user-select:none;z-index:12}
+.progress-track{width:100%;height:4px;background:rgba(255,255,255,0.2);border-radius:9999px;position:relative;overflow:visible;transition:height 0.15s}
+.progress-container:hover .progress-track,.progress-container.dragging .progress-track{height:6px}
+.progress-fill{height:100%;background:var(--c-p);border-radius:9999px;width:0%;position:relative;transition:none}
+.progress-fill::after{content:"";position:absolute;right:-7px;top:50%;transform:translateY(-50%) scale(0);width:14px;height:14px;background:var(--c-p);border-radius:50%;box-shadow:0 0 12px var(--c-p);transition:transform 0.15s}
+.progress-container:hover .progress-fill::after,.progress-container.dragging .progress-fill::after{transform:translateY(-50%) scale(1)}
+.progress-tooltip{position:absolute;top:-32px;background:rgba(0,0,0,0.85);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;transform:translateX(50%);z-index:30}
+.progress-container:hover .progress-tooltip,.progress-container.dragging .progress-tooltip{opacity:1}
+
+/* CONTROLS */
+.player-controls{position:absolute;bottom:0;left:0;right:0;padding:16px 16px 12px;background:linear-gradient(to top,rgba(0,0,0,0.85),transparent);display:flex;flex-direction:column;gap:8px;z-index:12;transition:opacity 0.3s}.player-controls.hidden{opacity:0;pointer-events:none}
 .controls-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.controls-left,.controls-right{display:flex;align-items:center;gap:4px}
-.ctrl-btn{width:40px;height:40px;border-radius:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(4px)}.ctrl-btn:hover{background:var(--c-p);border-color:var(--c-p);transform:scale(1.1);box-shadow:0 0 25px rgba(233,30,99,0.18)}
+.ctrl-btn{width:40px;height:40px;border-radius:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(4px);-webkit-tap-highlight-color:transparent}.ctrl-btn:hover{background:var(--c-p);border-color:var(--c-p);transform:scale(1.1);box-shadow:0 0 25px rgba(233,30,99,0.18)}
 .ctrl-btn.play-btn{width:auto;height:auto;background:transparent;border:none;padding:8px}.ctrl-btn.play-btn:hover{transform:scale(1.2);background:transparent;border:none;box-shadow:none}
-.time-display{font-size:11px;color:rgba(255,255,255,0.8);font-variant-numeric:tabular-nums;direction:ltr}
+.time-display{font-size:11px;color:rgba(255,255,255,0.8);font-variant-numeric:tabular-nums;direction:ltr;white-space:nowrap}
 .ctrl-btn.download-btn{color:#3b82f6}.ctrl-btn.download-btn:hover{color:#3b82f6;transform:scale(1.1);background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3)}
-.live-badge{position:absolute;top:12px;left:12px;background:#ff3366;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;z-index:5;display:none;align-items:center;gap:6px;animation:pu 2s infinite}.live-badge::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%}@keyframes pu{0%,100%{opacity:1}50%{opacity:0.7}}
+.live-badge{position:absolute;top:12px;left:12px;background:#ff3366;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;z-index:15;display:none;align-items:center;gap:6px;animation:pu 2s infinite}.live-badge::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%}@keyframes pu{0%,100%{opacity:1}50%{opacity:0.7}}
+
 .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.9);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:90}.loading-overlay[hidden]{display:none}.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}.loading-text{font-size:13px;color:var(--c-t2)}
 
-/* nafidhat tathbeet attabeq al-mukhasassa */
 .install-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 300ms ease}
 .install-overlay.show{display:flex;opacity:1}
 .install-card{background:linear-gradient(180deg, rgba(30,30,45,0.98), rgba(15,15,25,0.98));border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:28px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(233,30,99,0.08);transform:scale(0.9) translateY(20px);transition:transform 300ms cubic-bezier(0.34,1.56,0.64,1)}
@@ -122,7 +148,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .install-app-info{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;padding:20px;background:rgba(255,255,255,0.03);border-radius:16px;border:1px solid rgba(255,255,255,0.05)}
 .install-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg, #ff6b35, #f7931e, #e91e63);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 4px 20px rgba(233,30,99,0.3)}
 .install-app-name{font-size:17px;font-weight:700;color:var(--c-t)}
-
 .install-actions{display:flex;gap:10px}
 .install-actions button{flex:1;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all 150ms;border:none;font-family:inherit}
 .install-btn-cancel{background:rgba(255,255,255,0.06);color:var(--c-t2);border:1px solid rgba(255,255,255,0.1)}
@@ -136,7 +161,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 @media(display-mode:standalone){.install-header-btn{display:none!important}}
 .status-dot.warn{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
 .status-dot.err{background:#ef4444;box-shadow:0 0 6px #ef4444}
-.card-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cat-dropdown-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--r-md);background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t);font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}
 .cat-dropdown-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15)}
 .cat-dropdown{position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:linear-gradient(180deg,#1a1a2e,#14141f);border:1px solid var(--g-b);border-radius:var(--r-lg);padding:8px;box-shadow:0 10px 40px rgba(0,0,0,0.6);z-index:100;display:none}
@@ -152,29 +176,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 @media(max-height:500px) and (orientation:landscape){.login-screen{align-items:flex-start;padding-top:20px;overflow-y:auto}.login-glass{margin:20px auto}}
 @media(hover:none) and (pointer:coarse){.card-overlay{opacity:0.3}.ctrl-btn:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}}
-/* ===== DOUBLE TAP ZONES ===== */
-.dt-zone{position:absolute;top:0;bottom:100px;width:30%;z-index:6;-webkit-tap-highlight-color:transparent}
-.dt-zone.left{left:0}.dt-zone.center{left:30%;width:40%;z-index:5}.dt-zone.right{right:0}
-.dt-feedback{position:absolute;top:50%;transform:translateY(-50%);display:none;flex-direction:column;align-items:center;gap:8px;z-index:20;pointer-events:none}
-.dt-feedback.left{left:15%}.dt-feedback.right{right:15%}
-.dt-feedback.show{display:flex;animation:dtFade 0.6s ease-out}
-.dt-ripple{width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.1);position:relative}
-.dt-ripple::before,.dt-ripple::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,0.3);animation:dtRipple 0.6s ease-out}
-.dt-ripple::after{animation-delay:0.15s}
-@keyframes dtRipple{0%{transform:scale(0.5);opacity:1}100%{transform:scale(1.5);opacity:0}}
-.dt-text{font-size:14px;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:8px}
-.dt-icon{font-size:24px}
-@keyframes dtFade{0%{opacity:0;transform:translateY(-50%) scale(0.8)}20%{opacity:1;transform:translateY(-50%) scale(1)}80%{opacity:1;transform:translateY(-50%) scale(1)}100%{opacity:0;transform:translateY(-50%) scale(1)}}
-
-/* ===== SMOOTH PROGRESS BAR ===== */
-.progress-container{width:100%;height:24px;display:flex;align-items:center;cursor:pointer;position:relative;touch-action:none;-webkit-user-select:none;user-select:none}
-.progress-track{width:100%;height:4px;background:rgba(255,255,255,0.2);border-radius:9999px;position:relative;overflow:visible;transition:height 0.15s}
-.progress-container:hover .progress-track,.progress-container.dragging .progress-track{height:6px}
-.progress-fill{height:100%;background:var(--c-p);border-radius:9999px;width:0%;position:relative;transition:none}
-.progress-fill::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%) scale(0);width:16px;height:16px;background:var(--c-p);border-radius:50%;box-shadow:0 0 12px var(--c-p);transition:transform 0.15s}
-.progress-container:hover .progress-fill::after,.progress-container.dragging .progress-fill::after{transform:translateY(-50%) scale(1)}
-.progress-tooltip{position:absolute;top:-28px;background:rgba(0,0,0,0.85);color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;transform:translateX(50%)}
-.progress-container:hover .progress-tooltip,.progress-container.dragging .progress-tooltip{opacity:1}
 
 .ctrl-btn svg{width:20px;height:20px;fill:currentColor}
 .big-play svg{width:28px;height:28px;fill:currentColor;pointer-events:none}
@@ -228,7 +229,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    </div>
   </div>
   <div class="header-actions">
-   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق" style="display:none;"><span>&#x2B07;</span> تثبيت</button>
+   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
    <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
   </div>
  </header>
@@ -260,6 +261,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
  <div class="loading-text" id="loadingText">جاري التحميل...</div>
 </div>
 
+<!-- PLAYER OVERLAY -->
 <div id="playerOverlay" class="player-overlay">
  <div class="player-header" id="playerHeader">
   <span class="player-title" id="playerTitle">...</span>
@@ -268,15 +270,41 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
   </div>
  </div>
+
  <video id="playerVideo" class="player-video" playsinline webkit-playsinline></video>
+
  <button class="big-play" id="bigPlayBtn">
   <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
  </button>
- <div class="player-loader" id="playerLoader"><div></div></div>
+
+ <div class="player-loader hidden" id="playerLoader"><div></div></div>
+
+ <!-- DOUBLE TAP ZONES -->
+ <div class="dt-zone left" id="dtZoneLeft"></div>
+ <div class="dt-zone center" id="dtZoneCenter"></div>
+ <div class="dt-zone right" id="dtZoneRight"></div>
+
+ <!-- DOUBLE TAP FEEDBACK -->
+ <div class="dt-feedback left" id="dtFeedbackLeft">
+  <div class="dt-ripple"></div>
+  <div class="dt-text" id="dtLeftText">&#x23EA; 10 ثواني</div>
+ </div>
+ <div class="dt-feedback right" id="dtFeedbackRight">
+  <div class="dt-ripple"></div>
+  <div class="dt-text" id="dtRightText">10 ثواني &#x23E9;</div>
+ </div>
+
  <div class="gesture-hint left" id="gestureLeft"></div>
  <div class="gesture-hint right" id="gestureRight"></div>
+
+ <!-- CONTROLS -->
  <div class="player-controls" id="playerControls">
-  <div class="progress-container" id="progressContainer"><div class="progress-track"><div class="progress-fill" id="progressFill"></div></div><div class="progress-tooltip" id="progressTooltip">0:00</div></div>
+  <div class="progress-container" id="progressContainer">
+   <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+   </div>
+   <div class="progress-tooltip" id="progressTooltip">0:00</div>
+  </div>
   <div class="controls-row">
    <div class="controls-left">
     <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف">
@@ -337,29 +365,28 @@ const E = {
  playerVideo: $("playerVideo"), playerTitle: $("playerTitle"), playerClose: $("playerClose"), playerHeader: $("playerHeader"),
  playerControls: $("playerControls"), liveBadge: $("liveBadge"), bigPlayBtn: $("bigPlayBtn"), playPauseBtn: $("playPauseBtn"),
  downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"),
- progressWrap: $("progressWrap"), progressFill: $("progressFill"), timeDisplay: $("timeDisplay"),
- playerLoader: $("playerLoader"), gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
+ progressContainer: $("progressContainer"), progressFill: $("progressFill"), progressTooltip: $("progressTooltip"),
+ timeDisplay: $("timeDisplay"), playerLoader: $("playerLoader"),
+ gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
  installOverlay: $("installOverlay"), installCancel: $("installCancel"), installConfirm: $("installConfirm"),
- installHeaderBtn: $("installHeaderBtn")
+ installHeaderBtn: $("installHeaderBtn"), installGuideText: $("installGuideText"),
+ dtZoneLeft: $("dtZoneLeft"), dtZoneCenter: $("dtZoneCenter"), dtZoneRight: $("dtZoneRight"),
+ dtFeedbackLeft: $("dtFeedbackLeft"), dtFeedbackRight: $("dtFeedbackRight"),
+ dtLeftText: $("dtLeftText"), dtRightText: $("dtRightText")
 };
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isAndroid = () => /Android/.test(navigator.userAgent);
-const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || window.navigator.standalone === true;
 
 let deferredPrompt = null;
 
 function init() {
  initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
- if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' })
-    .then((reg) => {
-      console.log('SW registered:', reg.scope);
-      reg.update();
-    })
-    .catch((err) => {
-      console.log('SW registration failed:', err);
-    });
+ if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js", { scope: "/" })
+    .then((reg) => { console.log("SW registered:", reg.scope); reg.update(); })
+    .catch((err) => { console.log("SW registration failed:", err); });
  }
  try {
   const u = localStorage.getItem("rp_u"), p = localStorage.getItem("rp_p");
@@ -371,56 +398,88 @@ function init() {
  } catch (e) {}
 }
 
+// ===== INSTALL PROMPT =====
 function initInstallPrompt() {
-  if (isStandalone()) { E.installHeaderBtn.style.display = 'none'; return; }
-  E.installHeaderBtn.style.display = 'inline-flex';
+  if (isStandalone()) {
+    if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
+    return;
+  }
+  if (E.installHeaderBtn) E.installHeaderBtn.style.display = "inline-flex";
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('beforeinstallprompt fired');
+  window.addEventListener("beforeinstallprompt", (e) => {
+    console.log("beforeinstallprompt fired");
     e.preventDefault();
     deferredPrompt = e;
-    E.installHeaderBtn.style.display = 'inline-flex';
+    if (E.installHeaderBtn) E.installHeaderBtn.style.display = "inline-flex";
   });
 
-  window.addEventListener('appinstalled', () => {
-    console.log('App installed');
+  window.addEventListener("appinstalled", () => {
+    console.log("App installed");
     deferredPrompt = null;
-    E.installHeaderBtn.style.display = 'none';
+    if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
     hideInstallPrompt();
   });
 
-  E.installHeaderBtn.addEventListener('click', () => { showInstallPrompt(); });
-  E.installCancel.addEventListener('click', hideInstallPrompt);
-
-  E.installConfirm.addEventListener('click', async () => {
-    if (!deferredPrompt) { showManualInstallGuide(); return; }
-    try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log('Install outcome:', outcome);
-      deferredPrompt = null;
-      if (outcome === 'accepted') { hideInstallPrompt(); E.installHeaderBtn.style.display = 'none'; }
-      else { hideInstallPrompt(); }
-    } catch (err) { console.error('Prompt error:', err); showManualInstallGuide(); }
-  });
+  if (E.installHeaderBtn) {
+    E.installHeaderBtn.addEventListener("click", () => { showInstallPrompt(); });
+  }
+  if (E.installCancel) {
+    E.installCancel.addEventListener("click", hideInstallPrompt);
+  }
+  if (E.installConfirm) {
+    E.installConfirm.addEventListener("click", async () => {
+      if (!deferredPrompt) { showManualInstallGuide(); return; }
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log("Install outcome:", outcome);
+        deferredPrompt = null;
+        if (outcome === "accepted") {
+          hideInstallPrompt();
+          if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
+        } else {
+          hideInstallPrompt();
+        }
+      } catch (err) {
+        console.error("Prompt error:", err);
+        showManualInstallGuide();
+      }
+    });
+  }
 }
 
 function showInstallPrompt() {
-  E.installGuideText.style.display = 'none';
-  E.installConfirm.textContent = 'تثبيت';
-  E.installConfirm.onclick = null;
-  E.installOverlay.classList.add('show');
-  document.body.style.overflow = 'hidden';
+  if (E.installGuideText) E.installGuideText.style.display = "none";
+  if (E.installConfirm) E.installConfirm.textContent = "تثبيت";
+  if (E.installOverlay) {
+    E.installOverlay.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
 }
 
-function hideInstallPrompt() { E.installOverlay.classList.remove('show'); document.body.style.overflow = ''; }
+function hideInstallPrompt() {
+  if (E.installOverlay) {
+    E.installOverlay.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+}
 
 function showManualInstallGuide() {
-  let msgText = isIOS() ? 'Safari: اضغط زر المشاركة ⬆️ ثم "Add to Home Screen"' : isAndroid() ? 'Chrome: اضغط القائمة ⋮ ثم "Add to Home screen"' : 'اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع';
-  E.installGuideText.textContent = msgText;
-  E.installGuideText.style.display = 'block';
-  E.installConfirm.textContent = 'فهمت';
+  let msgText;
+  if (isIOS()) {
+    msgText = "Safari: اضغط زر المشاركة ⬆️ ثم 'Add to Home Screen'";
+  } else if (isAndroid()) {
+    msgText = "Chrome: اضغط القائمة ⋮ ثم 'Add to Home screen'";
+  } else {
+    msgText = "اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع";
+  }
+  if (E.installGuideText) {
+    E.installGuideText.textContent = msgText;
+    E.installGuideText.style.display = "block";
+  }
+  if (E.installConfirm) E.installConfirm.textContent = "فهمت";
 }
+
 function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
 
 async function doLogin() {
@@ -597,7 +656,7 @@ function renderGrid(items) {
   const img = item.stream_icon || item.cover || item.cover_big || "";
   const icon = tab === "live" ? "&#x1F4FA;" : tab === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
   const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = tab; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
-  card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title line-clamp-2">' + esc(name) + '</div></div>';
+  card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
   card.addEventListener("click", () => handleClick(item, tab));
   E.contentGrid.appendChild(card);
  });
@@ -645,7 +704,7 @@ function renderEps(info, sname) {
    const btn = document.createElement("button"); btn.className = "ep-btn";
    btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
    const epStreamUrl = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4";
-    btn.addEventListener("click", () => openPlayer("/stream?url=" + encodeURIComponent(epStreamUrl), sname + " - " + en, false, ep));
+   btn.addEventListener("click", () => openPlayer("/stream?url=" + encodeURIComponent(epStreamUrl), sname + " - " + en, false, ep));
    grid.appendChild(btn);
   });
   sec.appendChild(grid); E.episodesArea.appendChild(sec);
@@ -703,6 +762,7 @@ function lazyImg() {
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function showLoad(v, t) { E.loadingOverlay.hidden = !v; if (t) E.loadingText.textContent = t; }
 
+// ===== PLAYER =====
 function initPlayer() {
  E.playerClose.addEventListener("click", closePlayer);
  E.bigPlayBtn.addEventListener("click", togglePlay);
@@ -711,17 +771,18 @@ function initPlayer() {
  E.fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFs(); });
  E.pipBtn.addEventListener("click", e => { e.stopPropagation(); togglePiP(); });
 
- // ===== SMOOTH PROGRESS BAR - Pointer Events =====
+ // PROGRESS BAR - Pointer Events
  let isDragging = false;
 
  function getProgressFromX(clientX) {
+  if (!E.progressContainer) return 0;
   const rect = E.progressContainer.getBoundingClientRect();
   let pct = (clientX - rect.left) / rect.width;
   return Math.max(0, Math.min(1, pct));
  }
 
  function updateTooltip(clientX) {
-  if (!E.playerVideo.duration) return;
+  if (!E.playerVideo || !E.playerVideo.duration || !E.progressTooltip) return;
   const pct = getProgressFromX(clientX);
   const time = pct * E.playerVideo.duration;
   E.progressTooltip.textContent = fmt(time);
@@ -729,50 +790,54 @@ function initPlayer() {
   E.progressTooltip.style.transform = "translateX(-50%)";
  }
 
- E.progressContainer.addEventListener("pointerdown", (e) => {
-  if (E.liveBadge.style.display === "flex" || !E.playerVideo.duration) return;
-  isDragging = true;
-  E.progressContainer.classList.add("dragging");
-  E.progressContainer.setPointerCapture(e.pointerId);
-  const pct = getProgressFromX(e.clientX);
-  E.progressFill.style.width = (pct * 100) + "%";
-  updateTooltip(e.clientX);
-  e.preventDefault();
- });
+ if (E.progressContainer) {
+  E.progressContainer.addEventListener("pointerdown", (e) => {
+   if (!E.playerVideo || !E.playerVideo.duration) return;
+   if (E.liveBadge && E.liveBadge.style.display === "flex") return;
+   isDragging = true;
+   E.progressContainer.classList.add("dragging");
+   E.progressContainer.setPointerCapture(e.pointerId);
+   const pct = getProgressFromX(e.clientX);
+   if (E.progressFill) E.progressFill.style.width = (pct * 100) + "%";
+   updateTooltip(e.clientX);
+   e.preventDefault();
+  });
 
- E.progressContainer.addEventListener("pointermove", (e) => {
-  if (!isDragging) {
-   if (E.playerVideo.duration && E.liveBadge.style.display !== "flex") updateTooltip(e.clientX);
-   return;
-  }
-  e.preventDefault();
-  const pct = getProgressFromX(e.clientX);
-  E.progressFill.style.width = (pct * 100) + "%";
-  updateTooltip(e.clientX);
- });
+  E.progressContainer.addEventListener("pointermove", (e) => {
+   if (!isDragging) {
+    if (E.playerVideo && E.playerVideo.duration && E.liveBadge && E.liveBadge.style.display !== "flex") updateTooltip(e.clientX);
+    return;
+   }
+   e.preventDefault();
+   const pct = getProgressFromX(e.clientX);
+   if (E.progressFill) E.progressFill.style.width = (pct * 100) + "%";
+   updateTooltip(e.clientX);
+  });
 
- E.progressContainer.addEventListener("pointerup", (e) => {
-  if (!isDragging) return;
-  isDragging = false;
-  E.progressContainer.classList.remove("dragging");
-  E.progressContainer.releasePointerCapture(e.pointerId);
-  const pct = getProgressFromX(e.clientX);
-  if (E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
- });
+  E.progressContainer.addEventListener("pointerup", (e) => {
+   if (!isDragging) return;
+   isDragging = false;
+   E.progressContainer.classList.remove("dragging");
+   E.progressContainer.releasePointerCapture(e.pointerId);
+   const pct = getProgressFromX(e.clientX);
+   if (E.playerVideo && E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
+  });
 
- E.progressContainer.addEventListener("pointercancel", () => {
-  isDragging = false;
-  E.progressContainer.classList.remove("dragging");
- });
+  E.progressContainer.addEventListener("pointercancel", () => {
+   isDragging = false;
+   E.progressContainer.classList.remove("dragging");
+  });
+ }
 
- // ===== DOUBLE TAP =====
- const DOUBLE_TAP_DELAY = 300;
+ // DOUBLE TAP
+ const DOUBLE_TAP_DELAY = 350;
  let lastTapTime = 0, lastTapZone = null, tapCount = 0, tapTimer = null;
 
  function showDTFeedback(zone, seconds) {
   const feedback = zone === "left" ? E.dtFeedbackLeft : E.dtFeedbackRight;
   const textEl = zone === "left" ? E.dtLeftText : E.dtRightText;
-  textEl.textContent = Math.abs(seconds) + " ثواني";
+  if (!feedback || !textEl) return;
+  textEl.textContent = (seconds < 0 ? String.fromCharCode(0x23EA) + " " : "") + Math.abs(seconds) + " ثواني" + (seconds > 0 ? " " + String.fromCharCode(0x23E9) : "");
   feedback.classList.remove("show");
   void feedback.offsetWidth;
   feedback.classList.add("show");
@@ -780,11 +845,12 @@ function initPlayer() {
  }
 
  function handleDoubleTap(zone) {
-  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+  if (!E.playerVideo) return;
+  if (E.liveBadge && E.liveBadge.style.display === "flex") return;
   if (zone === "left") {
    E.playerVideo.currentTime = Math.max(0, E.playerVideo.currentTime - 10);
    showDTFeedback("left", -10);
-  } else {
+  } else if (zone === "right") {
    E.playerVideo.currentTime = Math.min(E.playerVideo.duration || Infinity, E.playerVideo.currentTime + 10);
    showDTFeedback("right", 10);
   }
@@ -793,13 +859,16 @@ function initPlayer() {
  }
 
  function setupDTZone(element, zoneName) {
+  if (!element) return;
+  // Touch events for mobile
   element.addEventListener("touchend", (e) => {
-   if (e.target.closest('.progress-container')) return;
+   if (e.target.closest(".progress-container")) return;
    const now = Date.now();
    if (lastTapZone === zoneName && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
     clearTimeout(tapTimer);
     handleDoubleTap(zoneName);
     lastTapTime = now;
+    tapCount = 0;
    } else {
     tapCount = 1;
     lastTapZone = zoneName;
@@ -811,38 +880,50 @@ function initPlayer() {
     }, DOUBLE_TAP_DELAY);
    }
   }, { passive: true });
+
+  // Click events for desktop
+  element.addEventListener("click", (e) => {
+   if (e.target.closest(".progress-container")) return;
+   const now = Date.now();
+   if (lastTapZone === zoneName && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
+    clearTimeout(tapTimer);
+    if (zoneName === "center") {
+     togglePlay();
+    } else {
+     handleDoubleTap(zoneName);
+    }
+    lastTapTime = 0; lastTapZone = null; tapCount = 0;
+   } else {
+    lastTapTime = now;
+    lastTapZone = zoneName;
+    tapCount = 1;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => {
+     if (tapCount === 1 && lastTapZone === zoneName && zoneName === "center") togglePlay();
+     tapCount = 0; lastTapZone = null;
+    }, DOUBLE_TAP_DELAY);
+   }
+  });
  }
 
  setupDTZone(E.dtZoneLeft, "left");
  setupDTZone(E.dtZoneCenter, "center");
  setupDTZone(E.dtZoneRight, "right");
 
- E.dtZoneLeft.addEventListener("click", (e) => {
-  if (e.target.closest('.progress-container')) return;
-  const now = Date.now();
-  if (lastTapZone === "left" && (now - lastTapTime) < DOUBLE_TAP_DELAY) { handleDoubleTap("left"); lastTapTime = 0; }
-  else { lastTapTime = now; lastTapZone = "left"; }
- });
-
- E.dtZoneRight.addEventListener("click", (e) => {
-  if (e.target.closest('.progress-container')) return;
-  const now = Date.now();
-  if (lastTapZone === "right" && (now - lastTapTime) < DOUBLE_TAP_DELAY) { handleDoubleTap("right"); lastTapTime = 0; }
-  else { lastTapTime = now; lastTapZone = "right"; }
- });
-
- E.dtZoneCenter.addEventListener("click", (e) => {
-  if (e.target.closest('.progress-container')) return;
-  togglePlay();
- });
-
+ // Video events
  E.playerVideo.addEventListener("timeupdate", updateProg);
- E.playerVideo.addEventListener("play", () => { setPlayIcon(true); E.bigPlayBtn.classList.add("hidden"); });
- E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); E.bigPlayBtn.classList.remove("hidden"); });
- E.playerVideo.addEventListener("waiting", () => E.playerLoader.classList.remove("hidden"));
- E.playerVideo.addEventListener("playing", () => E.playerLoader.classList.add("hidden"));
- E.playerOverlay.addEventListener("mousemove", showControls);
+ E.playerVideo.addEventListener("play", () => { setPlayIcon(true); if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden"); });
+ E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden"); });
+ E.playerVideo.addEventListener("waiting", () => { if (E.playerLoader) E.playerLoader.classList.remove("hidden"); });
+ E.playerVideo.addEventListener("playing", () => { if (E.playerLoader) E.playerLoader.classList.add("hidden"); });
+
+ // Show controls on tap anywhere in player (except controls area)
+ E.playerOverlay.addEventListener("click", (e) => {
+  if (e.target.closest(".player-controls") || e.target.closest(".player-header") || e.target.closest(".dt-zone")) return;
+  showControls();
+ });
 }
+
 function setPlayIcon(playing) {
  const playIcon = document.getElementById("playIcon");
  const pauseIcon = document.getElementById("pauseIcon");
@@ -855,13 +936,14 @@ function setPlayIcon(playing) {
 function openPlayer(url, name, live, item) {
  window.CURRENT_ITEM = item || null;
  if (item) addToWatched(item);
- E.playerOverlay.style.display = "flex"; 
+ E.playerOverlay.style.display = "flex";
  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
  document.body.style.overflow = "hidden";
  E.playerTitle.textContent = name || "...";
- E.liveBadge.style.display = "none";
- E.downloadBtn.style.display = live ? "none" : "flex";
- E.playerLoader.classList.remove("hidden"); E.bigPlayBtn.classList.remove("hidden");
+ if (E.liveBadge) E.liveBadge.style.display = live ? "flex" : "none";
+ if (E.downloadBtn) E.downloadBtn.style.display = live ? "none" : "flex";
+ if (E.playerLoader) E.playerLoader.classList.remove("hidden");
+ if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
 
  if (HLS) { HLS.destroy(); HLS = null; }
  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
@@ -870,20 +952,22 @@ function openPlayer(url, name, live, item) {
   HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
   HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
   HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-   E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
+   if (E.playerLoader) E.playerLoader.classList.add("hidden");
+   if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
    E.playerVideo.play().catch(() => {});
   });
-  HLS.on(Hls.Events.ERROR, (e, d) => { 
-   if (d.fatal) { 
-    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad(); 
-    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError(); 
-    else { HLS.destroy(); HLS = null; } 
-   } 
+  HLS.on(Hls.Events.ERROR, (e, d) => {
+   if (d.fatal) {
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
+    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError();
+    else { HLS.destroy(); HLS = null; }
+   }
   });
  } else {
-  E.playerVideo.src = url; 
+  E.playerVideo.src = url;
   E.playerVideo.play().catch(() => {});
-  E.playerLoader.classList.add("hidden"); E.bigPlayBtn.classList.add("hidden");
+  if (E.playerLoader) E.playerLoader.classList.add("hidden");
+  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
  }
  showControls();
 }
@@ -896,12 +980,20 @@ function closePlayer() {
  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
-function togglePlay() { if (!E.playerVideo) return; E.playerVideo.paused ? E.playerVideo.play().catch(() => {}) : E.playerVideo.pause(); }
-function toggleFs() {
+function togglePlay() {
  if (!E.playerVideo) return;
+ if (E.playerVideo.paused) {
+  E.playerVideo.play().catch(() => {});
+ } else {
+  E.playerVideo.pause();
+ }
+}
+
+function toggleFs() {
+ if (!E.playerOverlay) return;
  try {
   const doc = document;
-  const el = E.playerVideo;
+  const el = E.playerOverlay;
   if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
    if (doc.exitFullscreen) doc.exitFullscreen().catch(()=>{});
    else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
@@ -915,7 +1007,14 @@ function toggleFs() {
   }
  } catch(e) {}
 }
-async function togglePiP() { if (!E.playerVideo) return; try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await E.playerVideo.requestPictureInPicture(); } catch (e) {} }
+
+async function togglePiP() {
+ if (!E.playerVideo) return;
+ try {
+  if (document.pictureInPictureElement) await document.exitPictureInPicture();
+  else await E.playerVideo.requestPictureInPicture();
+ } catch (e) {}
+}
 
 function downloadCurrent() {
  if (!window.CURRENT_ITEM) return;
@@ -927,27 +1026,45 @@ function downloadCurrent() {
  else if (tab === "vod") url = AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
  else url = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
 
- const a = document.createElement('a');
+ const a = document.createElement("a");
  a.href = url;
- a.download = (item.name || item.title || 'video').replace(/[^a-z0-9\u0600-\u06FF]/gi, '_') + (tab === 'live' ? '.m3u8' : '.mp4');
+ a.download = (item.name || item.title || "video").replace(/[^a-z0-9\u0600-\u06FF]/gi, "_") + (tab === "live" ? ".m3u8" : ".mp4");
  document.body.appendChild(a);
  a.click();
  document.body.removeChild(a);
 }
 
 function updateProg() {
- if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
- const pct = (E.playerVideo.currentTime / E.playerVideo.duration) * 100;
- E.progressFill.style.width = pct + "%";
- E.timeDisplay.textContent = fmt(E.playerVideo.currentTime) + " / " + fmt(E.playerVideo.duration || 0);
+ if (!E.playerVideo) return;
+ if (E.liveBadge && E.liveBadge.style.display === "flex") return;
+ const duration = E.playerVideo.duration || 0;
+ const current = E.playerVideo.currentTime || 0;
+ const pct = duration ? (current / duration) * 100 : 0;
+ if (E.progressFill) E.progressFill.style.width = pct + "%";
+ if (E.timeDisplay) E.timeDisplay.textContent = fmt(current) + " / " + fmt(duration);
 }
-function fmt(s) { if (!isFinite(s)) return "0:00"; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = Math.floor(s % 60); if (h > 0) return h + ":" + m.toString().padStart(2, "0") + ":" + sec.toString().padStart(2, "0"); return m + ":" + sec.toString().padStart(2, "0"); }
+
+function fmt(s) {
+ if (!isFinite(s)) return "0:00";
+ const h = Math.floor(s / 3600);
+ const m = Math.floor((s % 3600) / 60);
+ const sec = Math.floor(s % 60);
+ if (h > 0) return h + ":" + m.toString().padStart(2, "0") + ":" + sec.toString().padStart(2, "0");
+ return m + ":" + sec.toString().padStart(2, "0");
+}
 
 let ctrlTimer;
 function showControls() {
- E.playerHeader.classList.remove("hidden"); E.playerControls.classList.remove("hidden"); E.bigPlayBtn.classList.add("hidden");
+ if (E.playerHeader) E.playerHeader.classList.remove("hidden");
+ if (E.playerControls) E.playerControls.classList.remove("hidden");
+ if (E.bigPlayBtn && E.playerVideo && !E.playerVideo.paused) E.bigPlayBtn.classList.add("hidden");
  clearTimeout(ctrlTimer);
- ctrlTimer = setTimeout(() => { if (E.playerVideo && !E.playerVideo.paused) { E.playerHeader.classList.add("hidden"); E.playerControls.classList.add("hidden"); } }, 3000);
+ ctrlTimer = setTimeout(() => {
+  if (E.playerVideo && !E.playerVideo.paused) {
+   if (E.playerHeader) E.playerHeader.classList.add("hidden");
+   if (E.playerControls) E.playerControls.classList.add("hidden");
+  }
+ }, 3000);
 }
 
 function initKeyboard() {
@@ -956,22 +1073,27 @@ function initKeyboard() {
   if (e.target.tagName === "INPUT") return;
   switch (e.key) {
    case "Escape": case "Backspace": e.preventDefault(); closePlayer(); break;
-   case " ": case "k": e.preventDefault(); togglePlay(); showHint("&#x25B6;/&#x23F8;"); break;
-   case "f": e.preventDefault(); toggleFs(); showHint("&#x26F6;"); break;
+   case " ": case "k": e.preventDefault(); togglePlay(); showHint(String.fromCharCode(0x25B6) + "/" + String.fromCharCode(0x23F8)); break;
+   case "f": e.preventDefault(); toggleFs(); showHint(String.fromCharCode(0x26F6)); break;
    case "ArrowRight": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime += 10; showHint("+10s"); break;
    case "ArrowLeft": e.preventDefault(); if (E.playerVideo) E.playerVideo.currentTime -= 10; showHint("-10s"); break;
-   case "ArrowUp": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.min(1, E.playerVideo.volume + 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
-   case "ArrowDown": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.max(0, E.playerVideo.volume - 0.1); showHint("&#x1F50A; " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
+   case "ArrowUp": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.min(1, E.playerVideo.volume + 0.1); showHint(String.fromCharCode(0x1F50A) + " " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
+   case "ArrowDown": e.preventDefault(); if (E.playerVideo) E.playerVideo.volume = Math.max(0, E.playerVideo.volume - 0.1); showHint(String.fromCharCode(0x1F50A) + " " + Math.round((E.playerVideo?.volume || 0) * 100) + "%"); break;
   }
  });
 }
 
 let hintT;
-function showHint(t) { const h = E.gestureLeft; h.textContent = t; h.classList.add("show"); clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove("show"), 800); }
+function showHint(t) {
+ const h = E.gestureLeft;
+ if (!h) return;
+ h.textContent = t;
+ h.classList.add("show");
+ clearTimeout(hintT);
+ hintT = setTimeout(() => h.classList.remove("show"), 800);
+}
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
-
-
 </script>
 </body>
 </html>
