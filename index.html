@@ -2,8 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Raxson Player">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/images/logo1.png">
 <title>Raxson Player</title>
@@ -17,7 +20,6 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden}
 
-/* shasha tsejel dukhool */
 .login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;background:radial-gradient(ellipse at 20% 20%,rgba(233,30,99,0.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,255,208,0.05) 0%,transparent 50%),var(--c-bg)}
 .neon-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,255,208,0.99);opacity:0.15;animation:pr 4s ease-in-out infinite;pointer-events:none}
 .ring-1{width:500px;height:500px;top:-150px;left:-150px}.ring-2{width:400px;height:400px;bottom:-100px;right:-100px;animation-delay:2s}
@@ -43,7 +45,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .login-error{min-height:20px;text-align:center;font-size:13px;color:#ff3366;opacity:0;transition:opacity 150ms}.login-error.show{opacity:1}
 .login-log{text-align:center;font-size:11px;color:var(--c-tm);min-height:16px}
 
-/* attabeq ar-raeesi */
 .app-container{display:none;height:100vh;flex-direction:column;overflow:hidden}
 .app-container.active{display:flex}
 .app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;gap:16px}
@@ -90,7 +91,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .ep-btn{background:rgba(255,255,255,0.03);border:1px solid var(--g-b);border-radius:10px;padding:12px;text-align:right;color:#fff;cursor:pointer;transition:all 200ms}.ep-btn:hover{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3)}.ep-btn:active{transform:scale(0.98)}
 
-/* mushaghil al-fidyoo */
 .player-overlay{position:fixed;inset:0;background:#000;z-index:99;display:none;flex-direction:column;animation:fi 0.3s ease}
 @keyframes fi{from{opacity:0}to{opacity:1}}
 .player-overlay.visible{display:flex}
@@ -100,9 +100,31 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .player-video{flex:1;width:100%;height:100%;background:#000;object-fit:contain}
 .big-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:50px;border-radius:14px;background:var(--c-p);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;z-index:8;box-shadow:0 0 25px rgba(233,30,99,0.18)}.big-play:hover{transform:translate(-50%,-50%) scale(1.1);background:var(--c-p-d)}.big-play.hidden{opacity:0;pointer-events:none}
 .player-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none}.player-loader.hidden{display:none}.player-loader div{width:48px;height:48px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}
+
+/* ===== DOUBLE TAP VISUAL FEEDBACK ===== */
+.double-tap-zone{position:absolute;top:0;bottom:80px;width:33%;z-index:7;pointer-events:auto}
+.double-tap-zone.left{left:0}
+.double-tap-zone.right{right:0}
+.double-tap-ripple{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.15);opacity:0;pointer-events:none;z-index:20}
+.double-tap-ripple.animate{animation:rippleAnim 0.5s ease-out}
+@keyframes rippleAnim{0%{opacity:0.6;transform:translate(-50%,-50%) scale(0.5)}100%{opacity:0;transform:translate(-50%,-50%) scale(2)}}
+.double-tap-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);opacity:0;pointer-events:none;z-index:21;white-space:nowrap}
+.double-tap-text.show{animation:textPop 0.6s ease-out}
+@keyframes textPop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+
 .gesture-hint{position:absolute;top:50%;transform:translateY(-50%);padding:12px 20px;background:rgba(0,0,0,0.6);border-radius:var(--r-lg);font-size:18px;color:#fff;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:15}.gesture-hint.show{opacity:1}.gesture-hint.left{left:20px}.gesture-hint.right{right:20px}
+
+/* ===== SMOOTH PROGRESS BAR (MX Player style) ===== */
 .player-controls{position:absolute;bottom:0;left:0;right:0;padding:20px 16px 16px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);display:flex;flex-direction:column;gap:8px;z-index:10;transition:opacity 0.3s}.player-controls.hidden{opacity:0;pointer-events:none}
-.progress-wrap{width:100%;height:6px;background:rgba(255,255,255,0.2);border-radius:9999px;cursor:pointer;position:relative;touch-action:none}.progress-fill{height:100%;background:var(--c-p);border-radius:9999px;width:0%;transition:width 0.1s linear;position:relative}.progress-fill::after{content:"";position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--c-p);border-radius:50%;box-shadow:0 0 10px var(--c-p);opacity:0;transition:opacity 0.2s}.progress-wrap:hover .progress-fill::after,.progress-wrap:active .progress-fill::after{opacity:1}
+.progress-wrap{width:100%;height:20px;display:flex;align-items:center;cursor:pointer;position:relative;touch-action:none;-webkit-user-select:none;user-select:none}
+.progress-track{width:100%;height:4px;background:rgba(255,255,255,0.2);border-radius:9999px;position:relative;overflow:visible;transition:height 0.15s}
+.progress-wrap:hover .progress-track,.progress-wrap:active .progress-track,.progress-wrap.dragging .progress-track{height:6px}
+.progress-fill{height:100%;background:var(--c-p);border-radius:9999px;width:0%;position:relative;transition:width 0.05s linear}
+.progress-fill::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:16px;height:16px;background:var(--c-p);border-radius:50%;box-shadow:0 0 12px var(--c-p);opacity:0;transition:opacity 0.2s,transform 0.15s;transform:translateY(-50%) scale(0)}
+.progress-wrap:hover .progress-fill::after,.progress-wrap.dragging .progress-fill::after{opacity:1;transform:translateY(-50%) scale(1)}
+.progress-tooltip{position:absolute;top:-32px;background:rgba(0,0,0,0.85);color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;transform:translateX(50%)}
+.progress-wrap:hover .progress-tooltip,.progress-wrap.dragging .progress-tooltip{opacity:1}
+
 .controls-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.controls-left,.controls-right{display:flex;align-items:center;gap:4px}
 .ctrl-btn{width:40px;height:40px;border-radius:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(4px)}.ctrl-btn:hover{background:var(--c-p);border-color:var(--c-p);transform:scale(1.1);box-shadow:0 0 25px rgba(233,30,99,0.18)}
 .ctrl-btn.play-btn{width:auto;height:auto;background:transparent;border:none;padding:8px}.ctrl-btn.play-btn:hover{transform:scale(1.2);background:transparent;border:none;box-shadow:none}
@@ -111,7 +133,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .live-badge{position:absolute;top:12px;left:12px;background:#ff3366;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;z-index:5;display:none;align-items:center;gap:6px;animation:pu 2s infinite}.live-badge::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%}@keyframes pu{0%,100%{opacity:1}50%{opacity:0.7}}
 .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.9);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:90}.loading-overlay[hidden]{display:none}.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}.loading-text{font-size:13px;color:var(--c-t2)}
 
-/* nafidhat tathbeet attabeq al-mukhasassa */
 .install-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 300ms ease}
 .install-overlay.show{display:flex;opacity:1}
 .install-card{background:linear-gradient(180deg, rgba(30,30,45,0.98), rgba(15,15,25,0.98));border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:28px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(233,30,99,0.08);transform:scale(0.9) translateY(20px);transition:transform 300ms cubic-bezier(0.34,1.56,0.64,1)}
@@ -244,20 +265,39 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
   </div>
  </div>
+
+ <!-- Double tap zones -->
+ <div class="double-tap-zone left" id="doubleTapLeft"></div>
+ <div class="double-tap-zone right" id="doubleTapRight"></div>
+ <div class="double-tap-ripple" id="dtRipple"></div>
+ <div class="double-tap-text" id="dtText"></div>
+
  <video id="playerVideo" class="player-video" playsinline webkit-playsinline></video>
+
  <button class="big-play" id="bigPlayBtn">
   <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
  </button>
+
  <div class="player-loader" id="playerLoader"><div></div></div>
  <div class="gesture-hint left" id="gestureLeft"></div>
  <div class="gesture-hint right" id="gestureRight"></div>
+
  <div class="player-controls" id="playerControls">
-  <div class="progress-wrap" id="progressWrap"><div class="progress-fill" id="progressFill"></div></div>
+  <!-- Smooth progress bar with tooltip -->
+  <div class="progress-wrap" id="progressWrap">
+   <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+   </div>
+   <div class="progress-tooltip" id="progressTooltip">0:00</div>
+  </div>
+
   <div class="controls-row">
    <div class="controls-left">
     <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف">
-     <svg id="playIcon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-     <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+     <!-- SVG Play Icon -->
+     <svg id="playIcon" viewBox="0 0 24 24" style="display:none"><polygon points="5,3 19,12 5,21"/></svg>
+     <!-- SVG Pause Icon -->
+     <svg id="pauseIcon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
     </button>
     <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
    </div>
@@ -295,6 +335,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
+
 const DEFAULT_HOST = "http://barqtv.fit:80";
 const AUTH = { host: DEFAULT_HOST, user: "", pass: "" };
 let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false, seriesInfo: null };
@@ -312,10 +353,13 @@ const E = {
  playerVideo: $("playerVideo"), playerTitle: $("playerTitle"), playerClose: $("playerClose"), playerHeader: $("playerHeader"),
  playerControls: $("playerControls"), liveBadge: $("liveBadge"), bigPlayBtn: $("bigPlayBtn"), playPauseBtn: $("playPauseBtn"),
  downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"),
- progressWrap: $("progressWrap"), progressFill: $("progressFill"), timeDisplay: $("timeDisplay"),
+ progressWrap: $("progressWrap"), progressFill: $("progressFill"), progressTooltip: $("progressTooltip"),
+ timeDisplay: $("timeDisplay"),
  playerLoader: $("playerLoader"), gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
  installOverlay: $("installOverlay"), installCancel: $("installCancel"), installConfirm: $("installConfirm"),
- installHeaderBtn: $("installHeaderBtn")
+ installHeaderBtn: $("installHeaderBtn"),
+ doubleTapLeft: $("doubleTapLeft"), doubleTapRight: $("doubleTapRight"),
+ dtRipple: $("dtRipple"), dtText: $("dtText")
 };
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -345,30 +389,26 @@ function init() {
  } catch (e) {}
 }
 
+/* ===== PWA INSTALL ===== */
 function initInstallPrompt() {
-  // إخفاء زر التثبيت افتراضياً
   E.installHeaderBtn.style.display = 'none';
 
   window.addEventListener('beforeinstallprompt', (e) => {
     console.log('beforeinstallprompt fired');
-    // ⬅️ منع السلوك الافتراضي (إلزامي)
     e.preventDefault();
     deferredPrompt = e;
-
-    // إظهار زر التثبيت في الهيدر فقط إذا لم يكن مثبتاً
     if (!isStandalone()) {
       E.installHeaderBtn.style.display = 'inline-flex';
     }
   });
 
   window.addEventListener('appinstalled', () => {
-    console.log('App installed successfully');
+    console.log('App installed');
     deferredPrompt = null;
     E.installHeaderBtn.style.display = 'none';
     hideInstallPrompt();
   });
 
-  // زر التثبيت في الهيدر
   E.installHeaderBtn.addEventListener('click', () => {
     if (deferredPrompt) {
       showInstallPrompt();
@@ -385,16 +425,11 @@ function initInstallPrompt() {
       showManualInstallGuide();
       return;
     }
-
     try {
-      // ⬅️ إظهار مربع حوار التثبيت الأصلي
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       console.log('Install outcome:', outcome);
-
-      // ⬅️ مسح الحدث (لا يمكن استخدامه مرة أخرى)
       deferredPrompt = null;
-
       if (outcome === 'accepted') {
         hideInstallPrompt();
         E.installHeaderBtn.style.display = 'none';
@@ -407,7 +442,6 @@ function initInstallPrompt() {
     }
   });
 
-  // التحقق إذا كان التطبيق مثبتاً بالفعل
   if (isStandalone()) {
     E.installHeaderBtn.style.display = 'none';
   }
@@ -417,7 +451,6 @@ function showManualInstallGuide() {
   const infoDiv = document.querySelector('.install-app-info');
   if (!infoDiv) return;
   infoDiv.querySelectorAll('.install-msg').forEach(el => el.remove());
-
   const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isAndroidDevice = /Android/.test(navigator.userAgent);
   let msgText = isIOSDevice 
@@ -425,7 +458,6 @@ function showManualInstallGuide() {
     : isAndroidDevice 
       ? 'Chrome: اضغط القائمة ⋮ ثم "Add to Home screen"' 
       : 'اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع';
-
   const msg = document.createElement('div');
   msg.className = 'install-msg';
   msg.style.cssText = 'color:#f59e0b;font-size:13px;margin-top:12px;text-align:center;line-height:1.6;padding:8px;background:rgba(245,158,11,0.1);border-radius:8px;';
@@ -437,7 +469,6 @@ function showInstallPrompt() {
   E.installOverlay.classList.add('show'); 
   document.body.style.overflow = 'hidden'; 
 }
-
 function hideInstallPrompt() { 
   E.installOverlay.classList.remove('show'); 
   document.body.style.overflow = ''; 
@@ -725,6 +756,7 @@ function lazyImg() {
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function showLoad(v, t) { E.loadingOverlay.hidden = !v; if (t) E.loadingText.textContent = t; }
 
+/* ===== PLAYER WITH DOUBLE TAP & SMOOTH SEEK ===== */
 function initPlayer() {
  E.playerClose.addEventListener("click", closePlayer);
  E.bigPlayBtn.addEventListener("click", togglePlay);
@@ -733,35 +765,193 @@ function initPlayer() {
  E.fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFs(); });
  E.pipBtn.addEventListener("click", e => { e.stopPropagation(); togglePiP(); });
 
- function seek(clientX) {
-  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+ // ===== SMOOTH PROGRESS BAR SEEK (MX Player style) =====
+ let isDragging = false;
+ let wasPlayingBeforeDrag = false;
+
+ function getProgressFromX(clientX) {
   const rect = E.progressWrap.getBoundingClientRect();
   let pct = (clientX - rect.left) / rect.width;
-  pct = Math.max(0, Math.min(1, pct));
-  E.progressFill.style.width = (pct * 100) + "%";
-  if (E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
+  return Math.max(0, Math.min(1, pct));
  }
- E.progressWrap.addEventListener("click", e => seek(e.clientX));
- let isSeeking = false;
- E.progressWrap.addEventListener("touchstart", e => { isSeeking = true; seek(e.touches[0].clientX); }, {passive:true});
- E.progressWrap.addEventListener("touchmove", e => { if(isSeeking) { e.preventDefault(); seek(e.touches[0].clientX); } }, {passive:false});
- E.progressWrap.addEventListener("touchend", () => { isSeeking = false; });
 
+ function updateProgressVisual(pct) {
+  E.progressFill.style.width = (pct * 100) + "%";
+  if (E.playerVideo.duration) {
+   const time = pct * E.playerVideo.duration;
+   E.progressTooltip.textContent = fmt(time);
+   E.timeDisplay.textContent = fmt(time) + " / " + fmt(E.playerVideo.duration || 0);
+  }
+ }
+
+ function seekToX(clientX) {
+  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+  const pct = getProgressFromX(clientX);
+  updateProgressVisual(pct);
+  if (E.playerVideo.duration) {
+   E.playerVideo.currentTime = pct * E.playerVideo.duration;
+  }
+ }
+
+ // Mouse events for progress bar
+ E.progressWrap.addEventListener("mousedown", (e) => {
+  if (E.liveBadge.style.display === "flex") return;
+  isDragging = true;
+  wasPlayingBeforeDrag = !E.playerVideo.paused;
+  if (wasPlayingBeforeDrag) E.playerVideo.pause();
+  E.progressWrap.classList.add("dragging");
+  seekToX(e.clientX);
+ });
+
+ document.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+  e.preventDefault();
+  seekToX(e.clientX);
+  const rect = E.progressWrap.getBoundingClientRect();
+  let pct = (e.clientX - rect.left) / rect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  E.progressTooltip.style.right = ((1 - pct) * 100) + "%";
+ });
+
+ document.addEventListener("mouseup", () => {
+  if (!isDragging) return;
+  isDragging = false;
+  E.progressWrap.classList.remove("dragging");
+  if (wasPlayingBeforeDrag) E.playerVideo.play().catch(() => {});
+ });
+
+ // Touch events for progress bar (mobile)
+ E.progressWrap.addEventListener("touchstart", (e) => {
+  if (E.liveBadge.style.display === "flex") return;
+  isDragging = true;
+  wasPlayingBeforeDrag = !E.playerVideo.paused;
+  if (wasPlayingBeforeDrag) E.playerVideo.pause();
+  E.progressWrap.classList.add("dragging");
+  seekToX(e.touches[0].clientX);
+ }, { passive: false });
+
+ document.addEventListener("touchmove", (e) => {
+  if (!isDragging) return;
+  e.preventDefault();
+  seekToX(e.touches[0].clientX);
+  const rect = E.progressWrap.getBoundingClientRect();
+  let pct = (e.touches[0].clientX - rect.left) / rect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  E.progressTooltip.style.right = ((1 - pct) * 100) + "%";
+ }, { passive: false });
+
+ document.addEventListener("touchend", () => {
+  if (!isDragging) return;
+  isDragging = false;
+  E.progressWrap.classList.remove("dragging");
+  if (wasPlayingBeforeDrag) E.playerVideo.play().catch(() => {});
+ });
+
+ // Tooltip on hover
+ E.progressWrap.addEventListener("mousemove", (e) => {
+  if (isDragging || E.liveBadge.style.display === "flex" || !E.playerVideo.duration) return;
+  const rect = E.progressWrap.getBoundingClientRect();
+  let pct = (e.clientX - rect.left) / rect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  const time = pct * E.playerVideo.duration;
+  E.progressTooltip.textContent = fmt(time);
+  E.progressTooltip.style.right = ((1 - pct) * 100) + "%";
+ });
+
+ // ===== DOUBLE TAP: LEFT = BACKWARD 10s, RIGHT = FORWARD 10s =====
+ let lastTapTime = 0;
+ let lastTapSide = null;
+ const DOUBLE_TAP_DELAY = 300;
+
+ function showDoubleTapFeedback(side, seconds) {
+  // Position ripple and text
+  const overlayRect = E.playerOverlay.getBoundingClientRect();
+  const centerY = overlayRect.height / 2;
+
+  E.dtRipple.style.top = centerY + "px";
+  E.dtText.style.top = centerY + "px";
+
+  if (side === "left") {
+   E.dtRipple.style.left = "25%";
+   E.dtText.style.left = "25%";
+   E.dtText.textContent = "⏪ " + Math.abs(seconds) + "s";
+  } else {
+   E.dtRipple.style.left = "75%";
+   E.dtText.style.left = "75%";
+   E.dtText.textContent = seconds + "s ⏩";
+  }
+
+  // Trigger animations
+  E.dtRipple.classList.remove("animate");
+  void E.dtRipple.offsetWidth; // force reflow
+  E.dtRipple.classList.add("animate");
+
+  E.dtText.classList.remove("show");
+  void E.dtText.offsetWidth;
+  E.dtText.classList.add("show");
+ }
+
+ function handleDoubleTap(side) {
+  if (!E.playerVideo || E.liveBadge.style.display === "flex") return;
+
+  if (side === "left") {
+   // Left side = backward 10s
+   E.playerVideo.currentTime = Math.max(0, E.playerVideo.currentTime - 10);
+   showDoubleTapFeedback("left", -10);
+  } else {
+   // Right side = forward 10s
+   E.playerVideo.currentTime = Math.min(E.playerVideo.duration || Infinity, E.playerVideo.currentTime + 10);
+   showDoubleTapFeedback("right", 10);
+  }
+  updateProg();
+  showControls();
+ }
+
+ E.doubleTapLeft.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const now = Date.now();
+  if (lastTapSide === "left" && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
+   handleDoubleTap("left");
+   lastTapTime = 0;
+   lastTapSide = null;
+  } else {
+   lastTapTime = now;
+   lastTapSide = "left";
+   // Single tap on left zone = toggle play (after delay if no double tap)
+   setTimeout(() => {
+    if (lastTapSide === "left" && (Date.now() - lastTapTime) >= DOUBLE_TAP_DELAY) {
+     togglePlay();
+     lastTapSide = null;
+    }
+   }, DOUBLE_TAP_DELAY + 50);
+  }
+ });
+
+ E.doubleTapRight.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const now = Date.now();
+  if (lastTapSide === "right" && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
+   handleDoubleTap("right");
+   lastTapTime = 0;
+   lastTapSide = null;
+  } else {
+   lastTapTime = now;
+   lastTapSide = "right";
+   setTimeout(() => {
+    if (lastTapSide === "right" && (Date.now() - lastTapTime) >= DOUBLE_TAP_DELAY) {
+     togglePlay();
+     lastTapSide = null;
+    }
+   }, DOUBLE_TAP_DELAY + 50);
+  }
+ });
+
+ // Video events
  E.playerVideo.addEventListener("timeupdate", updateProg);
  E.playerVideo.addEventListener("play", () => { setPlayIcon(true); E.bigPlayBtn.classList.add("hidden"); });
  E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); E.bigPlayBtn.classList.remove("hidden"); });
  E.playerVideo.addEventListener("waiting", () => E.playerLoader.classList.remove("hidden"));
  E.playerVideo.addEventListener("playing", () => E.playerLoader.classList.add("hidden"));
-
- E.playerVideo.addEventListener("click", e => {
-  e.stopPropagation();
-  const rect = E.playerVideo.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const w = rect.width;
-  if (x < w * 0.3) { E.playerVideo.currentTime -= 10; showHint("-10s &#x23EA;"); }
-  else if (x > w * 0.7) { E.playerVideo.currentTime += 10; showHint("+10s &#x23E9;"); }
-  else { togglePlay(); }
- });
 
  E.playerOverlay.addEventListener("mousemove", showControls);
 }
@@ -782,7 +972,7 @@ function openPlayer(url, name, live, item) {
  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
  document.body.style.overflow = "hidden";
  E.playerTitle.textContent = name || "...";
- E.liveBadge.style.display = "none";
+ E.liveBadge.style.display = live ? "flex" : "none";
  E.downloadBtn.style.display = live ? "none" : "flex";
  E.playerLoader.classList.remove("hidden"); E.bigPlayBtn.classList.remove("hidden");
 
@@ -893,8 +1083,6 @@ let hintT;
 function showHint(t) { const h = E.gestureLeft; h.textContent = t; h.classList.add("show"); clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove("show"), 800); }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
-
-
 </script>
 </body>
 </html>
