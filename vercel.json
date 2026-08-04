@@ -2,30 +2,6 @@
   "version": 2,
   "builds": [{ "src": "app.py", "use": "@vercel/python" }],
   "routes": [
-    {
-      "src": "/sw.js",
-      "dest": "/sw.js",
-      "headers": {
-        "Content-Type": "application/javascript",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Service-Worker-Allowed": "/"
-      }
-    },
-    {
-      "src": "/manifest.json",
-      "dest": "/manifest.json",
-      "headers": {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache, no-store, must-revalidate"
-      }
-    },
-    {
-      "src": "/images/(.*)",
-      "dest": "/images/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/app.py"
-    }
+    { "src": "/(.*)", "dest": "/app.py" }
   ]
 }
