@@ -404,35 +404,40 @@ function initInstallPrompt() {
     if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
     return;
   }
-  if (E.installHeaderBtn) E.installHeaderBtn.style.display = "inline-flex";
+
+  let deferredPrompt = null;
+  let promptFired = false;
 
   window.addEventListener("beforeinstallprompt", (e) => {
-    console.log("beforeinstallprompt fired");
     e.preventDefault();
     deferredPrompt = e;
+    promptFired = true;
     if (E.installHeaderBtn) E.installHeaderBtn.style.display = "inline-flex";
   });
 
   window.addEventListener("appinstalled", () => {
-    console.log("App installed");
     deferredPrompt = null;
     if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
     hideInstallPrompt();
   });
 
   if (E.installHeaderBtn) {
-    E.installHeaderBtn.addEventListener("click", () => { showInstallPrompt(); });
+    E.installHeaderBtn.addEventListener("click", () => {
+      showInstallPrompt(deferredPrompt);
+    });
   }
   if (E.installCancel) {
     E.installCancel.addEventListener("click", hideInstallPrompt);
   }
   if (E.installConfirm) {
     E.installConfirm.addEventListener("click", async () => {
-      if (!deferredPrompt) { showManualInstallGuide(); return; }
+      if (!deferredPrompt) {
+        hideInstallPrompt();
+        return;
+      }
       try {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        console.log("Install outcome:", outcome);
         deferredPrompt = null;
         if (outcome === "accepted") {
           hideInstallPrompt();
@@ -442,18 +447,32 @@ function initInstallPrompt() {
         }
       } catch (err) {
         console.error("Prompt error:", err);
-        showManualInstallGuide();
+        hideInstallPrompt();
       }
     });
   }
+
+  setTimeout(() => {
+    if (!promptFired && !isStandalone() && E.installHeaderBtn) {
+      E.installHeaderBtn.style.display = "inline-flex";
+    }
+  }, 5000);
 }
 
-function showInstallPrompt() {
-  if (E.installGuideText) E.installGuideText.style.display = "none";
-  if (E.installConfirm) E.installConfirm.textContent = "تثبيت";
+function showInstallPrompt(hasNativePrompt) {
+  if (E.installGuideText) {
+    E.installGuideText.style.display = "none";
+    E.installGuideText.textContent = "";
+  }
+  if (E.installConfirm) {
+    E.installConfirm.textContent = hasNativePrompt ? "تثبيت" : "فهمت";
+  }
   if (E.installOverlay) {
     E.installOverlay.classList.add("show");
     document.body.style.overflow = "hidden";
+  }
+  if (!hasNativePrompt) {
+    showManualInstallGuide();
   }
 }
 
@@ -465,17 +484,19 @@ function hideInstallPrompt() {
 }
 
 function showManualInstallGuide() {
-  let msgText;
+  let msgText = "";
   if (isIOS()) {
-    msgText = "Safari: اضغط زر المشاركة ⬆️ ثم 'Add to Home Screen'";
+    msgText = "Safari: اضغط زر المشاركة ⬆️ ثم اختر 'Add to Home Screen'";
   } else if (isAndroid()) {
-    msgText = "Chrome: اضغط القائمة ⋮ ثم 'Add to Home screen'";
+    msgText = "Chrome: اضغط القائمة ⋮ ثم اختر 'Add to Home screen'";
   } else {
     msgText = "اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع";
   }
   if (E.installGuideText) {
     E.installGuideText.textContent = msgText;
     E.installGuideText.style.display = "block";
+    E.installGuideText.style.wordBreak = "keep-all";
+    E.installGuideText.style.overflowWrap = "break-word";
   }
   if (E.installConfirm) E.installConfirm.textContent = "فهمت";
 }
@@ -829,19 +850,42 @@ function initPlayer() {
   });
  }
 
- // DOUBLE TAP
- const DOUBLE_TAP_DELAY = 350;
- let lastTapTime = 0, lastTapZone = null, tapCount = 0, tapTimer = null;
+ // ===== DOUBLE TAP SYSTEM (Rewritten for 100% reliability) =====
+ const DT_DELAY = 350;
+ const dtZones = new Map();
 
- function showDTFeedback(zone, seconds) {
-  const feedback = zone === "left" ? E.dtFeedbackLeft : E.dtFeedbackRight;
-  const textEl = zone === "left" ? E.dtLeftText : E.dtRightText;
-  if (!feedback || !textEl) return;
-  textEl.textContent = (seconds < 0 ? String.fromCharCode(0x23EA) + " " : "") + Math.abs(seconds) + " ثواني" + (seconds > 0 ? " " + String.fromCharCode(0x23E9) : "");
-  feedback.classList.remove("show");
-  void feedback.offsetWidth;
-  feedback.classList.add("show");
-  setTimeout(() => feedback.classList.remove("show"), 600);
+ function setupDTZone(element, zoneName) {
+  if (!element) return;
+  element.style.touchAction = 'none';
+
+  element.addEventListener('pointerdown', (e) => {
+   if (!e.isPrimary) return;
+   if (e.target.closest('.progress-container')) return;
+   e.preventDefault();
+
+   const now = Date.now();
+   const state = dtZones.get(zoneName) || { lastTime: 0, timer: null };
+
+   if (now - state.lastTime < DT_DELAY) {
+    clearTimeout(state.timer);
+    dtZones.set(zoneName, { lastTime: 0, timer: null });
+    if (zoneName === 'center') {
+     togglePlay();
+    } else {
+     handleDoubleTap(zoneName);
+    }
+   } else {
+    clearTimeout(state.timer);
+    state.lastTime = now;
+    state.timer = setTimeout(() => {
+     if (zoneName === 'center') {
+      togglePlay();
+     }
+     dtZones.set(zoneName, { lastTime: 0, timer: null });
+    }, DT_DELAY);
+    dtZones.set(zoneName, state);
+   }
+  });
  }
 
  function handleDoubleTap(zone) {
@@ -851,59 +895,25 @@ function initPlayer() {
    E.playerVideo.currentTime = Math.max(0, E.playerVideo.currentTime - 10);
    showDTFeedback("left", -10);
   } else if (zone === "right") {
-   E.playerVideo.currentTime = Math.min(E.playerVideo.duration || Infinity, E.playerVideo.currentTime + 10);
+   const duration = E.playerVideo.duration || 0;
+   E.playerVideo.currentTime = Math.min(duration, E.playerVideo.currentTime + 10);
    showDTFeedback("right", 10);
   }
   updateProg();
   showControls();
  }
 
- function setupDTZone(element, zoneName) {
-  if (!element) return;
-  // Touch events for mobile
-  element.addEventListener("touchend", (e) => {
-   if (e.target.closest(".progress-container")) return;
-   const now = Date.now();
-   if (lastTapZone === zoneName && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
-    clearTimeout(tapTimer);
-    handleDoubleTap(zoneName);
-    lastTapTime = now;
-    tapCount = 0;
-   } else {
-    tapCount = 1;
-    lastTapZone = zoneName;
-    lastTapTime = now;
-    clearTimeout(tapTimer);
-    tapTimer = setTimeout(() => {
-     if (tapCount === 1 && lastTapZone === zoneName && zoneName === "center") togglePlay();
-     tapCount = 0; lastTapZone = null;
-    }, DOUBLE_TAP_DELAY);
-   }
-  }, { passive: true });
-
-  // Click events for desktop
-  element.addEventListener("click", (e) => {
-   if (e.target.closest(".progress-container")) return;
-   const now = Date.now();
-   if (lastTapZone === zoneName && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
-    clearTimeout(tapTimer);
-    if (zoneName === "center") {
-     togglePlay();
-    } else {
-     handleDoubleTap(zoneName);
-    }
-    lastTapTime = 0; lastTapZone = null; tapCount = 0;
-   } else {
-    lastTapTime = now;
-    lastTapZone = zoneName;
-    tapCount = 1;
-    clearTimeout(tapTimer);
-    tapTimer = setTimeout(() => {
-     if (tapCount === 1 && lastTapZone === zoneName && zoneName === "center") togglePlay();
-     tapCount = 0; lastTapZone = null;
-    }, DOUBLE_TAP_DELAY);
-   }
-  });
+ function showDTFeedback(zone, seconds) {
+  const feedback = zone === "left" ? E.dtFeedbackLeft : E.dtFeedbackRight;
+  const textEl = zone === "left" ? E.dtLeftText : E.dtRightText;
+  if (!feedback || !textEl) return;
+  const arrowStart = seconds < 0 ? '⏪ ' : '';
+  const arrowEnd = seconds > 0 ? ' ⏩' : '';
+  textEl.textContent = arrowStart + Math.abs(seconds) + " ثواني" + arrowEnd;
+  feedback.classList.remove("show");
+  void feedback.offsetWidth;
+  feedback.classList.add("show");
+  setTimeout(() => feedback.classList.remove("show"), 600);
  }
 
  setupDTZone(E.dtZoneLeft, "left");
@@ -990,20 +1000,31 @@ function togglePlay() {
 }
 
 function toggleFs() {
- if (!E.playerOverlay) return;
+ if (!E.playerOverlay || !E.playerVideo) return;
  try {
   const doc = document;
   const el = E.playerOverlay;
-  if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
+  const isFs = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+  if (isFs) {
    if (doc.exitFullscreen) doc.exitFullscreen().catch(()=>{});
    else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
    else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
    else if (doc.msExitFullscreen) doc.msExitFullscreen();
+   if (screen.orientation && screen.orientation.unlock) {
+    screen.orientation.unlock();
+   }
   } else {
+   if (isIOS() && E.playerVideo.webkitEnterFullscreen) {
+    E.playerVideo.webkitEnterFullscreen();
+    return;
+   }
    if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+   if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+   }
   }
  } catch(e) {}
 }
