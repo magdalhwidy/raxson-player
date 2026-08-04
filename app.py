@@ -10,6 +10,9 @@ import os
 
 app = Flask(__name__)
 
+# Absolute path to the directory containing this file (works reliably on Vercel)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -43,32 +46,32 @@ def fetch_with_retry(url, max_retries=3, timeout=45):
 
 @app.route("/")
 def index():
-    response = make_response(send_from_directory(".", "index.html"))
+    response = make_response(send_from_directory(BASE_DIR, "index.html"))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
 
 @app.route("/manifest.json")
 def manifest():
-    response = make_response(send_from_directory(".", "manifest.json"))
+    response = make_response(send_from_directory(BASE_DIR, "manifest.json"))
     response.headers['Content-Type'] = 'application/json'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
 
 @app.route("/sw.js")
 def sw():
-    response = make_response(send_from_directory(".", "sw.js"))
+    response = make_response(send_from_directory(BASE_DIR, "sw.js"))
     response.headers['Content-Type'] = 'application/javascript'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
-@app.route("/images/<path:filename>")
-def images(filename):
-    return send_from_directory("images", filename)
-
 @app.route("/logo1.png")
 def logo():
-    return send_from_directory(".", "logo1.png")
+    return send_from_directory(BASE_DIR, "logo1.png")
+
+@app.route("/images/<path:filename>")
+def images(filename):
+    return send_from_directory(os.path.join(BASE_DIR, "images"), filename)
 
 @app.route("/api")
 def api():
