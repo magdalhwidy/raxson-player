@@ -406,80 +406,32 @@ function initInstallPrompt() {
   }
 
   let deferredPrompt = null;
-  let promptFired = false;
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    promptFired = true;
     if (E.installHeaderBtn) E.installHeaderBtn.style.display = "inline-flex";
   });
 
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
     if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
-    hideInstallPrompt();
   });
 
   if (E.installHeaderBtn) {
     E.installHeaderBtn.addEventListener("click", () => {
-      showInstallPrompt(deferredPrompt);
-    });
-  }
-  if (E.installCancel) {
-    E.installCancel.addEventListener("click", hideInstallPrompt);
-  }
-  if (E.installConfirm) {
-    E.installConfirm.addEventListener("click", async () => {
-      if (!deferredPrompt) {
-        hideInstallPrompt();
-        return;
-      }
-      try {
+      if (deferredPrompt) {
         deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        if (outcome === "accepted") {
-          hideInstallPrompt();
-          if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
-        } else {
-          hideInstallPrompt();
-        }
-      } catch (err) {
-        console.error("Prompt error:", err);
-        hideInstallPrompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === "accepted") {
+            if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        showManualInstallGuide();
       }
     });
-  }
-
-  setTimeout(() => {
-    if (!promptFired && !isStandalone() && E.installHeaderBtn) {
-      E.installHeaderBtn.style.display = "inline-flex";
-    }
-  }, 5000);
-}
-
-function showInstallPrompt(hasNativePrompt) {
-  if (E.installGuideText) {
-    E.installGuideText.style.display = "none";
-    E.installGuideText.textContent = "";
-  }
-  if (E.installConfirm) {
-    E.installConfirm.textContent = hasNativePrompt ? "تثبيت" : "فهمت";
-  }
-  if (E.installOverlay) {
-    E.installOverlay.classList.add("show");
-    document.body.style.overflow = "hidden";
-  }
-  if (!hasNativePrompt) {
-    showManualInstallGuide();
-  }
-}
-
-function hideInstallPrompt() {
-  if (E.installOverlay) {
-    E.installOverlay.classList.remove("show");
-    document.body.style.overflow = "";
   }
 }
 
@@ -492,13 +444,7 @@ function showManualInstallGuide() {
   } else {
     msgText = "اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع";
   }
-  if (E.installGuideText) {
-    E.installGuideText.textContent = msgText;
-    E.installGuideText.style.display = "block";
-    E.installGuideText.style.wordBreak = "keep-all";
-    E.installGuideText.style.overflowWrap = "break-word";
-  }
-  if (E.installConfirm) E.installConfirm.textContent = "فهمت";
+  alert(msgText);
 }
 
 function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
@@ -850,40 +796,85 @@ function initPlayer() {
   });
  }
 
- // ===== DOUBLE TAP SYSTEM (Rewritten for 100% reliability) =====
+ // ===== DOUBLE TAP SYSTEM (Fixed - isolated per zone, touch+click separated) =====
  const DT_DELAY = 350;
- const dtZones = new Map();
+
+ // Each zone has completely independent state
+ const zoneStates = {
+  left:  { lastTime: 0, timer: null },
+  center:{ lastTime: 0, timer: null },
+  right: { lastTime: 0, timer: null }
+ };
 
  function setupDTZone(element, zoneName) {
   if (!element) return;
-  element.style.touchAction = 'none';
 
-  element.addEventListener('pointerdown', (e) => {
-   if (!e.isPrimary) return;
-   if (e.target.closest('.progress-container')) return;
-   e.preventDefault();
+  // MOBILE: touch events only (preventDefault stops synthetic click)
+  element.addEventListener("touchstart", (e) => {
+   if (e.target.closest(".progress-container")) return;
+   // Don't preventDefault here to allow scroll, but we handle in touchend
+  }, { passive: true });
+
+  element.addEventListener("touchend", (e) => {
+   if (e.target.closest(".progress-container")) return;
+   e.preventDefault(); // Stop the synthetic click event
 
    const now = Date.now();
-   const state = dtZones.get(zoneName) || { lastTime: 0, timer: null };
+   const state = zoneStates[zoneName];
 
    if (now - state.lastTime < DT_DELAY) {
+    // DOUBLE TAP detected
     clearTimeout(state.timer);
-    dtZones.set(zoneName, { lastTime: 0, timer: null });
-    if (zoneName === 'center') {
+    state.lastTime = 0;
+    state.timer = null;
+    if (zoneName === "center") {
      togglePlay();
     } else {
      handleDoubleTap(zoneName);
     }
    } else {
-    clearTimeout(state.timer);
+    // First tap
     state.lastTime = now;
+    clearTimeout(state.timer);
     state.timer = setTimeout(() => {
-     if (zoneName === 'center') {
+     state.lastTime = 0;
+     state.timer = null;
+     // Single tap only toggles play in center zone
+     if (zoneName === "center") {
       togglePlay();
      }
-     dtZones.set(zoneName, { lastTime: 0, timer: null });
     }, DT_DELAY);
-    dtZones.set(zoneName, state);
+   }
+  }, { passive: false });
+
+  // DESKTOP: click events only (no touch interference)
+  element.addEventListener("click", (e) => {
+   if (e.target.closest(".progress-container")) return;
+   // On mobile, click is prevented by touchend preventDefault
+   // On desktop, this handles mouse clicks
+
+   const now = Date.now();
+   const state = zoneStates[zoneName];
+
+   if (now - state.lastTime < DT_DELAY) {
+    clearTimeout(state.timer);
+    state.lastTime = 0;
+    state.timer = null;
+    if (zoneName === "center") {
+     togglePlay();
+    } else {
+     handleDoubleTap(zoneName);
+    }
+   } else {
+    state.lastTime = now;
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => {
+     state.lastTime = 0;
+     state.timer = null;
+     if (zoneName === "center") {
+      togglePlay();
+     }
+    }, DT_DELAY);
    }
   });
  }
