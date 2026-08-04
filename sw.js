@@ -6,15 +6,26 @@ const STATIC_ASSETS = [
   '/images/logo1.png'
 ];
 
-// Install - cache static assets
+// Install - cache static assets individually to prevent total failure if one is missing
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
-    }).catch((err) => {
-      console.log('[SW] Cache failed:', err);
+      console.log('[SW] Caching static assets individually...');
+      return Promise.all(
+        STATIC_ASSETS.map(url => 
+          fetch(url, { credentials: 'same-origin' })
+            .then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+              console.log('[SW] Asset not cached (not ok):', url);
+            })
+            .catch(err => {
+              console.log('[SW] Asset not cached (error):', url, err);
+            })
+        )
+      );
     })
   );
   self.skipWaiting();
