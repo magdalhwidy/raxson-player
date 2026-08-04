@@ -1,4 +1,4 @@
-const CACHE_NAME = 'raxson-player-v10';
+const CACHE_NAME = 'raxson-player-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,24 +6,19 @@ const STATIC_ASSETS = [
   '/logo1.png'
 ];
 
-// Install - cache static assets individually to prevent total failure if one is missing
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching static assets individually...');
+      console.log('[SW] Caching assets...');
       return Promise.all(
         STATIC_ASSETS.map(url => 
-          fetch(url, { credentials: 'same-origin' })
-            .then(response => {
-              if (response.ok) {
-                return cache.put(url, response);
-              }
-              console.log('[SW] Asset not cached (not ok):', url);
-            })
-            .catch(err => {
-              console.log('[SW] Asset not cached (error):', url, err);
-            })
+          fetch(url).then(response => {
+            if (response.ok) return cache.put(url, response);
+            console.log('[SW] Failed to cache:', url);
+          }).catch(err => {
+            console.log('[SW] Error caching:', url, err);
+          })
         )
       );
     })
@@ -31,7 +26,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate - clean old caches
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating...');
   event.waitUntil(
@@ -49,22 +43,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch - network first for API, cache first for static
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API calls - network only
   if (url.pathname === '/api' || url.pathname === '/stream') {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Static assets - cache first, network fallback
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) {
-        // Return cached and update in background
         fetch(request).then((response) => {
           if (response.ok) {
             caches.open(CACHE_NAME).then((cache) => {
@@ -83,7 +73,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       }).catch(() => {
-        // Fallback for HTML
         if (request.mode === 'navigate') {
           return caches.match('/index.html');
         }
@@ -93,7 +82,6 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Message handler for skipWaiting
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
