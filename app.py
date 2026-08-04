@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify, send_from_directory, make_response, Response
 import urllib.request
@@ -10,7 +10,6 @@ import os
 
 app = Flask(__name__)
 
-# Absolute path to the directory containing this file (works reliably on Vercel)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @app.after_request
@@ -96,27 +95,36 @@ def stream_proxy():
     if not url:
         return jsonify({"error": "Missing url parameter"}), 400
     try:
-        req = urllib.request.Request(url, headers={
+        # Build headers to forward to origin server
+        headers = {
             "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
             "Accept": "*/*",
             "Referer": "http://barqtv.fit/"
-        })
+        }
+        # Forward Range header from browser (critical for seek/scrub)
+        range_header = request.headers.get('Range')
+        if range_header:
+            headers['Range'] = range_header
+
+        req = urllib.request.Request(url, headers=headers)
         resp = urllib.request.urlopen(req, timeout=30)
-        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+
+        # Pass through essential headers from origin
+        response_headers = {}
+        for h in ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'Last-Modified', 'ETag']:
+            val = resp.headers.get(h)
+            if val:
+                response_headers[h] = val
+
         def generate():
             while True:
-                chunk = resp.read(8192)
+                chunk = resp.read(65536)
                 if not chunk:
                     break
                 yield chunk
-        return Response(
-            generate(),
-            content_type=content_type,
-            headers={
-                'Accept-Ranges': 'bytes',
-                'Cache-Control': 'no-cache'
-            }
-        )
+
+        status = resp.getcode()
+        return Response(generate(), status=status, headers=response_headers)
     except Exception as e:
         return jsonify({"error": "Stream failed", "details": str(e)}), 502
 
