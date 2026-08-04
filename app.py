@@ -66,6 +66,10 @@ def sw():
 def images(filename):
     return send_from_directory("images", filename)
 
+@app.route("/logo1.png")
+def logo():
+    return send_from_directory(".", "logo1.png")
+
 @app.route("/api")
 def api():
     host = request.args.get("host", "").strip()
