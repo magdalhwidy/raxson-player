@@ -2,7 +2,8 @@ const CACHE_NAME = 'raxson-player-v10';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/logo1.png'
 ];
 
 // Install - cache static assets individually to prevent total failure if one is missing
