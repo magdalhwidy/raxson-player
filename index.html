@@ -1004,7 +1004,17 @@ function openPlayer(url, name, live, item) {
  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
 
  if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
-  HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+  HLS = new Hls({
+    enableWorker: true,
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+    startLevel: -1,
+    xhrSetup: function(xhr, url) {
+      if (!url.includes('/stream?url=') && !url.startsWith(window.location.origin)) {
+        xhr.open('GET', '/stream?url=' + encodeURIComponent(url), true);
+      }
+    }
+  });
   HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
   HLS.on(Hls.Events.MANIFEST_PARSED, () => {
    if (E.playerLoader) E.playerLoader.classList.add("hidden");
