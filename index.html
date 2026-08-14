@@ -1004,27 +1004,38 @@ function openPlayer(url, name, live, item) {
  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
 
  if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
-  HLS = new Hls({
-    enableWorker: true,
-    maxBufferLength: 30,
-    maxMaxBufferLength: 60,
-    startLevel: -1,
-    loader: class CustomLoader extends Hls.DefaultConfig.loader {
-      load(context, config, callbacks) {
-        const originalUrl = context.url;
-        if (originalUrl && !originalUrl.includes('/stream?url=') && !originalUrl.startsWith(window.location.origin)) {
-          context.url = '/stream?url=' + encodeURIComponent(originalUrl);
+  HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+  // Fetch m3u8 through proxy, rewrite relative URLs to absolute proxy URLs
+  fetch(url)
+    .then(r => r.text())
+    .then(m3u8 => {
+      const baseUrl = url.replace('/stream?url=', '');
+      const decodedBase = decodeURIComponent(baseUrl);
+      const basePath = decodedBase.substring(0, decodedBase.lastIndexOf('/') + 1);
+      const proxyBase = '/stream?url=' + encodeURIComponent(basePath);
+      // Rewrite relative URLs in m3u8 to proxy URLs
+      const rewritten = m3u8.replace(/^(?!#)([^\s][^
+]*)/gm, (match, p1) => {
+        if (p1.startsWith('http')) {
+          return '/stream?url=' + encodeURIComponent(p1);
         }
-        super.load(context, config, callbacks);
-      }
-    }
-  });
-  HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
-  HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-   if (E.playerLoader) E.playerLoader.classList.add("hidden");
-   if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-   E.playerVideo.play().catch(() => {});
-  });
+        return proxyBase + encodeURIComponent(p1);
+      });
+      const blob = new Blob([rewritten], { type: 'application/vnd.apple.mpegurl' });
+      const blobUrl = URL.createObjectURL(blob);
+      HLS.loadSource(blobUrl);
+      HLS.attachMedia(E.playerVideo);
+      HLS.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (E.playerLoader) E.playerLoader.classList.add("hidden");
+        if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+        E.playerVideo.play().catch(() => {});
+      });
+    })
+    .catch(() => {
+      // Fallback: try direct
+      HLS.loadSource(url);
+      HLS.attachMedia(E.playerVideo);
+    });
   HLS.on(Hls.Events.ERROR, (e, d) => {
    if (d.fatal) {
     if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
