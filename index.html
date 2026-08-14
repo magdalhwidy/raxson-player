@@ -1009,9 +1009,13 @@ function openPlayer(url, name, live, item) {
     maxBufferLength: 30,
     maxMaxBufferLength: 60,
     startLevel: -1,
-    xhrSetup: function(xhr, url) {
-      if (!url.includes('/stream?url=') && !url.startsWith(window.location.origin)) {
-        xhr.open('GET', '/stream?url=' + encodeURIComponent(url), true);
+    loader: class CustomLoader extends Hls.DefaultConfig.loader {
+      load(context, config, callbacks) {
+        const originalUrl = context.url;
+        if (originalUrl && !originalUrl.includes('/stream?url=') && !originalUrl.startsWith(window.location.origin)) {
+          context.url = '/stream?url=' + encodeURIComponent(originalUrl);
+        }
+        super.load(context, config, callbacks);
       }
     }
   });
