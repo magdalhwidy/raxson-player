@@ -109,6 +109,36 @@ def stream_proxy():
         req = urllib.request.Request(url, headers=headers)
         resp = urllib.request.urlopen(req, timeout=30)
 
+        content_type = resp.headers.get('Content-Type', '')
+
+        # If this is an M3U8 playlist, rewrite relative URLs to absolute proxy URLs
+        if 'mpegurl' in content_type.lower() or url.endswith('.m3u8') or url.endswith('.m3u'):
+            data = resp.read()
+            text = data.decode('utf-8', errors='ignore')
+
+            # Get base path of the original URL
+            base_path = url[:url.rfind('/') + 1]
+
+            lines = text.split('\n')
+            new_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#'):
+                    new_lines.append(line)
+                elif stripped.startswith('http'):
+                    # Absolute URL - proxy it
+                    new_lines.append('/stream?url=' + urllib.parse.quote(stripped, safe=''))
+                else:
+                    # Relative URL - resolve against base_path and proxy
+                    resolved = urllib.parse.urljoin(base_path, stripped)
+                    new_lines.append('/stream?url=' + urllib.parse.quote(resolved, safe=''))
+
+            new_text = '\n'.join(new_lines)
+            response = make_response(new_text)
+            response.headers['Content-Type'] = 'application/vnd.apple.mpegurl'
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
+
         # Pass through essential headers from origin
         response_headers = {}
         for h in ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'Last-Modified', 'ETag']:
