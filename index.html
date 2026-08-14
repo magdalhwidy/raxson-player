@@ -1005,37 +1005,50 @@ function openPlayer(url, name, live, item) {
 
  if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
   HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
-  // Fetch m3u8 through proxy, rewrite relative URLs to absolute proxy URLs
+
+  // Extract real stream URL from proxy URL
+  const realUrl = decodeURIComponent(url.replace('/stream?url=', ''));
+  const lastSlash = realUrl.lastIndexOf('/');
+  const basePath = lastSlash > 0 ? realUrl.substring(0, lastSlash + 1) : realUrl;
+
+  // Fetch m3u8 through proxy and rewrite segment URLs
   fetch(url)
-    .then(r => r.text())
-    .then(m3u8 => {
-      const baseUrl = url.replace('/stream?url=', '');
-      const decodedBase = decodeURIComponent(baseUrl);
-      const basePath = decodedBase.substring(0, decodedBase.lastIndexOf('/') + 1);
-      const proxyBase = '/stream?url=' + encodeURIComponent(basePath);
-      // Rewrite relative URLs in m3u8 to proxy URLs
-      const rewritten = m3u8.replace(/^(?!#)([^\s][^
-]*)/gm, (match, p1) => {
-        if (p1.startsWith('http')) {
-          return '/stream?url=' + encodeURIComponent(p1);
+    .then(r => {
+      if (!r.ok) throw new Error('Failed to load m3u8');
+      return r.text();
+    })
+    .then(text => {
+      // Rewrite each line that is a URL (not a comment or directive)
+      const lines = text.split('\n');
+      const rewritten = lines.map(line => {
+        const trimmed = line.trim();
+        // Skip empty lines, comments, and HLS directives
+        if (!trimmed || trimmed.startsWith('#')) return line;
+        // If already absolute URL
+        if (trimmed.startsWith('http')) {
+          return '/stream?url=' + encodeURIComponent(trimmed);
         }
-        return proxyBase + encodeURIComponent(p1);
-      });
+        // Relative URL - resolve against basePath
+        return '/stream?url=' + encodeURIComponent(basePath + trimmed);
+      }).join('\n');
+
       const blob = new Blob([rewritten], { type: 'application/vnd.apple.mpegurl' });
       const blobUrl = URL.createObjectURL(blob);
       HLS.loadSource(blobUrl);
       HLS.attachMedia(E.playerVideo);
-      HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (E.playerLoader) E.playerLoader.classList.add("hidden");
-        if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-        E.playerVideo.play().catch(() => {});
-      });
     })
-    .catch(() => {
+    .catch(err => {
+      console.error('M3U8 load error:', err);
       // Fallback: try direct
       HLS.loadSource(url);
       HLS.attachMedia(E.playerVideo);
     });
+
+  HLS.on(Hls.Events.MANIFEST_PARSED, () => {
+   if (E.playerLoader) E.playerLoader.classList.add("hidden");
+   if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+   E.playerVideo.play().catch(() => {});
+  });
   HLS.on(Hls.Events.ERROR, (e, d) => {
    if (d.fatal) {
     if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
