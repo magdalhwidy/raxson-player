@@ -388,7 +388,25 @@ function init() {
  initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
  if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js", { scope: "/" })
-    .then((reg) => { console.log("SW registered:", reg.scope); reg.update(); })
+    .then((reg) => { 
+      console.log("SW registered:", reg.scope); 
+      reg.update();
+      // Force immediate activation if a new version is waiting
+      if (reg.waiting) {
+        reg.waiting.postMessage("SKIP_WAITING");
+      }
+      // Also handle the case where an update is found later
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              newWorker.postMessage("SKIP_WAITING");
+            }
+          });
+        }
+      });
+    })
     .catch((err) => { console.log("SW registration failed:", err); });
  }
  try {
