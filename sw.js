@@ -1,4 +1,4 @@
-const CACHE_NAME = 'raxson-player-v11';
+const CACHE_NAME = 'raxson-player-v12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
