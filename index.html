@@ -20,51 +20,6 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden;-webkit-tap-highlight-color:transparent}
 
-/* ===== TV MODE (10-Foot UI) ===== */
-body.tv-mode { font-size: 18px; }
-body.tv-mode .login-glass { max-width: 520px; padding: 40px; }
-body.tv-mode .login-logo { width: 100px; }
-body.tv-mode .login-brand h1 { font-size: 32px; }
-body.tv-mode .input-field { padding: 18px 20px; font-size: 20px; }
-body.tv-mode .btn { padding: 18px 32px; font-size: 20px; }
-body.tv-mode .tab-btn { padding: 14px 28px; font-size: 18px; }
-body.tv-mode .content-card { border-radius: 20px; }
-body.tv-mode .card-title { font-size: 16px; }
-body.tv-mode .search-field { padding: 16px 20px; font-size: 18px; }
-body.tv-mode .icon-btn { width: 52px; height: 52px; font-size: 22px; }
-body.tv-mode .brand-logo { height: 48px; }
-body.tv-mode .header-brand h1 { font-size: 24px; }
-body.tv-mode .ep-btn { padding: 18px; font-size: 18px; }
-body.tv-mode .ctrl-btn { width: 56px; height: 56px; border-radius: 20px; }
-body.tv-mode .ctrl-btn svg { width: 28px; height: 28px; }
-body.tv-mode .player-title { font-size: 18px; }
-body.tv-mode .time-display { font-size: 16px; }
-body.tv-mode .live-badge { font-size: 14px; padding: 6px 14px; }
-body.tv-mode .big-play { width: 120px; height: 70px; }
-body.tv-mode .install-header-btn { padding: 12px 20px; font-size: 16px; }
-
-/* TV Focus Styles for Remote Navigation */
-body.tv-mode .content-card:focus,
-body.tv-mode .tab-btn:focus,
-body.tv-mode .back-btn:focus,
-body.tv-mode .ep-btn:focus,
-body.tv-mode .load-more-btn:focus,
-body.tv-mode .input-field:focus,
-body.tv-mode .btn:focus,
-body.tv-mode .cat-dropdown-btn:focus,
-body.tv-mode .cat-item:focus,
-body.tv-mode .ctrl-btn:focus,
-body.tv-mode .player-close:focus {
-  outline: 3px solid var(--c-p);
-  outline-offset: 4px;
-  box-shadow: 0 0 0 6px rgba(233,30,99,0.3);
-  transform: scale(1.05);
-}
-body.tv-mode .content-card { transition: transform 0.2s, box-shadow 0.2s, outline 0.1s; }
-body.tv-mode .content-card:hover { transform: scale(1.08); }
-
-/* ===== END TV MODE ===== */
-
 .login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;background:radial-gradient(ellipse at 20% 20%,rgba(233,30,99,0.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,255,208,0.05) 0%,transparent 50%),var(--c-bg)}
 .neon-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,255,208,0.99);opacity:0.15;animation:pr 4s ease-in-out infinite;pointer-events:none}
 .ring-1{width:500px;height:500px;top:-150px;left:-150px}.ring-2{width:400px;height:400px;bottom:-100px;right:-100px;animation-delay:2s}
@@ -179,23 +134,6 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
 .ctrl-btn.play-btn{width:auto;height:auto;background:transparent;border:none;padding:8px}.ctrl-btn.play-btn:hover{transform:scale(1.2);background:transparent;border:none;box-shadow:none}
 .time-display{font-size:11px;color:rgba(255,255,255,0.8);font-variant-numeric:tabular-nums;direction:ltr;white-space:nowrap}
 .ctrl-btn.download-btn{color:#3b82f6}.ctrl-btn.download-btn:hover{color:#3b82f6;transform:scale(1.1);background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3)}
-.ctrl-btn.quality-btn{color:#f59e0b; font-size:10px; font-weight:700; width:auto; padding:0 12px;}
-.ctrl-btn.quality-btn:hover{background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.3);color:#f59e0b}
-.ctrl-btn.audio-btn{color:#10b981; font-size:10px; font-weight:700; width:auto; padding:0 12px;}
-.ctrl-btn.audio-btn:hover{background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.3);color:#10b981}
-.ctrl-btn.subtitle-btn{color:#ec4899; font-size:10px; font-weight:700; width:auto; padding:0 12px;}
-.ctrl-btn.subtitle-btn:hover{background:rgba(236,72,153,0.15);border-color:rgba(236,72,153,0.3);color:#ec4899}
-
-.quality-menu, .audio-menu, .subtitle-menu {
-  position:absolute; bottom:60px; background:rgba(20,20,31,0.98); border:1px solid var(--g-b); border-radius:12px; padding:8px; min-width:140px; display:none; z-index:50; max-height:200px; overflow-y:auto;
-}
-.quality-menu.visible, .audio-menu.visible, .subtitle-menu.visible { display:block; }
-.quality-item, .audio-item, .subtitle-item {
-  padding:10px 14px; border-radius:8px; font-size:13px; color:var(--c-t2); cursor:pointer; transition:all 100ms; white-space:nowrap;
-}
-.quality-item:hover, .audio-item:hover, .subtitle-item:hover { background:rgba(255,255,255,0.05); color:var(--c-t); }
-.quality-item.active, .audio-item.active, .subtitle-item.active { background:rgba(233,30,99,0.15); color:var(--c-p); font-weight:700; }
-
 .live-badge{position:absolute;top:12px;left:12px;background:#ff3366;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;z-index:15;display:none;align-items:center;gap:6px;animation:pu 2s infinite}.live-badge::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%}@keyframes pu{0%,100%{opacity:1}50%{opacity:0.7}}
 
 .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.9);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:90}.loading-overlay[hidden]{display:none}.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}.loading-text{font-size:13px;color:var(--c-t2)}
@@ -241,11 +179,6 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
 
 .ctrl-btn svg{width:20px;height:20px;fill:currentColor}
 .big-play svg{width:28px;height:28px;fill:currentColor;pointer-events:none}
-
-/* Chromecast button */
-.ctrl-btn.cast-btn{color:#f1f1f1}
-.ctrl-btn.cast-btn:hover{background:rgba(66,133,244,0.15);border-color:rgba(66,133,244,0.3);color:#4285f4}
-.ctrl-btn.cast-btn.active{color:#4285f4; background:rgba(66,133,244,0.2);}
 </style>
 <link rel="apple-touch-icon" href="/logo1.png">
 </head>
@@ -256,17 +189,18 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
  <div class="neon-ring ring-2"></div>
  <div class="login-glass">
   <div class="login-brand">
+   
    <img src="/logo1.png" class="login-logo" alt="Logo" onerror="this.style.display='none';this.parentElement.querySelector('h1').style.marginTop='0'">
-   <h1>Raxson Player</h1>
+<h1>Raxson Player</h1>
   </div>
   <div class="login-form">
    <div class="input-group">
     <label>اسم المستخدم</label>
-    <input type="text" id="username" class="input-field" placeholder="أدخل اسم المستخدم" autocomplete="off" tabindex="0">
+    <input type="text" id="username" class="input-field" placeholder="أدخل اسم المستخدم" autocomplete="off">
    </div>
    <div class="input-group">
     <label>كلمة المرور</label>
-    <input type="password" id="password" class="input-field" placeholder="أدخل كلمة المرور" autocomplete="off" tabindex="0">
+    <input type="password" id="password" class="input-field" placeholder="أدخل كلمة المرور" autocomplete="off">
    </div>
    <div class="save-row">
     <label class="checkbox-label">
@@ -274,7 +208,7 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
      <span>حفظ البيانات</span>
     </label>
    </div>
-   <button type="button" class="btn btn-primary" id="loginBtn" tabindex="0">
+   <button type="button" class="btn btn-primary" id="loginBtn">
     <span id="btnText">دخول</span>
     <span id="btnLoader" class="btn-loader" style="display:none"></span>
    </button>
@@ -287,8 +221,9 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
 <div id="appScreen" class="app-container">
  <header class="app-header">
   <div class="header-brand">
+   
    <img src="/logo1.png" class="brand-logo" alt="Logo" onerror="this.style.display='none'">
-   <div>
+<div>
     <h1>Raxson Player</h1>
     <div class="header-status">
      <span class="status-dot" id="statusDot"></span>
@@ -297,25 +232,25 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
    </div>
   </div>
   <div class="header-actions">
-   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق" tabindex="0"><span>&#x2B07;</span> تثبيت</button>
-   <button class="icon-btn" id="logoutBtn" title="خروج" tabindex="0">&#x238B;</button>
+   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
+   <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
   </div>
  </header>
 
  <div class="tabs-bar" id="tabsBar">
-  <button class="tab-btn active" data-tab="live" tabindex="0">&#x1F4FA; بث مباشر</button>
-  <button class="tab-btn" data-tab="vod" tabindex="0">&#x1F3AC; أفلام</button>
-  <button class="tab-btn" data-tab="series" tabindex="0">&#x1F4C1; مسلسلات</button>
-  <button class="tab-btn" data-tab="watched" tabindex="0">&#x1F550; آخر المشاهدات</button>
+  <button class="tab-btn active" data-tab="live">&#x1F4FA; بث مباشر</button>
+  <button class="tab-btn" data-tab="vod">&#x1F3AC; أفلام</button>
+  <button class="tab-btn" data-tab="series">&#x1F4C1; مسلسلات</button>
+  <button class="tab-btn" data-tab="watched">&#x1F550; آخر المشاهدات</button>
  </div>
 
  <div class="search-wrap">
-  <input type="text" class="search-field" id="searchInput" placeholder="بحث..." tabindex="0">
+  <input type="text" class="search-field" id="searchInput" placeholder="بحث...">
  </div>
 
  <div class="cats-bar" id="catsBar"></div>
  <div class="back-row" id="backRow">
-  <button class="back-btn" id="backBtn" tabindex="0">&#x2190; رجوع</button>
+  <button class="back-btn" id="backBtn">&#x2190; رجوع</button>
  </div>
 
  <div class="content-area">
@@ -335,7 +270,7 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
   <span class="player-title" id="playerTitle">...</span>
   <div style="display:flex;gap:8px;align-items:center;">
    <span class="live-badge" id="liveBadge" style="display:none;">مباشر</span>
-   <button class="player-close" id="playerClose" title="إغلاق (ESC)" tabindex="0">&#x2715;</button>
+   <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
   </div>
  </div>
 
@@ -347,10 +282,12 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
 
  <div class="player-loader hidden" id="playerLoader"><div></div></div>
 
+ <!-- DOUBLE TAP ZONES -->
  <div class="dt-zone left" id="dtZoneLeft"></div>
  <div class="dt-zone center" id="dtZoneCenter"></div>
  <div class="dt-zone right" id="dtZoneRight"></div>
 
+ <!-- DOUBLE TAP FEEDBACK -->
  <div class="dt-feedback left" id="dtFeedbackLeft">
   <div class="dt-ripple"></div>
   <div class="dt-text" id="dtLeftText">&#x23EA; 10 ثواني</div>
@@ -363,6 +300,7 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
  <div class="gesture-hint left" id="gestureLeft"></div>
  <div class="gesture-hint right" id="gestureRight"></div>
 
+ <!-- CONTROLS -->
  <div class="player-controls" id="playerControls">
   <div class="progress-container" id="progressContainer">
    <div class="progress-track">
@@ -372,34 +310,25 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
   </div>
   <div class="controls-row">
    <div class="controls-left">
-    <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف" tabindex="0">
+    <button class="ctrl-btn play-btn" id="playPauseBtn" title="تشغيل/إيقاف">
      <svg id="playIcon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
      <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
     </button>
     <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
    </div>
    <div class="controls-right">
-    <button class="ctrl-btn subtitle-btn" id="subtitleBtn" title="الترجمة" tabindex="0" style="display:none;">CC</button>
-    <button class="ctrl-btn audio-btn" id="audioBtn" title="الصوت" tabindex="0" style="display:none;">&#x1F50A;</button>
-    <button class="ctrl-btn quality-btn" id="qualityBtn" title="الجودة" tabindex="0" style="display:none;">HD</button>
-    <button class="ctrl-btn cast-btn" id="castBtn" title="بث للشاشة" tabindex="0" style="display:none;">
-     <svg viewBox="0 0 24 24"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-    </button>
-    <button class="ctrl-btn download-btn" id="downloadBtn" title="تحميل" tabindex="0">
+    <button class="ctrl-btn download-btn" id="downloadBtn" title="تحميل">
      <svg viewBox="0 0 24 24"><path d="M12 16l-4-4h3V4h2v8h3l-4 4zm-6 2v2h12v-2H6z"/></svg>
     </button>
-    <button class="ctrl-btn" id="pipBtn" title="PiP" tabindex="0">
+    <button class="ctrl-btn" id="pipBtn" title="PiP">
      <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm2 8V5H3v14h18zM21 3a2 2 0 012 2v14a2 2 0 01-2 2H3a2 2 0 01-2-2V5a2 2 0 012-2h18z"/></svg>
     </button>
-    <button class="ctrl-btn" id="fullscreenBtn" title="ملء الشاشة" tabindex="0">
+    <button class="ctrl-btn" id="fullscreenBtn" title="ملء الشاشة">
      <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
     </button>
    </div>
   </div>
  </div>
- <div class="quality-menu" id="qualityMenu"></div>
- <div class="audio-menu" id="audioMenu"></div>
- <div class="subtitle-menu" id="subtitleMenu"></div>
 </div>
 
 <div id="installOverlay" class="install-overlay">
@@ -422,14 +351,11 @@ body.tv-mode .content-card:hover { transform: scale(1.08); }
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
-
 const DEFAULT_HOST = "http://barqtv.fit:80";
 const AUTH = { host: DEFAULT_HOST, user: "", pass: "" };
 let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false, seriesInfo: null };
 let DATA = { live: { cats: [], items: [], ok: false, loading: false, error: null }, vod: { cats: [], items: [], ok: false, loading: false, error: null }, series: { cats: [], items: [], ok: false, loading: false, error: null } };
 let HLS = null, SUB_EXPIRY = "", WATCHED = [];
-let CAST_SESSION = null;
-let CURRENT_STREAM_URL = "";
 
 const $ = id => document.getElementById(id);
 const E = {
@@ -441,9 +367,7 @@ const E = {
  contentGrid: $("contentGrid"), episodesArea: $("episodesArea"), loadingText: $("loadingText"),
  playerVideo: $("playerVideo"), playerTitle: $("playerTitle"), playerClose: $("playerClose"), playerHeader: $("playerHeader"),
  playerControls: $("playerControls"), liveBadge: $("liveBadge"), bigPlayBtn: $("bigPlayBtn"), playPauseBtn: $("playPauseBtn"),
- downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"), castBtn: $("castBtn"),
- qualityBtn: $("qualityBtn"), audioBtn: $("audioBtn"), subtitleBtn: $("subtitleBtn"),
- qualityMenu: $("qualityMenu"), audioMenu: $("audioMenu"), subtitleMenu: $("subtitleMenu"),
+ downloadBtn: $("downloadBtn"), fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"),
  progressContainer: $("progressContainer"), progressFill: $("progressFill"), progressTooltip: $("progressTooltip"),
  timeDisplay: $("timeDisplay"), playerLoader: $("playerLoader"),
  gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
@@ -457,22 +381,21 @@ const E = {
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isAndroid = () => /Android/.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || window.navigator.standalone === true;
-const isSmartTV = () => /Tizen|webOS|SmartTV|HbbTV|NetCast|VIDAA|Roku|CrKey|GoogleTV/.test(navigator.userAgent) || (window.innerWidth > 1200 && !window.PointerEvent);
 
 let deferredPrompt = null;
 
 function init() {
- if (isSmartTV()) {
-  document.body.classList.add('tv-mode');
-  initTVNavigation();
- }
- initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt(); initCast();
+ initLogin(); initApp(); initPlayer(); initKeyboard(); initInstallPrompt();
  if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js", { scope: "/" })
     .then((reg) => { 
       console.log("SW registered:", reg.scope); 
       reg.update();
-      if (reg.waiting) { reg.waiting.postMessage("SKIP_WAITING"); }
+      // Force immediate activation if a new version is waiting
+      if (reg.waiting) {
+        reg.waiting.postMessage("SKIP_WAITING");
+      }
+      // Also handle the case where an update is found later
       reg.addEventListener("updatefound", () => {
         const newWorker = reg.installing;
         if (newWorker) {
@@ -496,183 +419,112 @@ function init() {
  } catch (e) {}
 }
 
-// ===== TV NAVIGATION =====
-let tvFocusables = [];
-function initTVNavigation() {
-  document.addEventListener('keydown', handleTVKey);
-  updateTVFocusables();
-}
-function updateTVFocusables() {
-  tvFocusables = Array.from(document.querySelectorAll(
-    'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-  )).filter(el => el.offsetParent !== null);
-  if (tvFocusables.length && !tvFocusables.some(el => el === document.activeElement)) {
-    tvFocusables[0]?.focus();
-  }
-}
-function handleTVKey(e) {
-  if (!isSmartTV() && !/Tizen|webOS|SmartTV/.test(navigator.userAgent)) return;
-  const focusable = tvFocusables;
-  const current = document.activeElement;
-  const idx = focusable.indexOf(current);
-  switch(e.key) {
-    case 'ArrowRight':
-      e.preventDefault();
-      if (E.playerOverlay.style.display === 'flex') {
-        if (E.playerVideo) { E.playerVideo.currentTime += 10; showHint("+10s"); }
-        return;
-      }
-      focusable[idx + 1]?.focus();
-      break;
-    case 'ArrowLeft':
-      e.preventDefault();
-      if (E.playerOverlay.style.display === 'flex') {
-        if (E.playerVideo) { E.playerVideo.currentTime -= 10; showHint("-10s"); }
-        return;
-      }
-      focusable[idx - 1]?.focus();
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      if (E.playerOverlay.style.display === 'flex') {
-        if (E.playerVideo) { E.playerVideo.volume = Math.max(0, E.playerVideo.volume - 0.1); showHint("🔊 " + Math.round(E.playerVideo.volume * 100) + "%"); }
-        return;
-      }
-      focusable[idx + getGridColumns()]?.focus();
-      break;
-    case 'ArrowUp':
-      e.preventDefault();
-      if (E.playerOverlay.style.display === 'flex') {
-        if (E.playerVideo) { E.playerVideo.volume = Math.min(1, E.playerVideo.volume + 0.1); showHint("🔊 " + Math.round(E.playerVideo.volume * 100) + "%"); }
-        return;
-      }
-      focusable[idx - getGridColumns()]?.focus();
-      break;
-    case 'Enter': break;
-    case 'Backspace':
-    case 'Escape':
-      e.preventDefault();
-      if (E.playerOverlay.style.display === 'flex') { closePlayer(); }
-      else if (STATE.seriesView) { E.backBtn.click(); }
-      break;
-    case 'MediaPlayPause': case 'Play': case 'Pause':
-      e.preventDefault(); togglePlay(); break;
-    case 'MediaFastForward':
-      e.preventDefault();
-      if (E.playerVideo) { E.playerVideo.currentTime += 30; showHint("+30s"); }
-      break;
-    case 'MediaRewind':
-      e.preventDefault();
-      if (E.playerVideo) { E.playerVideo.currentTime -= 30; showHint("-30s"); }
-      break;
-  }
-  setTimeout(updateTVFocusables, 100);
-}
-function getGridColumns() {
-  const w = window.innerWidth;
-  if (w >= 1200) return 6; if (w >= 900) return 5; if (w >= 700) return 4; if (w >= 500) return 3;
-  return 2;
-}
-
-// ===== CHROMECAST =====
-function initCast() {
-  if (!window.chrome || !chrome.cast || !chrome.cast.isAvailable) {
-    const script = document.createElement('script');
-    script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
-    script.onload = () => {
-      window.__onGCastApiAvailable = function(isAvailable) {
-        if (isAvailable) initializeCastApi();
-      };
-    };
-    document.head.appendChild(script);
-    return;
-  }
-  initializeCastApi();
-}
-function initializeCastApi() {
-  try {
-    const sessionRequest = new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
-    const apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionListener, receiverListener);
-    chrome.cast.initialize(apiConfig, () => {}, () => {});
-  } catch(e) {}
-}
-function sessionListener(session) { CAST_SESSION = session; updateCastButton(); }
-function receiverListener(availability) {
-  if (availability === chrome.cast.ReceiverAvailability.AVAILABLE && E.castBtn) {
-    E.castBtn.style.display = 'flex';
-  }
-}
-function updateCastButton() {
-  if (!E.castBtn) return;
-  if (CAST_SESSION) { E.castBtn.classList.add('active'); E.castBtn.title = 'متصل بالشاشة'; }
-  else { E.castBtn.classList.remove('active'); E.castBtn.title = 'بث للشاشة'; }
-}
-function toggleCast() {
-  if (!chrome.cast) return;
-  if (CAST_SESSION) {
-    castCurrentVideo();
-  } else {
-    chrome.cast.requestSession(function(session) {
-      CAST_SESSION = session; updateCastButton(); castCurrentVideo();
-    }, function(e) { console.log('Cast error:', e); });
-  }
-}
-function castCurrentVideo() {
-  if (!CAST_SESSION || !CURRENT_STREAM_URL) return;
-  const mediaInfo = new chrome.cast.media.MediaInfo(CURRENT_STREAM_URL, 'application/x-mpegURL');
-  const request = new chrome.cast.media.LoadRequest(mediaInfo);
-  CAST_SESSION.loadMedia(request, function() {}, function(e) { console.log('Cast load error:', e); });
-}
-
 // ===== INSTALL PROMPT =====
 function initInstallPrompt() {
-  if (isStandalone()) { if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none"; return; }
+  if (isStandalone()) {
+    if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
+    return;
+  }
+
   let deferredPrompt = null;
+
   window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault(); deferredPrompt = e;
+    e.preventDefault();
+    deferredPrompt = e;
     if (E.installHeaderBtn) E.installHeaderBtn.style.display = "inline-flex";
   });
+
   window.addEventListener("appinstalled", () => {
-    deferredPrompt = null; if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
+    deferredPrompt = null;
+    if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
   });
+
   if (E.installHeaderBtn) {
     E.installHeaderBtn.addEventListener("click", () => {
-      if (deferredPrompt) { showInstallOverlay(true); } else { showInstallOverlay(false); }
+      if (deferredPrompt) {
+        showInstallOverlay(true);
+      } else {
+        showInstallOverlay(false);
+      }
     });
   }
-  if (E.installCancel) { E.installCancel.addEventListener("click", hideInstallOverlay); }
+  if (E.installCancel) {
+    E.installCancel.addEventListener("click", hideInstallOverlay);
+  }
   if (E.installConfirm) {
     E.installConfirm.addEventListener("click", async () => {
-      if (!deferredPrompt) { hideInstallOverlay(); return; }
+      if (!deferredPrompt) {
+        hideInstallOverlay();
+        return;
+      }
       try {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         deferredPrompt = null;
-        if (outcome === "accepted") { hideInstallOverlay(); if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none"; }
-        else { hideInstallOverlay(); }
-      } catch (err) { hideInstallOverlay(); }
+        if (outcome === "accepted") {
+          hideInstallOverlay();
+          if (E.installHeaderBtn) E.installHeaderBtn.style.display = "none";
+        } else {
+          hideInstallOverlay();
+        }
+      } catch (err) {
+        console.error("Prompt error:", err);
+        hideInstallOverlay();
+      }
     });
   }
 }
+
 function showInstallOverlay(hasNativePrompt) {
   if (E.installGuideText) {
     if (!hasNativePrompt) {
       let msgText = "";
-      if (isIOS()) { msgText = "Safari: اضغط زر المشاركة ⬆️ ثم اختر 'Add to Home Screen'"; }
-      else if (isAndroid()) { msgText = "Chrome: اضغط القائمة ⋮ ثم اختر 'Add to Home screen'"; }
-      else { msgText = "اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع"; }
-      E.installGuideText.textContent = msgText; E.installGuideText.style.display = "block";
-    } else { E.installGuideText.style.display = "none"; }
+      if (isIOS()) {
+        msgText = "Safari: اضغط زر المشاركة ⬆️ ثم اختر 'Add to Home Screen'";
+      } else if (isAndroid()) {
+        msgText = "Chrome: اضغط القائمة ⋮ ثم اختر 'Add to Home screen'";
+      } else {
+        msgText = "اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع";
+      }
+      E.installGuideText.textContent = msgText;
+      E.installGuideText.style.display = "block";
+      E.installGuideText.style.wordBreak = "keep-all";
+      E.installGuideText.style.overflowWrap = "break-word";
+    } else {
+      E.installGuideText.style.display = "none";
+      E.installGuideText.textContent = "";
+    }
   }
-  if (E.installConfirm) { E.installConfirm.textContent = hasNativePrompt ? "تثبيت" : "فهمت"; }
-  if (E.installOverlay) { E.installOverlay.classList.add("show"); document.body.style.overflow = "hidden"; }
-}
-function hideInstallOverlay() {
-  if (E.installOverlay) { E.installOverlay.classList.remove("show"); document.body.style.overflow = ""; }
+  if (E.installConfirm) {
+    E.installConfirm.textContent = hasNativePrompt ? "تثبيت" : "فهمت";
+  }
+  if (E.installOverlay) {
+    E.installOverlay.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
 }
 
-// ===== LOGIN =====
+function hideInstallOverlay() {
+  if (E.installOverlay) {
+    E.installOverlay.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+}
+
+function showManualInstallGuide() {
+  let msgText = "";
+  if (isIOS()) {
+    msgText = "Safari: اضغط زر المشاركة ⬆️ ثم اختر 'Add to Home Screen'";
+  } else if (isAndroid()) {
+    msgText = "Chrome: اضغط القائمة ⋮ ثم اختر 'Add to Home screen'";
+  } else {
+    msgText = "اضغط Ctrl+D (أو Cmd+D) لحفظ الموقع";
+  }
+  alert(msgText);
+}
+
 function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
+
 async function doLogin() {
  const u = E.username.value.trim(), p = E.password.value.trim();
  if (!u || !p) { showErr("اكمل البيانات"); return; }
@@ -689,12 +541,17 @@ async function doLogin() {
   } else { showErr("الاشتراك غير نشط"); setBtnLoad(false); }
  } catch (err) { showErr("خطأ: " + (err.message || err)); setBtnLoad(false); }
 }
+
 function showErr(msg) { E.loginError.textContent = msg; E.loginError.classList.toggle("show", !!msg); }
 function setBtnLoad(v) { E.loginBtn.disabled = v; E.btnText.style.display = v ? "none" : "inline"; E.btnLoader.style.display = v ? "inline-block" : "none"; }
 function setStatus(t, type) { E.statusText.textContent = t; E.statusDot.className = "status-dot" + (type === "ok" ? "" : type === "warn" ? " warn" : " err"); }
 
 async function api(action, extra = "") {
- const url = "/api?host=" + encodeURIComponent(AUTH.host) + "&user=" + encodeURIComponent(AUTH.user) + "&pass=" + encodeURIComponent(AUTH.pass) + "&action=" + encodeURIComponent(action) + "&extra=" + encodeURIComponent(extra);
+ const url = "/api?host=" + encodeURIComponent(AUTH.host)
+      + "&user=" + encodeURIComponent(AUTH.user)
+      + "&pass=" + encodeURIComponent(AUTH.pass)
+      + "&action=" + encodeURIComponent(action)
+      + "&extra=" + encodeURIComponent(extra);
  const ctrl = new AbortController();
  const isHeavy = ["get_live_streams","get_vod_streams","get_series"].includes(action);
  const to = setTimeout(() => ctrl.abort(), isHeavy ? 90000 : 40000);
@@ -711,18 +568,28 @@ async function loadTabData(tabKey) {
  DATA[tabKey].loading = true;
  showLoad(true, tabKey === "live" ? "جاري تجهيز المحتوى..." : "جاري تحميل " + (tabKey === "vod" ? "الأفلام" : "المسلسلات") + "...");
  setStatus("جاري التحميل...", "warn");
- const map = { live: { cat: "get_live_categories", stream: "get_live_streams" }, vod: { cat: "get_vod_categories", stream: "get_vod_streams" }, series: { cat: "get_series_categories", stream: "get_series" } };
+ const map = {
+  live:  { cat: "get_live_categories",  stream: "get_live_streams" },
+  vod:  { cat: "get_vod_categories",  stream: "get_vod_streams" },
+  series: { cat: "get_series_categories", stream: "get_series" }
+ };
  const t = map[tabKey];
  try {
   const [cats, items] = await Promise.all([api(t.cat), api(t.stream)]);
   DATA[tabKey].cats = Array.isArray(cats) ? cats : []; 
   DATA[tabKey].items = Array.isArray(items) ? items : [];
-  DATA[tabKey].ok = true; DATA[tabKey].error = null;
+  DATA[tabKey].ok = true;
+  DATA[tabKey].error = null;
   setStatus(SUB_EXPIRY || "جاهز", "ok");
  } catch (e) {
-  console.error(tabKey, e); DATA[tabKey].ok = false; DATA[tabKey].error = e.message || "فشل الاتصال";
+  console.error(tabKey, e);
+  DATA[tabKey].ok = false;
+  DATA[tabKey].error = e.message || "فشل الاتصال";
   setStatus("تأكد من صحة البيانات", "err");
- } finally { DATA[tabKey].loading = false; showLoad(false); }
+ } finally {
+  DATA[tabKey].loading = false;
+  showLoad(false);
+ }
  renderTab();
 }
 
@@ -734,8 +601,11 @@ function initApp() {
    STATE.tab = tab; STATE.cat = "all"; STATE.count = 30; STATE.seriesView = false;
    E.backRow.classList.remove("visible"); E.episodesArea.style.display = "none"; E.contentGrid.style.display = "grid";
    E.tabsBar.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
-   if (!DATA[tab].ok && !DATA[tab].loading) { await loadTabData(tab); }
-   else { renderTab(); }
+   if (!DATA[tab].ok && !DATA[tab].loading) {
+    await loadTabData(tab);
+   } else {
+    renderTab();
+   }
   });
  });
  let timer;
@@ -748,40 +618,55 @@ function renderTab() {
  const d = DATA[STATE.tab];
  if (d.loading) {
   E.contentGrid.innerHTML = '<div class="empty-state"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>جاري التحميل...</div>';
-  E.catsBar.innerHTML = ""; return;
+  E.catsBar.innerHTML = "";
+  return;
  }
  if (!d.ok) {
   E.contentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div style="font-size:40px;margin-bottom:12px;">&#x26A0;&#xFE0F;</div><div>تأكد من صحة البيانات</div><button class="load-more-btn" style="margin-top:16px;" onclick="retryCurrentTab()">&#x1F504; إعادة المحاولة</button></div>';
-  E.catsBar.innerHTML = ""; return;
+  E.catsBar.innerHTML = "";
+  return;
  }
  renderCats(d.cats);
  let items = d.items || [];
  if (STATE.cat !== "all") items = items.filter(i => (i.category_id || "").toString() === STATE.cat);
  if (STATE.search.length >= 2) { const q = STATE.search.toLowerCase(); items = items.filter(i => (i.name || i.title || "").toLowerCase().includes(q)); }
  renderGrid(items);
- if (isSmartTV()) setTimeout(updateTVFocusables, 200);
 }
 
 window.retryCurrentTab = async function() {
- DATA[STATE.tab].ok = false; DATA[STATE.tab].error = null; await loadTabData(STATE.tab);
+ DATA[STATE.tab].ok = false;
+ DATA[STATE.tab].error = null;
+ await loadTabData(STATE.tab);
 };
 
 function renderCats(cats) {
  E.catsBar.innerHTML = "";
- const wrapper = document.createElement("div"); wrapper.style.position = "relative"; wrapper.style.display = "inline-block";
- const btn = document.createElement("button"); btn.className = "cat-dropdown-btn"; btn.tabIndex = 0;
+ const wrapper = document.createElement("div");
+ wrapper.style.position = "relative";
+ wrapper.style.display = "inline-block";
+ const btn = document.createElement("button");
+ btn.className = "cat-dropdown-btn";
  const activeCat = (cats || []).find(c => (c.category_id || c.id || "").toString() === STATE.cat);
  const activeName = STATE.cat === "all" ? "كل التصنيفات" : (activeCat ? (activeCat.category_name || activeCat.name) : "تصنيف محدد");
  btn.innerHTML = '<span>&#x1F4C2; ' + esc(activeName) + '</span><span style="font-size:10px;opacity:0.6;">&#x25BC;</span>';
- const dropdown = document.createElement("div"); dropdown.className = "cat-dropdown";
- const searchInput = document.createElement("input"); searchInput.type = "text"; searchInput.className = "cat-search"; searchInput.placeholder = "بحث في التصنيفات...";
- const list = document.createElement("div"); list.className = "cat-list";
- const allItem = document.createElement("div"); allItem.className = "cat-item" + (STATE.cat === "all" ? " active" : ""); allItem.textContent = "الكل";
+ const dropdown = document.createElement("div");
+ dropdown.className = "cat-dropdown";
+ const searchInput = document.createElement("input");
+ searchInput.type = "text";
+ searchInput.className = "cat-search";
+ searchInput.placeholder = "بحث في التصنيفات...";
+ const list = document.createElement("div");
+ list.className = "cat-list";
+ const allItem = document.createElement("div");
+ allItem.className = "cat-item" + (STATE.cat === "all" ? " active" : "");
+ allItem.textContent = "الكل";
  allItem.addEventListener("click", () => { STATE.cat = "all"; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
  list.appendChild(allItem);
  (cats || []).forEach(c => {
   const id = (c.category_id || c.id || "").toString();
-  const item = document.createElement("div"); item.className = "cat-item" + (STATE.cat === id ? " active" : ""); item.textContent = c.category_name || c.name || "بدون اسم";
+  const item = document.createElement("div");
+  item.className = "cat-item" + (STATE.cat === id ? " active" : "");
+  item.textContent = c.category_name || c.name || "بدون اسم";
   item.addEventListener("click", () => { STATE.cat = id; STATE.count = 30; dropdown.classList.remove("visible"); renderTab(); });
   list.appendChild(item);
  });
@@ -793,15 +678,21 @@ function renderCats(cats) {
   });
  });
  btn.addEventListener("click", (e) => { e.stopPropagation(); dropdown.classList.toggle("visible"); });
- dropdown.appendChild(searchInput); dropdown.appendChild(list); wrapper.appendChild(btn); wrapper.appendChild(dropdown); E.catsBar.appendChild(wrapper);
+ dropdown.appendChild(searchInput);
+ dropdown.appendChild(list);
+ wrapper.appendChild(btn);
+ wrapper.appendChild(dropdown);
+ E.catsBar.appendChild(wrapper);
  const closeDropdown = (e) => { if (!wrapper.contains(e.target)) dropdown.classList.remove("visible"); };
- document.removeEventListener("click", closeDropdown); document.addEventListener("click", closeDropdown);
+ document.removeEventListener("click", closeDropdown);
+ document.addEventListener("click", closeDropdown);
 }
 
 function renderGrid(items) {
  E.contentGrid.innerHTML = "";
  if (!items.length) { E.contentGrid.innerHTML = '<div class="empty-state">لا يوجد محتوى</div>'; return; }
- const visible = items.slice(0, STATE.count); const tab = STATE.tab;
+ const visible = items.slice(0, STATE.count);
+ const tab = STATE.tab;
  visible.forEach((item, i) => {
   const name = item.name || item.title || "بدون اسم";
   const id = item.stream_id || item.series_id || item.id || 0;
@@ -810,14 +701,12 @@ function renderGrid(items) {
   const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = tab; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
   card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
   card.addEventListener("click", () => handleClick(item, tab));
-  if (isSmartTV()) card.tabIndex = 0;
   E.contentGrid.appendChild(card);
  });
  if (STATE.count < items.length) {
   const more = document.createElement("div"); more.className = "load-more-row";
   more.innerHTML = '<button class="load-more-btn">تحميل المزيد (' + (items.length - STATE.count) + ')</button>';
   more.querySelector("button").addEventListener("click", () => { STATE.count += 30; renderTab(); });
-  if (isSmartTV()) more.querySelector("button").tabIndex = 0;
   E.contentGrid.appendChild(more);
  }
  lazyImg();
@@ -859,12 +748,10 @@ function renderEps(info, sname) {
    btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
    const epStreamUrl = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4";
    btn.addEventListener("click", () => openPlayer("/stream?url=" + encodeURIComponent(epStreamUrl), sname + " - " + en, false, ep));
-   if (isSmartTV()) btn.tabIndex = 0;
    grid.appendChild(btn);
   });
   sec.appendChild(grid); E.episodesArea.appendChild(sec);
  });
- if (isSmartTV()) setTimeout(updateTVFocusables, 200);
 }
 
 function addToWatched(item) {
@@ -872,7 +759,12 @@ function addToWatched(item) {
  const id = (item.stream_id || item.series_id || item.id)?.toString();
  if (!id) return;
  WATCHED = WATCHED.filter(w => (w.stream_id || w.id)?.toString() !== id);
- WATCHED.unshift({ id, name: item.name || item.title || "بدون اسم", stream_icon: item.stream_icon || item.cover || "", type: item.type || STATE.tab || "live", stream_id: item.stream_id || item.id || null });
+ WATCHED.unshift({
+  id, name: item.name || item.title || "بدون اسم",
+  stream_icon: item.stream_icon || item.cover || "",
+  type: item.type || STATE.tab || "live",
+  stream_id: item.stream_id || item.id || null
+ });
  if (WATCHED.length > 6) WATCHED = WATCHED.slice(0, 6);
  try { localStorage.setItem("rp_w", JSON.stringify(WATCHED)); } catch(e) {}
 }
@@ -890,11 +782,9 @@ function showWatched() {
    const streamUrl = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
    openPlayer("/stream?url=" + encodeURIComponent(streamUrl), name, item.type === "live", item);
   });
-  if (isSmartTV()) card.tabIndex = 0;
   E.contentGrid.appendChild(card);
  });
  lazyImg();
- if (isSmartTV()) setTimeout(updateTVFocusables, 200);
 }
 
 function lazyImg() {
@@ -923,19 +813,17 @@ function initPlayer() {
  E.downloadBtn.addEventListener("click", e => { e.stopPropagation(); downloadCurrent(); });
  E.fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFs(); });
  E.pipBtn.addEventListener("click", e => { e.stopPropagation(); togglePiP(); });
- if (E.castBtn) E.castBtn.addEventListener("click", e => { e.stopPropagation(); toggleCast(); });
- if (E.qualityBtn) E.qualityBtn.addEventListener("click", e => { e.stopPropagation(); toggleQualityMenu(); });
- if (E.audioBtn) E.audioBtn.addEventListener("click", e => { e.stopPropagation(); toggleAudioMenu(); });
- if (E.subtitleBtn) E.subtitleBtn.addEventListener("click", e => { e.stopPropagation(); toggleSubtitleMenu(); });
 
- // PROGRESS BAR
+ // PROGRESS BAR - Pointer Events
  let isDragging = false;
+
  function getProgressFromX(clientX) {
   if (!E.progressContainer) return 0;
   const rect = E.progressContainer.getBoundingClientRect();
   let pct = (clientX - rect.left) / rect.width;
   return Math.max(0, Math.min(1, pct));
  }
+
  function updateTooltip(clientX) {
   if (!E.playerVideo || !E.playerVideo.duration || !E.progressTooltip) return;
   const pct = getProgressFromX(clientX);
@@ -944,68 +832,165 @@ function initPlayer() {
   E.progressTooltip.style.left = (pct * 100) + "%";
   E.progressTooltip.style.transform = "translateX(-50%)";
  }
+
  if (E.progressContainer) {
   E.progressContainer.addEventListener("pointerdown", (e) => {
    if (!E.playerVideo || !E.playerVideo.duration) return;
    if (E.liveBadge && E.liveBadge.style.display === "flex") return;
-   isDragging = true; E.progressContainer.classList.add("dragging"); E.progressContainer.setPointerCapture(e.pointerId);
+   isDragging = true;
+   E.progressContainer.classList.add("dragging");
+   E.progressContainer.setPointerCapture(e.pointerId);
    const pct = getProgressFromX(e.clientX);
-   if (E.progressFill) E.progressFill.style.width = (pct * 100) + "%"; updateTooltip(e.clientX); e.preventDefault();
+   if (E.progressFill) E.progressFill.style.width = (pct * 100) + "%";
+   updateTooltip(e.clientX);
+   e.preventDefault();
   });
+
   E.progressContainer.addEventListener("pointermove", (e) => {
-   if (!isDragging) { if (E.playerVideo && E.playerVideo.duration && E.liveBadge && E.liveBadge.style.display !== "flex") updateTooltip(e.clientX); return; }
-   e.preventDefault(); const pct = getProgressFromX(e.clientX); if (E.progressFill) E.progressFill.style.width = (pct * 100) + "%"; updateTooltip(e.clientX);
+   if (!isDragging) {
+    if (E.playerVideo && E.playerVideo.duration && E.liveBadge && E.liveBadge.style.display !== "flex") updateTooltip(e.clientX);
+    return;
+   }
+   e.preventDefault();
+   const pct = getProgressFromX(e.clientX);
+   if (E.progressFill) E.progressFill.style.width = (pct * 100) + "%";
+   updateTooltip(e.clientX);
   });
+
   E.progressContainer.addEventListener("pointerup", (e) => {
-   if (!isDragging) return; isDragging = false; E.progressContainer.classList.remove("dragging"); E.progressContainer.releasePointerCapture(e.pointerId);
-   const pct = getProgressFromX(e.clientX); if (E.playerVideo && E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
+   if (!isDragging) return;
+   isDragging = false;
+   E.progressContainer.classList.remove("dragging");
+   E.progressContainer.releasePointerCapture(e.pointerId);
+   const pct = getProgressFromX(e.clientX);
+   if (E.playerVideo && E.playerVideo.duration) E.playerVideo.currentTime = pct * E.playerVideo.duration;
   });
-  E.progressContainer.addEventListener("pointercancel", () => { isDragging = false; E.progressContainer.classList.remove("dragging"); });
+
+  E.progressContainer.addEventListener("pointercancel", () => {
+   isDragging = false;
+   E.progressContainer.classList.remove("dragging");
+  });
  }
 
- // DOUBLE TAP
+ // ===== DOUBLE TAP SYSTEM (Fixed - isolated per zone) =====
  const DT_DELAY = 350;
- const zoneStates = { left: { lastTime: 0, timer: null }, center: { lastTime: 0, timer: null }, right: { lastTime: 0, timer: null } };
+
+ // Each zone has completely independent state
+ const zoneStates = {
+  left:  { lastTime: 0, timer: null },
+  center:{ lastTime: 0, timer: null },
+  right: { lastTime: 0, timer: null }
+ };
+
  function setupDTZone(element, zoneName) {
   if (!element) return;
-  element.addEventListener("touchstart", (e) => { if (e.target.closest(".progress-container")) return; }, { passive: true });
+
+  // MOBILE: touch events only (preventDefault stops synthetic click)
+  element.addEventListener("touchstart", (e) => {
+   if (e.target.closest(".progress-container")) return;
+  }, { passive: true });
+
   element.addEventListener("touchend", (e) => {
-   if (e.target.closest(".progress-container")) return; e.preventDefault();
-   const now = Date.now(); const state = zoneStates[zoneName];
-   if (now - state.lastTime < DT_DELAY) { clearTimeout(state.timer); state.lastTime = 0; state.timer = null; if (zoneName === "center") togglePlay(); else handleDoubleTap(zoneName); }
-   else { state.lastTime = now; clearTimeout(state.timer); state.timer = setTimeout(() => { state.lastTime = 0; state.timer = null; if (zoneName === "center") togglePlay(); }, DT_DELAY); }
+   if (e.target.closest(".progress-container")) return;
+   e.preventDefault(); // Stop the synthetic click event
+
+   const now = Date.now();
+   const state = zoneStates[zoneName];
+
+   if (now - state.lastTime < DT_DELAY) {
+    // DOUBLE TAP detected
+    clearTimeout(state.timer);
+    state.lastTime = 0;
+    state.timer = null;
+    if (zoneName === "center") {
+     togglePlay();
+    } else {
+     handleDoubleTap(zoneName);
+    }
+   } else {
+    // First tap
+    state.lastTime = now;
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => {
+     state.lastTime = 0;
+     state.timer = null;
+     if (zoneName === "center") {
+      togglePlay();
+     }
+    }, DT_DELAY);
+   }
   }, { passive: false });
+
+  // DESKTOP: click events only (no touch interference)
   element.addEventListener("click", (e) => {
    if (e.target.closest(".progress-container")) return;
-   const now = Date.now(); const state = zoneStates[zoneName];
-   if (now - state.lastTime < DT_DELAY) { clearTimeout(state.timer); state.lastTime = 0; state.timer = null; if (zoneName === "center") togglePlay(); else handleDoubleTap(zoneName); }
-   else { state.lastTime = now; clearTimeout(state.timer); state.timer = setTimeout(() => { state.lastTime = 0; state.timer = null; if (zoneName === "center") togglePlay(); }, DT_DELAY); }
+
+   const now = Date.now();
+   const state = zoneStates[zoneName];
+
+   if (now - state.lastTime < DT_DELAY) {
+    clearTimeout(state.timer);
+    state.lastTime = 0;
+    state.timer = null;
+    if (zoneName === "center") {
+     togglePlay();
+    } else {
+     handleDoubleTap(zoneName);
+    }
+   } else {
+    state.lastTime = now;
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => {
+     state.lastTime = 0;
+     state.timer = null;
+     if (zoneName === "center") {
+      togglePlay();
+     }
+    }, DT_DELAY);
+   }
   });
  }
+
  function handleDoubleTap(zone) {
   if (!E.playerVideo) return;
   if (E.liveBadge && E.liveBadge.style.display === "flex") return;
-  if (zone === "left") { E.playerVideo.currentTime = Math.max(0, E.playerVideo.currentTime - 10); showDTFeedback("left", -10); }
-  else if (zone === "right") { const duration = E.playerVideo.duration || 0; E.playerVideo.currentTime = Math.min(duration, E.playerVideo.currentTime + 10); showDTFeedback("right", 10); }
-  updateProg(); showControls();
+  if (zone === "left") {
+   E.playerVideo.currentTime = Math.max(0, E.playerVideo.currentTime - 10);
+   showDTFeedback("left", -10);
+  } else if (zone === "right") {
+   const duration = E.playerVideo.duration || 0;
+   E.playerVideo.currentTime = Math.min(duration, E.playerVideo.currentTime + 10);
+   showDTFeedback("right", 10);
+  }
+  updateProg();
+  showControls();
  }
+
  function showDTFeedback(zone, seconds) {
   const feedback = zone === "left" ? E.dtFeedbackLeft : E.dtFeedbackRight;
   const textEl = zone === "left" ? E.dtLeftText : E.dtRightText;
   if (!feedback || !textEl) return;
-  const arrowStart = seconds < 0 ? '⏪ ' : ''; const arrowEnd = seconds > 0 ? ' ⏩' : '';
+  const arrowStart = seconds < 0 ? '⏪ ' : '';
+  const arrowEnd = seconds > 0 ? ' ⏩' : '';
   textEl.textContent = arrowStart + Math.abs(seconds) + " ثواني" + arrowEnd;
-  feedback.classList.remove("show"); void feedback.offsetWidth; feedback.classList.add("show");
+  feedback.classList.remove("show");
+  void feedback.offsetWidth;
+  feedback.classList.add("show");
   setTimeout(() => feedback.classList.remove("show"), 600);
  }
- setupDTZone(E.dtZoneLeft, "left"); setupDTZone(E.dtZoneCenter, "center"); setupDTZone(E.dtZoneRight, "right");
 
- // Video events
+ setupDTZone(E.dtZoneLeft, "left");
+ setupDTZone(E.dtZoneCenter, "center");
+ setupDTZone(E.dtZoneRight, "right");
+
+// Video events
  E.playerVideo.addEventListener("timeupdate", updateProg);
  E.playerVideo.addEventListener("play", () => { setPlayIcon(true); if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden"); });
  E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden"); });
  E.playerVideo.addEventListener("waiting", () => { if (E.playerLoader) E.playerLoader.classList.remove("hidden"); });
  E.playerVideo.addEventListener("playing", () => { if (E.playerLoader) E.playerLoader.classList.add("hidden"); });
+
+ // Show controls on tap anywhere in player (except controls area)
  E.playerOverlay.addEventListener("click", (e) => {
   if (e.target.closest(".player-controls") || e.target.closest(".player-header") || e.target.closest(".dt-zone")) return;
   showControls();
@@ -1013,82 +998,16 @@ function initPlayer() {
 }
 
 function setPlayIcon(playing) {
- const playIcon = document.getElementById("playIcon"); const pauseIcon = document.getElementById("pauseIcon");
- if (playIcon && pauseIcon) { playIcon.style.display = playing ? "none" : "block"; pauseIcon.style.display = playing ? "block" : "none"; }
+ const playIcon = document.getElementById("playIcon");
+ const pauseIcon = document.getElementById("pauseIcon");
+ if (playIcon && pauseIcon) {
+  playIcon.style.display = playing ? "none" : "block";
+  pauseIcon.style.display = playing ? "block" : "none";
+ }
 }
 
-// ===== QUALITY SELECTOR =====
-function toggleQualityMenu() {
- if (!E.qualityMenu) return;
- E.qualityMenu.classList.toggle("visible");
- E.audioMenu?.classList.remove("visible");
- E.subtitleMenu?.classList.remove("visible");
-}
-function buildQualityMenu() {
- if (!HLS || !E.qualityMenu) return;
- const levels = HLS.levels;
- if (!levels || levels.length <= 1) { E.qualityBtn.style.display = "none"; return; }
- E.qualityBtn.style.display = "flex";
- E.qualityMenu.innerHTML = "";
- const autoItem = document.createElement("div"); autoItem.className = "quality-item" + (HLS.autoLevelEnabled ? " active" : ""); autoItem.textContent = "تلقائي";
- autoItem.addEventListener("click", () => { HLS.currentLevel = -1; buildQualityMenu(); toggleQualityMenu(); });
- E.qualityMenu.appendChild(autoItem);
- levels.forEach((level, i) => {
-  const height = level.height || 0;
-  const label = height >= 720 ? height + "p HD" : height >= 480 ? height + "p" : height + "p";
-  const item = document.createElement("div"); item.className = "quality-item" + (HLS.currentLevel === i ? " active" : ""); item.textContent = label;
-  item.addEventListener("click", () => { HLS.currentLevel = i; buildQualityMenu(); toggleQualityMenu(); });
-  E.qualityMenu.appendChild(item);
- });
-}
-
-// ===== AUDIO TRACKS =====
-function toggleAudioMenu() {
- if (!E.audioMenu) return;
- E.audioMenu.classList.toggle("visible");
- E.qualityMenu?.classList.remove("visible");
- E.subtitleMenu?.classList.remove("visible");
-}
-function buildAudioMenu() {
- if (!HLS || !E.audioMenu) return;
- const tracks = HLS.audioTracks;
- if (!tracks || tracks.length <= 1) { E.audioBtn.style.display = "none"; return; }
- E.audioBtn.style.display = "flex";
- E.audioMenu.innerHTML = "";
- tracks.forEach((track, i) => {
-  const item = document.createElement("div"); item.className = "audio-item" + (HLS.audioTrack === i ? " active" : ""); item.textContent = track.name || track.lang || "مسار " + (i + 1);
-  item.addEventListener("click", () => { HLS.audioTrack = i; buildAudioMenu(); toggleAudioMenu(); });
-  E.audioMenu.appendChild(item);
- });
-}
-
-// ===== SUBTITLE TRACKS =====
-function toggleSubtitleMenu() {
- if (!E.subtitleMenu) return;
- E.subtitleMenu.classList.toggle("visible");
- E.qualityMenu?.classList.remove("visible");
- E.audioMenu?.classList.remove("visible");
-}
-function buildSubtitleMenu() {
- if (!HLS || !E.subtitleMenu) return;
- const tracks = HLS.subtitleTracks;
- if (!tracks || !tracks.length) { E.subtitleBtn.style.display = "none"; return; }
- E.subtitleBtn.style.display = "flex";
- E.subtitleMenu.innerHTML = "";
- const offItem = document.createElement("div"); offItem.className = "subtitle-item" + (HLS.subtitleTrack === -1 ? " active" : ""); offItem.textContent = "مغلق";
- offItem.addEventListener("click", () => { HLS.subtitleTrack = -1; buildSubtitleMenu(); toggleSubtitleMenu(); });
- E.subtitleMenu.appendChild(offItem);
- tracks.forEach((track, i) => {
-  const item = document.createElement("div"); item.className = "subtitle-item" + (HLS.subtitleTrack === i ? " active" : ""); item.textContent = track.name || track.lang || "ترجمة " + (i + 1);
-  item.addEventListener("click", () => { HLS.subtitleTrack = i; buildSubtitleMenu(); toggleSubtitleMenu(); });
-  E.subtitleMenu.appendChild(item);
- });
-}
-
-// ===== OPEN PLAYER (SMART TV SUPPORT) =====
 function openPlayer(url, name, live, item) {
  window.CURRENT_ITEM = item || null;
- CURRENT_STREAM_URL = url;
  if (item) addToWatched(item);
  E.playerOverlay.style.display = "flex";
  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
@@ -1098,51 +1017,25 @@ function openPlayer(url, name, live, item) {
  if (E.downloadBtn) E.downloadBtn.style.display = live ? "none" : "flex";
  if (E.playerLoader) E.playerLoader.classList.remove("hidden");
  if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
- // Hide quality/audio/subtitle buttons initially
- if (E.qualityBtn) E.qualityBtn.style.display = "none";
- if (E.audioBtn) E.audioBtn.style.display = "none";
- if (E.subtitleBtn) E.subtitleBtn.style.display = "none";
- if (E.qualityMenu) E.qualityMenu.classList.remove("visible");
- if (E.audioMenu) E.audioMenu.classList.remove("visible");
- if (E.subtitleMenu) E.subtitleMenu.classList.remove("visible");
 
  if (HLS) { HLS.destroy(); HLS = null; }
  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
 
- const isTV = isSmartTV();
- const isM3U8 = url.includes(".m3u8");
-
- if (isM3U8) {
-  if (isTV) {
-   // Smart TV: Use native <video> (no HLS.js)
-   E.playerVideo.src = url;
-   E.playerVideo.play().catch(() => {});
-   if (E.playerLoader) E.playerLoader.classList.add("hidden");
-   if (E.bigPlayBtn) E.playerLoader.classList.add("hidden");
-  } else if (typeof Hls !== "undefined" && Hls.isSupported()) {
-   // Mobile/Desktop: HLS.js with all features
-   HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
-   HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
-   HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-    if (E.playerLoader) E.playerLoader.classList.add("hidden");
-    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-    E.playerVideo.play().catch(() => {});
-    buildQualityMenu(); buildAudioMenu(); buildSubtitleMenu();
-   });
-   HLS.on(Hls.Events.ERROR, (e, d) => {
-    if (d.fatal) {
-     if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
-     else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError();
-     else { HLS.destroy(); HLS = null; }
-    }
-   });
-  } else {
-   // Fallback
-   E.playerVideo.src = url;
-   E.playerVideo.play().catch(() => {});
+ if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
+  HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+  HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
+  HLS.on(Hls.Events.MANIFEST_PARSED, () => {
    if (E.playerLoader) E.playerLoader.classList.add("hidden");
    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-  }
+   E.playerVideo.play().catch(() => {});
+  });
+  HLS.on(Hls.Events.ERROR, (e, d) => {
+   if (d.fatal) {
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
+    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError();
+    else { HLS.destroy(); HLS = null; }
+   }
+  });
  } else {
   E.playerVideo.src = url;
   E.playerVideo.play().catch(() => {});
@@ -1162,28 +1055,39 @@ function closePlayer() {
 
 function togglePlay() {
  if (!E.playerVideo) return;
- if (E.playerVideo.paused) { E.playerVideo.play().catch(() => {}); }
- else { E.playerVideo.pause(); }
+ if (E.playerVideo.paused) {
+  E.playerVideo.play().catch(() => {});
+ } else {
+  E.playerVideo.pause();
+ }
 }
 
 function toggleFs() {
  if (!E.playerOverlay || !E.playerVideo) return;
  try {
-  const doc = document; const el = E.playerOverlay;
+  const doc = document;
+  const el = E.playerOverlay;
   const isFs = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
   if (isFs) {
    if (doc.exitFullscreen) doc.exitFullscreen().catch(()=>{});
    else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
    else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
    else if (doc.msExitFullscreen) doc.msExitFullscreen();
-   if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+   if (screen.orientation && screen.orientation.unlock) {
+    screen.orientation.unlock();
+   }
   } else {
-   if (isIOS() && E.playerVideo.webkitEnterFullscreen) { E.playerVideo.webkitEnterFullscreen(); return; }
+   if (isIOS() && E.playerVideo.webkitEnterFullscreen) {
+    E.playerVideo.webkitEnterFullscreen();
+    return;
+   }
    if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
    else if (el.msRequestFullscreen) el.msRequestFullscreen();
-   if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+   if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+   }
   }
  } catch(e) {}
 }
@@ -1205,15 +1109,20 @@ function downloadCurrent() {
  if (tab === "live") url = AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8";
  else if (tab === "vod") url = AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
  else url = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
- const a = document.createElement("a"); a.href = url;
+
+ const a = document.createElement("a");
+ a.href = url;
  a.download = (item.name || item.title || "video").replace(/[^a-z0-9\u0600-\u06FF]/gi, "_") + (tab === "live" ? ".m3u8" : ".mp4");
- document.body.appendChild(a); a.click(); document.body.removeChild(a);
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
 }
 
 function updateProg() {
  if (!E.playerVideo) return;
  if (E.liveBadge && E.liveBadge.style.display === "flex") return;
- const duration = E.playerVideo.duration || 0; const current = E.playerVideo.currentTime || 0;
+ const duration = E.playerVideo.duration || 0;
+ const current = E.playerVideo.currentTime || 0;
  const pct = duration ? (current / duration) * 100 : 0;
  if (E.progressFill) E.progressFill.style.width = pct + "%";
  if (E.timeDisplay) E.timeDisplay.textContent = fmt(current) + " / " + fmt(duration);
@@ -1221,7 +1130,9 @@ function updateProg() {
 
 function fmt(s) {
  if (!isFinite(s)) return "0:00";
- const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = Math.floor(s % 60);
+ const h = Math.floor(s / 3600);
+ const m = Math.floor((s % 3600) / 60);
+ const sec = Math.floor(s % 60);
  if (h > 0) return h + ":" + m.toString().padStart(2, "0") + ":" + sec.toString().padStart(2, "0");
  return m + ":" + sec.toString().padStart(2, "0");
 }
@@ -1236,9 +1147,6 @@ function showControls() {
   if (E.playerVideo && !E.playerVideo.paused) {
    if (E.playerHeader) E.playerHeader.classList.add("hidden");
    if (E.playerControls) E.playerControls.classList.add("hidden");
-   if (E.qualityMenu) E.qualityMenu.classList.remove("visible");
-   if (E.audioMenu) E.audioMenu.classList.remove("visible");
-   if (E.subtitleMenu) E.subtitleMenu.classList.remove("visible");
   }
  }, 3000);
 }
@@ -1263,8 +1171,10 @@ let hintT;
 function showHint(t) {
  const h = E.gestureLeft;
  if (!h) return;
- h.textContent = t; h.classList.add("show");
- clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove("show"), 800);
+ h.textContent = t;
+ h.classList.add("show");
+ clearTimeout(hintT);
+ hintT = setTimeout(() => h.classList.remove("show"), 800);
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
