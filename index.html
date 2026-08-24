@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<script>
+// Force clear old service worker and reload once
+(function() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      var hadSW = regs.length > 0;
+      var promises = regs.map(function(r) { return r.unregister(); });
+      Promise.all(promises).then(function() {
+        if (hadSW && !sessionStorage.getItem('sw_cleared')) {
+          sessionStorage.setItem('sw_cleared', '1');
+          window.location.reload();
+        }
+      });
+    });
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        names.forEach(function(name) { caches.delete(name); });
+      });
+    }
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0a0f">
@@ -50,8 +72,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;gap:16px}
 .header-brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .brand-logo{height:36px;width:auto;border-radius:8px;object-fit:contain}
-.header-brand h1{font-size:18px;color:var(--c-p);font-weight:700}
-.header-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-t2);font-weight:600;margin-top:2px}
+.header-brand h1{font-size:18px;color:var(--c-p);font-weight:700;white-space:nowrap}
+.header-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-t2);font-weight:600;margin-top:2px;white-space:nowrap}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--c-ok);box-shadow:0 0 6px var(--c-ok)}
 .icon-btn{width:36px;height:36px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t2);font-size:16px;transition:all 150ms}
 .icon-btn:hover{background:rgba(233,30,99,0.1);border-color:rgba(233,30,99,0.3);color:var(--c-p)}
@@ -230,7 +252,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 <div id="appScreen" class="app-container">
  <header class="app-header">
   <div class="header-brand">
-   <img src="/logo1.png" class="brand-logo" alt="Logo" onerror="this.style.display='none'">
    <div>
     <h1>Raxson Player</h1>
     <div class="header-status">
@@ -1319,6 +1340,13 @@ function showHint(t) {
  h.classList.add("show");
  clearTimeout(hintT);
  hintT = setTimeout(() => h.classList.remove("show"), 800);
+}
+
+// Force service worker update check
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then((registration) => {
+    registration.update();
+  });
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
