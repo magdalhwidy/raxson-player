@@ -1,7 +1,5 @@
-const CACHE_NAME = 'raxson-player-v16';
+const CACHE_NAME = 'raxson-player-v17';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/logo1.png'
 ];
@@ -13,12 +11,9 @@ self.addEventListener('install', (event) => {
       console.log('[SW] Caching assets...');
       return Promise.all(
         STATIC_ASSETS.map(url => 
-          fetch(url, { cache: 'no-cache' }).then(response => {
+          fetch(url).then(response => {
             if (response.ok) return cache.put(url, response);
-            console.log('[SW] Failed to cache:', url);
-          }).catch(err => {
-            console.log('[SW] Error caching:', url, err);
-          })
+          }).catch(() => {})
         )
       );
     })
@@ -53,30 +48,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation (index.html) - always fetch fresh, fallback to cache
-  if (request.mode === 'navigate') {
+  // For index.html - ALWAYS fetch from network, never cache
+  if (url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
-      fetch(request, { cache: 'no-cache' })
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match('/index.html');
-        })
+      fetch(request).catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // For other assets - cache first, then update in background
+  // For other assets - cache first, fallback to network
   event.respondWith(
     caches.match(request).then((cached) => {
-      const fetchPromise = fetch(request).then((response) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
         if (response.ok && request.method === 'GET') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -84,9 +68,7 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return response;
-      }).catch(() => cached);
-
-      return cached || fetchPromise;
+      }).catch(() => new Response('Offline', { status: 503 }));
     })
   );
 });
