@@ -51,13 +51,13 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .header-brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .brand-logo{height:36px;width:auto;border-radius:8px;object-fit:contain}
 .header-brand h1{font-size:18px;color:var(--c-p);font-weight:700}
-.header-status{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--c-tm)}
+.header-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-t2);font-weight:600;margin-top:2px}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--c-ok);box-shadow:0 0 6px var(--c-ok)}
 .icon-btn{width:36px;height:36px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t2);font-size:16px;transition:all 150ms}
 .icon-btn:hover{background:rgba(233,30,99,0.1);border-color:rgba(233,30,99,0.3);color:var(--c-p)}
 .tabs-bar{display:flex;gap:4px;padding:10px 16px;overflow-x:auto;border-bottom:1px solid var(--g-b);background:rgba(10,10,15,0.8);scrollbar-width:none}
 .tabs-bar::-webkit-scrollbar{display:none}
-.tab-btn{flex-shrink:0;padding:9px 18px;border-radius:9999px;background:var(--g-bg);border:1px solid var(--g-b);font-size:13px;color:var(--c-tm);font-weight:600;cursor:pointer;transition:all 150ms;white-space:nowrap}
+.tab-btn{flex-shrink:0;padding:9px 18px;border-radius:9999px;background:var(--g-bg);border:1px solid var(--g-b);font-size:13px;color:var(--c-tm);font-weight:600;cursor:pointer;transition:all 150ms;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 .tab-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:var(--c-t2)}
 .tab-btn.active{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));border-color:transparent;color:#fff;box-shadow:0 0 25px rgba(233,30,99,0.18)}
 .search-wrap{padding:8px 16px}
@@ -65,7 +65,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .search-field::placeholder{color:var(--c-tm)}.search-field:focus{border-color:var(--c-p);box-shadow:0 0 0 3px rgba(233,30,99,0.1)}
 .cats-bar{display:flex;padding:0 16px 8px;position:relative;z-index:30}
 .back-row{display:none;padding:4px 16px}.back-row.visible{display:block}
-.back-btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:var(--r-md);background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t);font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}
+.back-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-md);background:var(--g-bg);border:1px solid var(--g-b);color:var(--c-t);font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}
 .back-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15)}
 .content-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 24px}
 .content-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -138,7 +138,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 /* SETTINGS MENU */
 .settings-menu{position:absolute;bottom:60px;right:16px;background:rgba(20,20,30,0.95);backdrop-filter:blur(20px);border:1px solid var(--g-b);border-radius:var(--r-lg);padding:8px;min-width:220px;display:none;flex-direction:column;gap:4px;z-index:25;box-shadow:0 10px 40px rgba(0,0,0,0.6)}
 .settings-menu.visible{display:flex;animation:ddIn 0.2s ease}
-.settings-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;cursor:pointer;transition:all 150ms;font-size:13px;color:var(--c-t)}
+.settings-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;cursor:pointer;transition:all 150ms;font-size:13px;color:var(--c-t);gap:12px}
+.settings-item svg{flex-shrink:0}
 .settings-item:hover{background:rgba(255,255,255,0.06)}
 .settings-item span:last-child{color:var(--c-p);font-weight:600;font-size:12px;direction:ltr}
 .settings-item.hidden{display:none}
@@ -163,7 +164,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .install-btn-confirm{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;box-shadow:0 4px 20px rgba(233,30,99,0.25)}
 .install-btn-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(233,30,99,0.35)}
 
-.header-actions{display:flex;align-items:center;gap:8px;margin-right:auto;order:-1;flex-shrink:0}
+.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.header-brand{flex:1;min-width:0;text-align:right}
 .install-header-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all 150ms;white-space:nowrap}
 .install-header-btn:hover{transform:translateY(-1px);box-shadow:0 0 20px rgba(233,30,99,0.25)}
 @media(display-mode:standalone){.install-header-btn{display:none!important}}
@@ -238,17 +240,17 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    </div>
   </div>
   <div class="header-actions">
-   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><span>&#x2B07;</span> تثبيت</button>
-   <button class="icon-btn" id="headerFullscreenBtn" title="ملء الشاشة">&#x26F6;</button>
-   <button class="icon-btn" id="logoutBtn" title="خروج">&#x238B;</button>
+   <button class="install-header-btn" id="installHeaderBtn" title="تثبيت التطبيق"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span style="margin-right:6px;">تثبيت</span></button>
+   <button class="icon-btn" id="headerFullscreenBtn" title="ملء الشاشة"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+   <button class="icon-btn" id="logoutBtn" title="خروج"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
   </div>
  </header>
 
  <div class="tabs-bar" id="tabsBar">
-  <button class="tab-btn active" data-tab="live">&#x1F4FA; بث مباشر</button>
-  <button class="tab-btn" data-tab="vod">&#x1F3AC; أفلام</button>
-  <button class="tab-btn" data-tab="series">&#x1F4C1; مسلسلات</button>
-  <button class="tab-btn" data-tab="watched">&#x1F550; آخر المشاهدات</button>
+  <button class="tab-btn active" data-tab="live"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg> <span style="margin-right:6px;">بث مباشر</span></button>
+  <button class="tab-btn" data-tab="vod"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg> <span style="margin-right:6px;">أفلام</span></button>
+  <button class="tab-btn" data-tab="series"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span style="margin-right:6px;">مسلسلات</span></button>
+  <button class="tab-btn" data-tab="watched"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> <span style="margin-right:6px;">آخر المشاهدات</span></button>
  </div>
 
  <div class="search-wrap">
@@ -257,7 +259,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 
  <div class="cats-bar" id="catsBar"></div>
  <div class="back-row" id="backRow">
-  <button class="back-btn" id="backBtn">&#x2190; رجوع</button>
+  <button class="back-btn" id="backBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> <span style="margin-right:6px;">رجوع</span></button>
  </div>
 
  <div class="content-area">
@@ -277,7 +279,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   <span class="player-title" id="playerTitle">...</span>
   <div style="display:flex;gap:8px;align-items:center;">
    <span class="live-badge" id="liveBadge" style="display:none;">مباشر</span>
-   <button class="player-close" id="playerClose" title="إغلاق (ESC)">&#x2715;</button>
+   <button class="player-close" id="playerClose" title="إغلاق (ESC)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
  </div>
 
@@ -297,11 +299,11 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
  <!-- DOUBLE TAP FEEDBACK -->
  <div class="dt-feedback left" id="dtFeedbackLeft">
   <div class="dt-ripple"></div>
-  <div class="dt-text" id="dtLeftText">&#x23EA; 10 ثواني</div>
+  <div class="dt-text" id="dtLeftText"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg> <span style="margin-right:4px;">10 ثواني</span></div>
  </div>
  <div class="dt-feedback right" id="dtFeedbackRight">
   <div class="dt-ripple"></div>
-  <div class="dt-text" id="dtRightText">10 ثواني &#x23E9;</div>
+  <div class="dt-text" id="dtRightText"><span style="margin-left:4px;">10 ثواني</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></div>
  </div>
 
  <div class="gesture-hint left" id="gestureLeft"></div>
@@ -310,24 +312,24 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
  <!-- SETTINGS MENU -->
  <div class="settings-menu" id="settingsMenu">
   <div class="settings-item" id="fitBtn">
-   <span>&#x1F5FA;&#xFE0F; شكل الشاشة</span>
+   <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span style="margin-right:8px;">شكل الشاشة</span></span>
    <span id="fitLabel">ملائم</span>
   </div>
   <div class="settings-item" id="speedBtn">
-   <span>&#x23E9; سرعة التشغيل</span>
+   <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span style="margin-right:8px;">سرعة التشغيل</span></span>
    <span id="speedLabel">1x</span>
   </div>
   <div class="settings-item hidden" id="qualityBtn">
-   <span>&#x1F4CA; الجودة</span>
+   <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"/></svg> <span style="margin-right:8px;">الجودة</span></span>
    <span id="qualityLabel">تلقائي</span>
   </div>
   <div class="settings-item hidden" id="audioTrackBtn">
-   <span>&#x1F50A; مسار الصوت</span>
+   <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> <span style="margin-right:8px;">مسار الصوت</span></span>
    <span id="audioTrackLabel">--</span>
   </div>
   <div class="settings-divider"></div>
   <div class="settings-item" id="settingsDownloadBtn">
-   <span>&#x2B07; تنزيل</span>
+   <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span style="margin-right:8px;">تنزيل</span></span>
   </div>
  </div>
 
@@ -369,7 +371,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    <p>أضف Raxson Player إلى شاشتك الرئيسية</p>
   </div>
   <div class="install-app-info">
-   <div class="install-icon" style="font-size:28px;">&#x1F4FA;</div>
+   <div class="install-icon" style="font-size:28px;display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg></div>
    <div class="install-app-name">Raxson Player</div>
    <div id="installGuideText" style="color:#f59e0b;font-size:13px;text-align:center;line-height:1.6;padding:8px;background:rgba(245,158,11,0.1);border-radius:8px;margin-top:8px;display:none;"></div>
   </div>
@@ -734,7 +736,7 @@ function renderTab() {
   return;
  }
  if (!d.ok) {
-  E.contentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div style="font-size:40px;margin-bottom:12px;">&#x26A0;&#xFE0F;</div><div>تأكد من صحة البيانات</div><button class="load-more-btn" style="margin-top:16px;" onclick="retryCurrentTab()">&#x1F504; إعادة المحاولة</button></div>';
+  E.contentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div style="margin-bottom:12px;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div>تأكد من صحة البيانات</div><button class="load-more-btn" style="margin-top:16px;" onclick="retryCurrentTab()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> <span style="margin-right:6px;">إعادة المحاولة</span></button></div>';
   E.catsBar.innerHTML = "";
   return;
  }
@@ -760,7 +762,7 @@ function renderCats(cats) {
  btn.className = "cat-dropdown-btn";
  const activeCat = (cats || []).find(c => (c.category_id || c.id || "").toString() === STATE.cat);
  const activeName = STATE.cat === "all" ? "كل التصنيفات" : (activeCat ? (activeCat.category_name || activeCat.name) : "تصنيف محدد");
- btn.innerHTML = '<span>&#x1F4C2; ' + esc(activeName) + '</span><span style="font-size:10px;opacity:0.6;">&#x25BC;</span>';
+ btn.innerHTML = '<span>' + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span style="margin-right:6px;">' + esc(activeName) + '</span><span style="font-size:10px;opacity:0.6;display:inline-flex;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
  const dropdown = document.createElement("div");
  dropdown.className = "cat-dropdown";
  const searchInput = document.createElement("input");
@@ -809,7 +811,7 @@ function renderGrid(items) {
   const name = item.name || item.title || "بدون اسم";
   const id = item.stream_id || item.series_id || item.id || 0;
   const img = item.stream_icon || item.cover || item.cover_big || "";
-  const icon = tab === "live" ? "&#x1F4FA;" : tab === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
+  const icon = tab === "live" ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>' : tab === "vod" ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>' : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
   const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = tab; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
   card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
   card.addEventListener("click", () => handleClick(item, tab));
@@ -888,7 +890,7 @@ function showWatched() {
  WATCHED.forEach((item, i) => {
   const card = document.createElement("div"); card.className = "content-card"; card.dataset.tab = item.type || "live"; card.style.animationDelay = Math.min(i * 30, 300) + "ms";
   const name = item.name || "بدون اسم"; const img = item.stream_icon || "";
-  const icon = item.type === "live" ? "&#x1F4FA;" : item.type === "vod" ? "&#x1F3AC;" : "&#x1F4C1;";
+  const icon = item.type === "live" ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>' : item.type === "vod" ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>' : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
   card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
   card.addEventListener("click", () => {
    const streamUrl = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
@@ -1318,7 +1320,6 @@ function showHint(t) {
  clearTimeout(hintT);
  hintT = setTimeout(() => h.classList.remove("show"), 800);
 }
-
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 </script>
