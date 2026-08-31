@@ -27,7 +27,7 @@ def fetch_with_retry(url, max_retries=3, timeout=45):
                 "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
                 "Accept": "application/json, text/plain, */*",
                 "Accept-Language": "ar,en;q=0.9",
-                "Referer": "http://barqtv.fit/"
+                "Referer": "http://barqtv.website/"
             })
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = resp.read()
@@ -99,7 +99,7 @@ def stream_proxy():
         headers = {
             "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
             "Accept": "*/*",
-            "Referer": "http://barqtv.fit/"
+            "Referer": "http://barqtv.website/"
         }
         # Forward Range header from browser (critical for seek/scrub)
         range_header = request.headers.get('Range')
