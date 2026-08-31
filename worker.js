@@ -13,6 +13,7 @@ export default {
         "Content-Length,Content-Range,Accept-Ranges,Last-Modified,ETag,Content-Type"
     };
 
+    // Flask would effectively allow OPTIONS requests.
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -21,94 +22,94 @@ export default {
     }
 
     // =========================================================
-    // Helpers
+    // Common headers used by app.py
     // =========================================================
-
-    const USER_AGENT =
-      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0";
-
-    const API_HEADERS = {
-      "User-Agent": USER_AGENT,
+    const originHeaders = {
+      "User-Agent":
+        "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
       "Accept": "application/json, text/plain, */*",
       "Accept-Language": "ar,en;q=0.9",
       "Referer": "http://barqtv.website/"
     };
 
-    const STREAM_HEADERS = {
-      "User-Agent": USER_AGENT,
-      "Accept": "*/*",
-      "Referer": "http://barqtv.website/"
-    };
+    // =========================================================
+    // /health
+    // =========================================================
+    if (url.pathname === "/health") {
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          service: "raxson-player"
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json; charset=utf-8"
+          }
+        }
+      );
+    }
 
+    // =========================================================
+    // Helper: JSON response
+    // =========================================================
     function jsonResponse(data, status = 200) {
       return new Response(JSON.stringify(data), {
         status,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json; charset=utf-8"
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-cache, no-store, must-revalidate"
         }
       });
     }
 
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     // =========================================================
-    // fetch API with retry
-    // نفس منطق fetch_with_retry الموجود في app.py
+    // Helper: fetch JSON with retry
+    //
+    // Equivalent to:
+    // fetch_with_retry(url, max_retries=3, timeout=45)
+    // from app.py
     // =========================================================
-
-    async function fetchApiWithRetry(targetUrl, maxRetries = 3, timeout = 45000) {
+    async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
       let lastError = null;
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
-        let controller;
-        let timer;
+        let timer = null;
 
         try {
-          controller = new AbortController();
+          const controller = new AbortController();
 
           timer = setTimeout(() => {
             controller.abort();
-          }, timeout);
+          }, timeoutMs);
 
           const response = await fetch(targetUrl, {
             method: "GET",
-            headers: API_HEADERS,
+            headers: originHeaders,
             signal: controller.signal,
             redirect: "follow"
           });
 
           clearTimeout(timer);
+          timer = null;
 
-          // نفس فكرة HTTPError في Python
+          // Same basic behavior as urllib:
+          // HTTP errors are returned as errors.
           if (!response.ok) {
             return {
               error: `HTTP ${response.status}`,
-              details: response.statusText || "HTTP error"
+              details: response.statusText || `HTTP ${response.status}`
             };
           }
 
           const contentType =
             response.headers.get("Content-Type") || "";
 
-          if (
-            contentType.toLowerCase().includes("application/json") ||
-            contentType.toLowerCase().includes("text/json")
-          ) {
-            try {
-              return await response.json();
-            } catch {
-              const text = await response.text();
-              return {
-                raw: text
-              };
-            }
-          }
-
           const text = await response.text();
 
+          // app.py tries json.loads first.
           try {
             return JSON.parse(text);
           } catch {
@@ -116,45 +117,33 @@ export default {
               raw: text
             };
           }
-
-        } catch (error) {
-          if (timer) clearTimeout(timer);
-
-          if (error.name === "AbortError") {
-            lastError = "Request timeout";
-          } else {
-            lastError = error.message || String(error);
+        } catch (err) {
+          if (timer) {
+            clearTimeout(timer);
           }
 
-          // مثل time.sleep(1.5) في app.py
+          if (err && err.name === "AbortError") {
+            lastError = "Request timeout";
+          } else {
+            lastError = err?.message || String(err);
+          }
+
+          // Equivalent to:
+          // time.sleep(1.5)
           if (attempt < maxRetries - 1) {
-            await sleep(1500);
+            await new Promise(resolve => setTimeout(resolve, 1500));
           }
         }
       }
 
       return {
-        error: `Failed after ${maxRetries} attempts`,
-        details: lastError
+        error: `Failed after ${maxRetries} attempts: ${lastError}`
       };
     }
 
     // =========================================================
-    // HEALTH
-    // =========================================================
-
-    if (url.pathname === "/health") {
-      return jsonResponse({
-        status: "ok",
-        service: "raxson-player"
-      });
-    }
-
-    // =========================================================
     // /api
-    // نفس app.py
     // =========================================================
-
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -162,6 +151,7 @@ export default {
       const action = (url.searchParams.get("action") || "").trim();
       const extra = url.searchParams.get("extra") || "";
 
+      // Same validation as app.py
       if (!host || !user || !pwd || !action) {
         return jsonResponse(
           {
@@ -171,11 +161,13 @@ export default {
         );
       }
 
+      // Same as:
+      // if host.endswith("/"): host = host[:-1]
       const cleanHost = host.endsWith("/")
         ? host.slice(0, -1)
         : host;
 
-      // المحافظة على نفس منطق app.py
+      // Same query structure as app.py
       const apiUrl =
         `${cleanHost}/player_api.php` +
         `?username=${encodeURIComponent(user)}` +
@@ -183,30 +175,36 @@ export default {
         `&action=${encodeURIComponent(action)}` +
         extra;
 
-      // نفس الـtimeout الموجود في app.py
+      // Same timeout logic:
+      // 60 sec for get_live_streams
+      // 35 sec for everything else
       const timeout =
         action === "get_live_streams"
           ? 60000
           : 35000;
 
-      const result = await fetchApiWithRetry(
+      const result = await fetchWithRetry(
         apiUrl,
         3,
         timeout
       );
 
-      if (result && result.error) {
+      // Same general behavior as app.py:
+      // if "error" in result -> 502
+      if (
+        result &&
+        typeof result === "object" &&
+        Object.prototype.hasOwnProperty.call(result, "error")
+      ) {
         return jsonResponse(result, 502);
       }
 
-      return jsonResponse(result);
+      return jsonResponse(result, 200);
     }
 
     // =========================================================
     // /stream
-    // Proxy للبث
     // =========================================================
-
     if (url.pathname === "/stream") {
       const targetUrl =
         (url.searchParams.get("url") || "").trim();
@@ -220,143 +218,131 @@ export default {
         );
       }
 
-      let parsedTarget;
+      // Same headers as app.py
+      const streamHeaders = {
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "Accept": "*/*",
+        "Referer": "http://barqtv.website/"
+      };
 
-      try {
-        parsedTarget = new URL(targetUrl);
-      } catch {
-        return jsonResponse(
-          {
-            error: "Invalid stream URL"
-          },
-          400
-        );
-      }
-
-      const headers = new Headers(STREAM_HEADERS);
-
-      // مهم جداً للفيديو والـseek
+      // Critical for seeking/scrubbing.
       const rangeHeader = request.headers.get("Range");
 
       if (rangeHeader) {
-        headers.set("Range", rangeHeader);
+        streamHeaders["Range"] = rangeHeader;
       }
 
       try {
-        const response = await fetch(parsedTarget.href, {
+        const response = await fetch(targetUrl, {
           method: "GET",
-          headers,
+          headers: streamHeaders,
           redirect: "follow"
         });
 
         const contentType =
           response.headers.get("Content-Type") || "";
 
-        const lowerTarget =
-          parsedTarget.href.toLowerCase().split("?")[0];
+        const lowerTargetUrl =
+          targetUrl.toLowerCase();
 
+        // Same M3U8/M3U detection logic.
         const isM3U8 =
           contentType.toLowerCase().includes("mpegurl") ||
-          lowerTarget.endsWith(".m3u8") ||
-          lowerTarget.endsWith(".m3u");
+          lowerTargetUrl.endsWith(".m3u8") ||
+          lowerTargetUrl.endsWith(".m3u");
 
         // =====================================================
-        // M3U8
+        // M3U8 / M3U
         // =====================================================
-
         if (isM3U8) {
           const text = await response.text();
 
-          const baseUrl = new URL(
-            ".",
-            parsedTarget.href
-          ).href;
+          // Equivalent to:
+          // base_path = url[:url.rfind('/') + 1]
+          let baseUrl;
 
-          const lines = text.split(/\r?\n/);
+          try {
+            baseUrl = new URL(targetUrl);
+          } catch {
+            return jsonResponse(
+              {
+                error: "Invalid stream URL"
+              },
+              400
+            );
+          }
 
-          const rewritten = lines.map(line => {
-            const trimmed = line.trim();
+          // We use the directory containing the playlist
+          // as the base for relative URLs.
+          const basePath =
+            targetUrl.substring(
+              0,
+              targetUrl.lastIndexOf("/") + 1
+            );
 
-            if (!trimmed) {
+          const lines = text.split("\n");
+
+          const newLines = lines.map(line => {
+            const stripped = line.trim();
+
+            // Preserve empty lines and #EXT... lines.
+            if (
+              !stripped ||
+              stripped.startsWith("#")
+            ) {
               return line;
             }
 
-            // -------------------------------------------------
-            // الأسطر التي تحتوي URI داخل #EXT-X-KEY
-            // #EXT-X-MAP
-            // #EXT-X-MEDIA
-            // وغيرها
-            // -------------------------------------------------
-
-            if (trimmed.startsWith("#")) {
-              return line.replace(
-                /URI="([^"]+)"/g,
-                (match, uri) => {
-                  try {
-                    const absolute =
-                      new URL(uri, baseUrl).href;
-
-                    return `URI="/stream?url=${encodeURIComponent(
-                      absolute
-                    )}"`;
-                  } catch {
-                    return match;
-                  }
-                }
+            // Absolute HTTP/HTTPS URL
+            if (
+              stripped.startsWith("http://") ||
+              stripped.startsWith("https://")
+            ) {
+              return (
+                "/stream?url=" +
+                encodeURIComponent(stripped)
               );
             }
 
-            // -------------------------------------------------
-            // Absolute URL
-            // -------------------------------------------------
-
-            if (
-              trimmed.startsWith("http://") ||
-              trimmed.startsWith("https://")
-            ) {
-              return `/stream?url=${encodeURIComponent(
-                trimmed
-              )}`;
-            }
-
-            // -------------------------------------------------
             // Relative URL
-            // -------------------------------------------------
-
             try {
               const resolved =
-                new URL(trimmed, baseUrl).href;
+                new URL(stripped, basePath).href;
 
-              return `/stream?url=${encodeURIComponent(
-                resolved
-              )}`;
+              return (
+                "/stream?url=" +
+                encodeURIComponent(resolved)
+              );
             } catch {
               return line;
             }
           });
 
-          const playlist = rewritten.join("\n");
-
-          return new Response(playlist, {
-            status: response.status,
-            headers: {
-              ...corsHeaders,
-              "Content-Type":
-                "application/vnd.apple.mpegurl",
-              "Cache-Control":
-                "no-cache, no-store, must-revalidate"
+          return new Response(
+            newLines.join("\n"),
+            {
+              status: response.status,
+              headers: {
+                ...corsHeaders,
+                "Content-Type":
+                  "application/vnd.apple.mpegurl",
+                "Cache-Control":
+                  "no-cache, no-store, must-revalidate"
+              }
             }
-          });
+          );
         }
 
         // =====================================================
-        // الفيديو / TS / MP4 / أجزاء HLS
-        // تمرير الـheaders المهمة
+        // Normal video stream
         // =====================================================
+        const responseHeaders = {
+          ...corsHeaders
+        };
 
-        const responseHeaders = new Headers();
-
-        const forwardHeaders = [
+        // Same essential headers as app.py
+        const headersToForward = [
           "Content-Type",
           "Content-Length",
           "Content-Range",
@@ -365,32 +351,33 @@ export default {
           "ETag"
         ];
 
-        for (const header of forwardHeaders) {
+        for (const headerName of headersToForward) {
           const value =
-            response.headers.get(header);
+            response.headers.get(headerName);
 
           if (value) {
-            responseHeaders.set(header, value);
+            responseHeaders[headerName] = value;
           }
         }
 
-        // CORS
-        for (const [key, value] of Object.entries(corsHeaders)) {
-          responseHeaders.set(key, value);
-        }
+        // Return origin body directly.
+        //
+        // This is the Cloudflare equivalent of the
+        // generator() in app.py.
+        return new Response(
+          response.body,
+          {
+            status: response.status,
+            statusText: response.statusText,
+            headers: responseHeaders
+          }
+        );
 
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: responseHeaders
-        });
-
-      } catch (error) {
+      } catch (err) {
         return jsonResponse(
           {
             error: "Stream failed",
-            details:
-              error.message || String(error)
+            details: err?.message || String(err)
           },
           502
         );
@@ -398,105 +385,113 @@ export default {
     }
 
     // =========================================================
-    // الملفات الثابتة
+    // Static files
+    // =========================================================
+    //
+    // Equivalent to Flask:
+    //
+    // /
+    // /manifest.json
+    // /sw.js
+    // /logo1.png
+    // /images/<filename>
+    //
+    // Cloudflare serves them through env.ASSETS.
     // =========================================================
 
-    const assetResponse =
-      await env.ASSETS.fetch(request);
+    try {
+      const assetResponse =
+        await env.ASSETS.fetch(request);
 
-    // ---------------------------------------------------------
-    // index.html
-    // ---------------------------------------------------------
+      // /
+      if (
+        url.pathname === "/" ||
+        url.pathname === "/index.html"
+      ) {
+        const headers =
+          new Headers(assetResponse.headers);
 
-    if (
-      url.pathname === "/" ||
-      url.pathname === "/index.html"
-    ) {
-      const headers =
-        new Headers(assetResponse.headers);
+        headers.set(
+          "Cache-Control",
+          "no-cache, no-store, must-revalidate"
+        );
 
-      headers.set(
-        "Cache-Control",
-        "no-cache, no-store, must-revalidate"
-      );
-
-      for (const [key, value] of Object.entries(corsHeaders)) {
-        headers.set(key, value);
+        return new Response(
+          assetResponse.body,
+          {
+            status: assetResponse.status,
+            statusText: assetResponse.statusText,
+            headers
+          }
+        );
       }
 
-      return new Response(
-        assetResponse.body,
+      // /manifest.json
+      if (url.pathname === "/manifest.json") {
+        const headers =
+          new Headers(assetResponse.headers);
+
+        headers.set(
+          "Content-Type",
+          "application/json"
+        );
+
+        headers.set(
+          "Cache-Control",
+          "no-cache, no-store, must-revalidate"
+        );
+
+        return new Response(
+          assetResponse.body,
+          {
+            status: assetResponse.status,
+            statusText: assetResponse.statusText,
+            headers
+          }
+        );
+      }
+
+      // /sw.js
+      if (url.pathname === "/sw.js") {
+        const headers =
+          new Headers(assetResponse.headers);
+
+        headers.set(
+          "Content-Type",
+          "application/javascript"
+        );
+
+        headers.set(
+          "Cache-Control",
+          "no-cache, no-store, must-revalidate"
+        );
+
+        headers.set(
+          "Service-Worker-Allowed",
+          "/"
+        );
+
+        return new Response(
+          assetResponse.body,
+          {
+            status: assetResponse.status,
+            statusText: assetResponse.statusText,
+            headers
+          }
+        );
+      }
+
+      // Everything else
+      return assetResponse;
+
+    } catch (err) {
+      return jsonResponse(
         {
-          status: assetResponse.status,
-          headers
-        }
+          error: "Asset failed",
+          details: err?.message || String(err)
+        },
+        500
       );
     }
-
-    // ---------------------------------------------------------
-    // manifest.json
-    // ---------------------------------------------------------
-
-    if (url.pathname === "/manifest.json") {
-      const headers =
-        new Headers(assetResponse.headers);
-
-      headers.set(
-        "Content-Type",
-        "application/json"
-      );
-
-      headers.set(
-        "Cache-Control",
-        "no-cache, no-store, must-revalidate"
-      );
-
-      return new Response(
-        assetResponse.body,
-        {
-          status: assetResponse.status,
-          headers
-        }
-      );
-    }
-
-    // ---------------------------------------------------------
-    // sw.js
-    // ---------------------------------------------------------
-
-    if (url.pathname === "/sw.js") {
-      const headers =
-        new Headers(assetResponse.headers);
-
-      headers.set(
-        "Content-Type",
-        "application/javascript"
-      );
-
-      headers.set(
-        "Cache-Control",
-        "no-cache, no-store, must-revalidate"
-      );
-
-      headers.set(
-        "Service-Worker-Allowed",
-        "/"
-      );
-
-      return new Response(
-        assetResponse.body,
-        {
-          status: assetResponse.status,
-          headers
-        }
-      );
-    }
-
-    // ---------------------------------------------------------
-    // باقي الملفات
-    // logo1.png / images / ...
-    // ---------------------------------------------------------
-
-    return assetResponse;
   }
 };
