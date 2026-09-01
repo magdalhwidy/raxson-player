@@ -13,14 +13,6 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    const originHeaders = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept": "*/*",
-      "Accept-Encoding": "identity",
-      "Connection": "keep-alive",
-      "Referer": "http://barqtv.website/"
-    };
-
     function jsonResponse(data, status = 200) {
       return new Response(JSON.stringify(data), {
         status,
@@ -31,10 +23,17 @@ export default {
     function normalizeUrl(urlStr) {
       let s = urlStr.trim();
       if (s.endsWith("/")) s = s.slice(0, -1);
-      if (s.startsWith("http://") && s.endsWith(":80")) s = s.slice(0, -3);
-      if (s.startsWith("https://") && s.endsWith(":443")) s = s.slice(0, -4);
+      // لا نحذف :80 لأن بعض السيرفرات تتطلبه صراحة في Host header
       return s;
     }
+
+    const originHeaders = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "*/*",
+      "Accept-Encoding": "identity",
+      "Connection": "keep-alive",
+      "Referer": "http://barqtv.website/"
+    };
 
     async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
       let lastError = null;
@@ -81,14 +80,32 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // ✅ البروكسي الحقيقي — يجلب المحتوى ويعيده بدلاً من إعادة التوجيه
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
       targetUrl = normalizeUrl(targetUrl);
 
       try {
-        const reqHeaders = new Headers(originHeaders);
+        // ✅ استخدام headers المستخدم الحقيقي (إخفاء هوية Cloudflare)
+        const reqHeaders = new Headers();
+        
+        // نسخ User-Agent الحقيقي للمستخدم
+        const userAgent = request.headers.get("User-Agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+        reqHeaders.set("User-Agent", userAgent);
+        reqHeaders.set("Accept", request.headers.get("Accept") || "*/*");
+        reqHeaders.set("Accept-Language", request.headers.get("Accept-Language") || "en-US,en;q=0.9");
+        reqHeaders.set("Accept-Encoding", "identity"); // identity فقط لتجنب مشاكل الضغط
+        reqHeaders.set("Connection", "keep-alive");
+        reqHeaders.set("Referer", "http://barqtv.website/");
+        
+        // ✅ إضافة IP المستخدم الحقيقي (مهم جداً لبعض السيرفرات)
+        const clientIp = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || request.headers.get("X-Real-IP");
+        if (clientIp) {
+          reqHeaders.set("X-Forwarded-For", clientIp);
+          reqHeaders.set("X-Real-IP", clientIp);
+        }
+        
+        // ✅ نسخ Range header (مهم للفيديو)
         const range = request.headers.get("Range");
         if (range) reqHeaders.set("Range", range);
 
