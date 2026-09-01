@@ -130,7 +130,7 @@ export default {
     }
 
     // =========================================================
-    // /stream  (FIXED)
+    // /stream  (FULLY FIXED)
     // =========================================================
     if (url.pathname === "/stream") {
       const targetUrl = (url.searchParams.get("url") || "").trim();
@@ -155,11 +155,15 @@ export default {
         // Support HEAD requests (some players send HEAD before GET)
         const method = request.method === "HEAD" ? "HEAD" : "GET";
 
+        console.log(`[STREAM] ${method} -> ${targetUrl.substring(0, 80)}...`);
+
         const response = await fetch(targetUrl, {
           method: method,
           headers: streamHeaders,
           redirect: "follow"
         });
+
+        console.log(`[STREAM] Origin status: ${response.status}, CT: ${response.headers.get("Content-Type") || "none"}`);
 
         const contentType = response.headers.get("Content-Type") || "";
         const lowerTargetUrl = targetUrl.toLowerCase();
@@ -212,7 +216,7 @@ export default {
         }
 
         // =====================================================
-        // Normal video stream — forward ALL safe headers
+        // Normal video stream — ROBUST PROXY
         // =====================================================
         const hopByHop = [
           "connection", "keep-alive", "proxy-authenticate",
@@ -220,20 +224,38 @@ export default {
         ];
 
         const responseHeaders = { ...corsHeaders };
+
+        // Forward safe headers from origin
         response.headers.forEach((value, key) => {
           const lowerKey = key.toLowerCase();
           if (hopByHop.includes(lowerKey)) return;
-          // Remove content-encoding / content-length to avoid mismatch
-          // after Cloudflare auto-decompresses the body
           if (lowerKey === "content-encoding") return;
           if (lowerKey === "content-length") return;
+          if (lowerKey === "content-disposition") return; // Prevent forced download
           responseHeaders[key] = value;
         });
 
-        // Ensure Accept-Ranges is present for video seek
-        if (!responseHeaders["Accept-Ranges"] && rangeHeader) {
+        // FORCE correct Content-Type based on extension (prevents Cloudflare compression)
+        if (lowerTargetUrl.endsWith(".mp4")) {
+          responseHeaders["Content-Type"] = "video/mp4";
+        } else if (lowerTargetUrl.endsWith(".ts") || lowerTargetUrl.endsWith(".m2ts")) {
+          responseHeaders["Content-Type"] = "video/mp2t";
+        } else if (lowerTargetUrl.endsWith(".mkv")) {
+          responseHeaders["Content-Type"] = "video/x-matroska";
+        } else if (lowerTargetUrl.endsWith(".avi")) {
+          responseHeaders["Content-Type"] = "video/x-msvideo";
+        }
+
+        // CRITICAL: Prevent Cloudflare from transforming (compressing) the stream
+        responseHeaders["Cache-Control"] = "no-transform, no-store, must-revalidate, private";
+        responseHeaders["X-Content-Type-Options"] = "nosniff";
+
+        // CRITICAL: Always declare range support for video
+        if (!responseHeaders["Accept-Ranges"]) {
           responseHeaders["Accept-Ranges"] = "bytes";
         }
+
+        console.log(`[STREAM] Returning with CT: ${responseHeaders["Content-Type"] || "none"}, AR: ${responseHeaders["Accept-Ranges"] || "none"}`);
 
         return new Response(
           response.body,
@@ -245,6 +267,7 @@ export default {
         );
 
       } catch (err) {
+        console.error(`[STREAM] Error: ${err?.message || String(err)}`);
         return jsonResponse(
           { error: "Stream failed", details: err?.message || String(err) },
           502
