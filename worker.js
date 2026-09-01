@@ -27,6 +27,20 @@ export default {
       });
     }
 
+    // ── Helper: normalize host (remove :80/:443) ──
+    function normalizeHost(host) {
+      let h = host.trim();
+      if (h.endsWith("/")) h = h.slice(0, -1);
+      // Remove explicit :80 for http and :443 for https
+      if (h.startsWith("http://") && h.endsWith(":80")) {
+        h = h.slice(0, -3);
+      }
+      if (h.startsWith("https://") && h.endsWith(":443")) {
+        h = h.slice(0, -4);
+      }
+      return h;
+    }
+
     async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
       let lastError = null;
       for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -36,9 +50,19 @@ export default {
           timer = setTimeout(() => controller.abort(), timeoutMs);
           const response = await fetch(targetUrl, { method: "GET", headers: originHeaders, signal: controller.signal, redirect: "follow" });
           clearTimeout(timer);
-          if (!response.ok) return { error: `HTTP ${response.status}`, details: response.statusText };
+
+          if (!response.ok) {
+            return { error: `HTTP ${response.status}`, details: response.statusText };
+          }
+
           const text = await response.text();
-          try { return JSON.parse(text); } catch { return { raw: text }; }
+          // Try parse JSON
+          try {
+            return JSON.parse(text);
+          } catch (jsonErr) {
+            // If it's not JSON, return raw but mark it
+            return { raw: text, notJson: true };
+          }
         } catch (err) {
           if (timer) clearTimeout(timer);
           lastError = err?.name === "AbortError" ? "Request timeout" : (err?.message || String(err));
@@ -60,12 +84,36 @@ export default {
       const pwd = (url.searchParams.get("pass") || "").trim();
       const action = (url.searchParams.get("action") || "").trim();
       const extra = url.searchParams.get("extra") || "";
-      if (!host || !user || !pwd || !action) return jsonResponse({ error: "Missing parameters" }, 400);
-      const cleanHost = host.endsWith("/") ? host.slice(0, -1) : host;
+
+      if (!host || !user || !pwd || !action) {
+        return jsonResponse({ error: "Missing parameters" }, 400);
+      }
+
+      const cleanHost = normalizeHost(host);
       const apiUrl = `${cleanHost}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pwd)}&action=${encodeURIComponent(action)}${extra}`;
+
       const timeout = action === "get_live_streams" ? 60000 : 35000;
       const result = await fetchWithRetry(apiUrl, 3, timeout);
-      if (result && typeof result === "object" && "error" in result) return jsonResponse(result, 502);
+
+      // If fetch failed completely
+      if (result && typeof result === "object" && "error" in result) {
+        return jsonResponse({
+          error: result.error,
+          details: result.details,
+          debugUrl: apiUrl.replace(/password=[^&]+/, "password=***") // hide password in debug
+        }, 502);
+      }
+
+      // If response was not JSON (e.g., HTML error page)
+      if (result && typeof result === "object" && result.notJson) {
+        return jsonResponse({
+          error: "Invalid response from server",
+          details: "Server returned non-JSON data. The host may be blocking Cloudflare IPs or requires a different port/format.",
+          debugUrl: apiUrl.replace(/password=[^&]+/, "password=***"),
+          preview: result.raw?.substring(0, 200) || ""
+        }, 502);
+      }
+
       return jsonResponse(result, 200);
     }
 
@@ -94,12 +142,11 @@ export default {
           const text = await response.text();
           const basePath = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
 
-          // ── M3U8 Rewriting with URI= support ──
           const lines = text.split("\n");
           const newLines = lines.map(line => {
             const stripped = line.trim();
 
-            // 1) Direct URL lines (not comments)
+            // 1) Non-comment lines
             if (stripped && !stripped.startsWith("#")) {
               if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
                 return "/stream?url=" + encodeURIComponent(stripped);
@@ -110,9 +157,8 @@ export default {
               } catch { return line; }
             }
 
-            // 2) Comment lines that contain URI="..." — CRITICAL FIX
+            // 2) Comment lines with URI="..."
             if (stripped.startsWith("#")) {
-              // Match URI="..." patterns inside tags
               const uriMatch = stripped.match(/URI="([^"]+)"/);
               if (uriMatch) {
                 const originalUri = uriMatch[1];
@@ -140,7 +186,7 @@ export default {
           });
         }
 
-        // ── Video/Audio Segments Pass-through ──
+        // Video/Audio segments pass-through
         const newHeaders = new Headers();
         const passThrough = ["Content-Type", "Content-Length", "Accept-Ranges", "Content-Range", "Last-Modified", "ETag", "Cache-Control", "Content-Disposition"];
         passThrough.forEach(h => {
@@ -148,7 +194,6 @@ export default {
           if (v) newHeaders.set(h, v);
         });
 
-        // Force correct Content-Type based on extension
         if (lowerTargetUrl.endsWith(".mp4")) newHeaders.set("Content-Type", "video/mp4");
         else if (lowerTargetUrl.endsWith(".ts") || lowerTargetUrl.endsWith(".m2ts")) newHeaders.set("Content-Type", "video/mp2t");
         else if (lowerTargetUrl.endsWith(".mkv")) newHeaders.set("Content-Type", "video/x-matroska");
@@ -156,12 +201,10 @@ export default {
         else if (lowerTargetUrl.endsWith(".aac")) newHeaders.set("Content-Type", "audio/aac");
         else if (lowerTargetUrl.endsWith(".mp3")) newHeaders.set("Content-Type", "audio/mpeg");
 
-        // Ensure range support
         if (!newHeaders.has("Accept-Ranges")) {
           newHeaders.set("Accept-Ranges", "bytes");
         }
 
-        // CORS + anti-transform
         newHeaders.set("Access-Control-Allow-Origin", "*");
         newHeaders.set("Access-Control-Allow-Headers", "Content-Type,Authorization,Range");
         newHeaders.set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
