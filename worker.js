@@ -27,18 +27,24 @@ export default {
       });
     }
 
-    // ── Helper: normalize host (remove :80/:443) ──
-    function normalizeHost(host) {
-      let h = host.trim();
-      if (h.endsWith("/")) h = h.slice(0, -1);
-      // Remove explicit :80 for http and :443 for https
-      if (h.startsWith("http://") && h.endsWith(":80")) {
-        h = h.slice(0, -3);
+    // Helper: normalize URL (remove :80/:443)
+    function normalizeUrl(urlStr) {
+      let s = urlStr.trim();
+      if (s.endsWith("/")) s = s.slice(0, -1);
+      // Remove :80 from http URLs
+      if (s.startsWith("http://") && s.endsWith(":80")) {
+        s = s.slice(0, -3);
       }
-      if (h.startsWith("https://") && h.endsWith(":443")) {
-        h = h.slice(0, -4);
+      // Remove :443 from https URLs
+      if (s.startsWith("https://") && s.endsWith(":443")) {
+        s = s.slice(0, -4);
       }
-      return h;
+      return s;
+    }
+
+    function getBasePath(urlStr) {
+      const lastSlash = urlStr.lastIndexOf("/");
+      return lastSlash >= 0 ? urlStr.substring(0, lastSlash + 1) : urlStr + "/";
     }
 
     async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
@@ -56,11 +62,9 @@ export default {
           }
 
           const text = await response.text();
-          // Try parse JSON
           try {
             return JSON.parse(text);
           } catch (jsonErr) {
-            // If it's not JSON, return raw but mark it
             return { raw: text, notJson: true };
           }
         } catch (err) {
@@ -72,12 +76,12 @@ export default {
       return { error: `Failed after ${maxRetries} attempts: ${lastError}` };
     }
 
-    // ─── Health Check ───
+    // Health Check
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ─── API Proxy ───
+    // API Proxy
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -89,26 +93,24 @@ export default {
         return jsonResponse({ error: "Missing parameters" }, 400);
       }
 
-      const cleanHost = normalizeHost(host);
+      const cleanHost = normalizeUrl(host);
       const apiUrl = `${cleanHost}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pwd)}&action=${encodeURIComponent(action)}${extra}`;
 
       const timeout = action === "get_live_streams" ? 60000 : 35000;
       const result = await fetchWithRetry(apiUrl, 3, timeout);
 
-      // If fetch failed completely
       if (result && typeof result === "object" && "error" in result) {
         return jsonResponse({
           error: result.error,
           details: result.details,
-          debugUrl: apiUrl.replace(/password=[^&]+/, "password=***") // hide password in debug
+          debugUrl: apiUrl.replace(/password=[^&]+/, "password=***")
         }, 502);
       }
 
-      // If response was not JSON (e.g., HTML error page)
       if (result && typeof result === "object" && result.notJson) {
         return jsonResponse({
           error: "Invalid response from server",
-          details: "Server returned non-JSON data. The host may be blocking Cloudflare IPs or requires a different port/format.",
+          details: "Server returned non-JSON data.",
           debugUrl: apiUrl.replace(/password=[^&]+/, "password=***"),
           preview: result.raw?.substring(0, 200) || ""
         }, 502);
@@ -117,36 +119,58 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // ─── Stream Proxy ───
+    // Stream Proxy
     if (url.pathname === "/stream") {
-      const targetUrl = (url.searchParams.get("url") || "").trim();
+      let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
+
+      targetUrl = normalizeUrl(targetUrl);
+
+      const lowerTargetUrl = targetUrl.toLowerCase();
+      const isM3U8ByExt = lowerTargetUrl.endsWith(".m3u8") || lowerTargetUrl.endsWith(".m3u");
 
       const streamHeaders = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
-        "Accept": "*/*",
-        "Referer": "http://barqtv.website/"
+        "Accept": isM3U8ByExt ? "application/vnd.apple.mpegurl, audio/mpegurl, */*" : "*/*",
+        "Referer": targetUrl.substring(0, targetUrl.indexOf("/", targetUrl.indexOf("://") + 3) + 1) || "http://barqtv.website/"
       };
+
       const rangeHeader = request.headers.get("Range");
-      if (rangeHeader) streamHeaders["Range"] = rangeHeader;
+      if (rangeHeader && !isM3U8ByExt) {
+        streamHeaders["Range"] = rangeHeader;
+      }
 
       try {
         const method = request.method === "HEAD" ? "HEAD" : "GET";
         const response = await fetch(targetUrl, { method, headers: streamHeaders, redirect: "follow" });
 
-        const contentType = response.headers.get("Content-Type") || "";
-        const lowerTargetUrl = targetUrl.toLowerCase();
-        const isM3U8 = contentType.toLowerCase().includes("mpegurl") || lowerTargetUrl.endsWith(".m3u8") || lowerTargetUrl.endsWith(".m3u");
+        const finalUrl = response.url || targetUrl;
+        const basePath = getBasePath(finalUrl);
 
-        if (isM3U8) {
+        const contentType = response.headers.get("Content-Type") || "";
+        const lowerContentType = contentType.toLowerCase();
+
+        let isActuallyM3U8 = lowerContentType.includes("mpegurl") || 
+                             lowerContentType.includes("m3u") ||
+                             isM3U8ByExt;
+
+        if (isActuallyM3U8) {
           const text = await response.text();
-          const basePath = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
+          const trimmed = text.trim();
+
+          if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) {
+            return jsonResponse({
+              error: "Server returned HTML instead of M3U8",
+              details: "The stream URL may be invalid or the server is blocking Cloudflare IPs.",
+              url: targetUrl.replace(/\/[^/]+\/[^/]+\//, "/*****/*****/"),
+              preview: trimmed.substring(0, 300)
+            }, 502);
+          }
 
           const lines = text.split("\n");
           const newLines = lines.map(line => {
             const stripped = line.trim();
 
-            // 1) Non-comment lines
             if (stripped && !stripped.startsWith("#")) {
               if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
                 return "/stream?url=" + encodeURIComponent(stripped);
@@ -157,7 +181,6 @@ export default {
               } catch { return line; }
             }
 
-            // 2) Comment lines with URI="..."
             if (stripped.startsWith("#")) {
               const uriMatch = stripped.match(/URI="([^"]+)"/);
               if (uriMatch) {
@@ -177,7 +200,7 @@ export default {
           });
 
           return new Response(newLines.join("\n"), {
-            status: response.status,
+            status: 200,
             headers: {
               ...corsHeaders,
               "Content-Type": "application/vnd.apple.mpegurl",
@@ -219,34 +242,14 @@ export default {
         });
 
       } catch (err) {
-        return jsonResponse({ error: "Stream failed", details: err?.message || String(err) }, 502);
+        return jsonResponse({
+          error: "Stream fetch failed",
+          details: err?.message || String(err),
+          url: targetUrl.replace(/\/[^/]+\/[^/]+\//, "/*****/*****/")
+        }, 502);
       }
     }
 
-    // ─── Static Assets ───
-    try {
-      const assetResponse = await env.ASSETS.fetch(request);
-      if (url.pathname === "/" || url.pathname === "/index.html") {
-        const headers = new Headers(assetResponse.headers);
-        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-        return new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
-      }
-      if (url.pathname === "/manifest.json") {
-        const headers = new Headers(assetResponse.headers);
-        headers.set("Content-Type", "application/json");
-        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-        return new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
-      }
-      if (url.pathname === "/sw.js") {
-        const headers = new Headers(assetResponse.headers);
-        headers.set("Content-Type", "application/javascript");
-        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-        headers.set("Service-Worker-Allowed", "/");
-        return new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
-      }
-      return assetResponse;
-    } catch (err) {
-      return jsonResponse({ error: "Asset failed", details: err?.message || String(err) }, 500);
-    }
+    return jsonResponse({ error: "Not found" }, 404);
   }
 };
