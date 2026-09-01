@@ -14,8 +14,8 @@ export default {
     }
 
     const originHeaders = {
-      "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
-      "Accept": "application/json, text/plain, */*",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "*/*",
       "Accept-Language": "ar,en;q=0.9",
       "Referer": "http://barqtv.website/"
     };
@@ -111,14 +111,51 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy (Direct Redirect to Bypass Cloudflare IP Block)
+    // Stream Proxy (Direct Content Streaming with CORS and Header Emulation)
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
 
       targetUrl = normalizeUrl(targetUrl);
 
-      return Response.redirect(targetUrl, 302);
+      const upstreamHeaders = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Encoding": "identity",
+        "Connection": "keep-alive",
+        "Referer": "http://barqtv.website/"
+      };
+
+      const rangeHeader = request.headers.get("Range");
+      if (rangeHeader) {
+        upstreamHeaders["Range"] = rangeHeader;
+      }
+
+      try {
+        const response = await fetch(targetUrl, {
+          method: request.method,
+          headers: upstreamHeaders,
+          redirect: "follow"
+        });
+
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set("Access-Control-Allow-Origin", "*");
+        newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+        newHeaders.set("Access-Control-Allow-Headers", "Range, Content-Type");
+        newHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Type");
+
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+
+      } async (err) => {
+        return jsonResponse({
+          error: "Stream fetch failed",
+          details: err?.message || String(err)
+        }, 502);
+      }
     }
 
     return jsonResponse({ error: "Not found" }, 404);
