@@ -116,7 +116,7 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy
+    // Stream Proxy (Updated for 403 bypass)
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
@@ -126,9 +126,10 @@ export default {
       const isM3U8ByExt = lowerTargetUrl.includes(".m3u8") || lowerTargetUrl.includes(".m3u") || lowerTargetUrl.includes("/auth/");
 
       const streamHeaders = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "IPTVSmartersPro",
         "Accept": "*/*",
-        "Referer": "http://barqtv.website/"
+        "Connection": "keep-alive",
+        "Icy-Metadata": "1"
       };
 
       const rangeHeader = request.headers.get("Range");
@@ -138,7 +139,11 @@ export default {
 
       try {
         const method = request.method === "HEAD" ? "HEAD" : "GET";
-        const response = await fetch(targetUrl, { method, headers: streamHeaders, redirect: "follow" });
+        const response = await fetch(targetUrl, { 
+          method, 
+          headers: streamHeaders, 
+          redirect: "follow" 
+        });
 
         const finalUrl = response.url || targetUrl;
         const basePath = getBasePath(finalUrl);
@@ -152,8 +157,6 @@ export default {
 
         if (isActuallyM3U8 && !lowerTargetUrl.endsWith(".mp4") && !lowerTargetUrl.endsWith(".mkv")) {
           const text = await response.text();
-          const trimmed = text.trim();
-
           const lines = text.split("\n");
           const newLines = lines.map(line => {
             const stripped = line.trim();
@@ -179,7 +182,6 @@ export default {
           });
         }
 
-        // Pass-through headers for Video/Audio files (mp4, mkv, ts, etc.)
         const newHeaders = new Headers(response.headers);
         newHeaders.set("Access-Control-Allow-Origin", "*");
         newHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, Range");
