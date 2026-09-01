@@ -26,12 +26,15 @@ export default {
       return s;
     }
 
-    const originHeaders = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Referer": "https://barqtv.website/"
-    };
+    // Headers للاتصال بالسيرفر الأصلي
+    function buildOriginHeaders(req) {
+      const h = new Headers();
+      h.set("User-Agent", req.headers.get("User-Agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+      h.set("Accept", req.headers.get("Accept") || "*/*");
+      h.set("Accept-Language", req.headers.get("Accept-Language") || "en-US,en;q=0.9,ar;q=0.8");
+      h.set("Referer", "https://barqtv.website/");
+      return h;
+    }
 
     async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
       let lastError = null;
@@ -40,7 +43,12 @@ export default {
         try {
           const controller = new AbortController();
           timer = setTimeout(() => controller.abort(), timeoutMs);
-          const response = await fetch(targetUrl, { method: "GET", headers: originHeaders, signal: controller.signal, redirect: "follow" });
+          const response = await fetch(targetUrl, { 
+            method: "GET", 
+            headers: buildOriginHeaders(request), 
+            signal: controller.signal, 
+            redirect: "follow" 
+          });
           clearTimeout(timer);
           if (!response.ok) return { error: `HTTP ${response.status}`, details: response.statusText };
           const text = await response.text();
@@ -81,28 +89,12 @@ export default {
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
-      
-      // لا تحول http إلى https تلقائياً — بعض سيرفرات IPTV تستخدم http فقط
-      // if (targetUrl.startsWith("http://")) {
-      //   targetUrl = targetUrl.replace("http://", "https://");
-      // }
 
       targetUrl = normalizeUrl(targetUrl);
 
       try {
-        const reqHeaders = new Headers();
-        const userAgent = request.headers.get("User-Agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-        reqHeaders.set("User-Agent", userAgent);
-        reqHeaders.set("Accept", request.headers.get("Accept") || "*/*");
-        reqHeaders.set("Accept-Language", request.headers.get("Accept-Language") || "en-US,en;q=0.9");
-        reqHeaders.set("Referer", "https://barqtv.website/");
-        
-        const clientIp = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || request.headers.get("X-Real-IP");
-        if (clientIp) {
-          reqHeaders.set("X-Forwarded-For", clientIp);
-          reqHeaders.set("X-Real-IP", clientIp);
-        }
-        
+        const reqHeaders = buildOriginHeaders(request);
+
         // تمرير Range header (مهم جداً للفيديو)
         const range = request.headers.get("Range");
         if (range) reqHeaders.set("Range", range);
@@ -113,16 +105,23 @@ export default {
           redirect: "follow"
         });
 
-        const contentType = response.headers.get("content-type") || "";
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
 
-        if (contentType.toLowerCase().includes("mpegurl") || targetUrl.toLowerCase().endsWith(".m3u8") || targetUrl.toLowerCase().endsWith(".m3u")) {
+        // معالجة M3U8 playlists
+        const isM3U8 = contentType.includes("mpegurl") || 
+                       contentType.includes("m3u") || 
+                       targetUrl.toLowerCase().endsWith(".m3u8") || 
+                       targetUrl.toLowerCase().endsWith(".m3u");
+
+        if (isM3U8) {
           const text = await response.text();
-          
-          const basePath = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
-          
+
+          const lastSlash = targetUrl.lastIndexOf("/");
+          const basePath = lastSlash >= 0 ? targetUrl.substring(0, lastSlash + 1) : targetUrl;
+
           const lines = text.split("\n");
           const newLines = [];
-          
+
           for (let line of lines) {
             const stripped = line.trim();
             if (!stripped || stripped.startsWith("#")) {
@@ -130,23 +129,27 @@ export default {
             } else if (stripped.startsWith("http")) {
               newLines.push("/stream?url=" + encodeURIComponent(stripped));
             } else {
-              const resolved = new URL(stripped, basePath).href;
-              newLines.push("/stream?url=" + encodeURIComponent(resolved));
+              try {
+                const resolved = new URL(stripped, basePath).href;
+                newLines.push("/stream?url=" + encodeURIComponent(resolved));
+              } catch (e) {
+                newLines.push(line);
+              }
             }
           }
-          
+
           const newText = newLines.join("\n");
           const newHeaders = new Headers(corsHeaders);
           newHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
           newHeaders.set("Cache-Control", "no-cache, no-store, must-revalidate");
-          
+
           return new Response(newText, {
             status: 200,
             headers: newHeaders
           });
         }
 
-
+        // للملفات العادية (TS, MP4, إلخ)
         const newHeaders = new Headers(corsHeaders);
         ["content-type","content-length","content-range","accept-ranges","last-modified","etag","cache-control","expires"].forEach(h => {
           const v = response.headers.get(h);
