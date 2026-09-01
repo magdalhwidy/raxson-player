@@ -39,11 +39,6 @@ export default {
       return s;
     }
 
-    function getBasePath(urlStr) {
-      const lastSlash = urlStr.lastIndexOf("/");
-      return lastSlash >= 0 ? urlStr.substring(0, lastSlash + 1) : urlStr + "/";
-    }
-
     async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
       let lastError = null;
       for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -116,95 +111,14 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy (Advanced M3U8 Rewriting & Pass-through)
+    // Stream Proxy (Direct Redirect to Bypass Cloudflare IP Block)
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
 
       targetUrl = normalizeUrl(targetUrl);
-      const lowerTargetUrl = targetUrl.toLowerCase();
-      const isM3U8ByExt = lowerTargetUrl.includes(".m3u8") || lowerTargetUrl.includes(".m3u") || lowerTargetUrl.includes("/auth/");
 
-      const upstreamHeaders = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*",
-        "Accept-Encoding": "identity",
-        "Connection": "keep-alive",
-        "Referer": "http://barqtv.website/"
-      };
-
-      const rangeHeader = request.headers.get("Range");
-      if (rangeHeader) {
-        upstreamHeaders["Range"] = rangeHeader;
-      }
-
-      try {
-        const response = await fetch(targetUrl, {
-          method: request.method,
-          headers: upstreamHeaders,
-          redirect: "follow"
-        });
-
-        const finalUrl = response.url || targetUrl;
-        const basePath = getBasePath(finalUrl);
-        const contentType = response.headers.get("Content-Type") || "";
-        const lowerContentType = contentType.toLowerCase();
-
-        let isActuallyM3U8 = lowerContentType.includes("mpegurl") || 
-                             lowerContentType.includes("m3u") ||
-                             lowerContentType.includes("text/plain") ||
-                             isM3U8ByExt;
-
-        // معالجة وإعادة كتابة روابط الـ M3U8 الداخلية لتمر عبر الـ Worker
-        if (isActuallyM3U8 && !lowerTargetUrl.endsWith(".mp4") && !lowerTargetUrl.endsWith(".mkv")) {
-          const text = await response.text();
-          const lines = text.split("\n");
-          const newLines = lines.map(line => {
-            const stripped = line.trim();
-            if (stripped && !stripped.startsWith("#")) {
-              if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
-                return "/stream?url=" + encodeURIComponent(stripped);
-              }
-              try {
-                const resolved = new URL(stripped, basePath).href;
-                return "/stream?url=" + encodeURIComponent(resolved);
-              } catch { return line; }
-            }
-            return line;
-          });
-
-          return new Response(newLines.join("\n"), {
-            status: 200,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/vnd.apple.mpegurl",
-              "Cache-Control": "no-cache"
-            }
-          });
-        }
-
-        const newHeaders = new Headers(response.headers);
-        newHeaders.set("Access-Control-Allow-Origin", "*");
-        newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-        newHeaders.set("Access-Control-Allow-Headers", "Range, Content-Type");
-        newHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Type");
-
-        if (lowerTargetUrl.endsWith(".mp4")) newHeaders.set("Content-Type", "video/mp4");
-        else if (lowerTargetUrl.endsWith(".mkv")) newHeaders.set("Content-Type", "video/x-matroska");
-        else if (lowerTargetUrl.endsWith(".ts")) newHeaders.set("Content-Type", "video/mp2t");
-
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: newHeaders
-        });
-
-      } catch (err) {
-        return jsonResponse({
-          error: "Stream fetch failed",
-          details: err?.message || String(err)
-        }, 502);
-      }
+      return Response.redirect(targetUrl, 302);
     }
 
     return jsonResponse({ error: "Not found" }, 404);
