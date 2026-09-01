@@ -116,7 +116,7 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy (Updated for 403 bypass)
+        // Stream Proxy (Advanced Pass-through)
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
@@ -125,16 +125,15 @@ export default {
       const lowerTargetUrl = targetUrl.toLowerCase();
       const isM3U8ByExt = lowerTargetUrl.includes(".m3u8") || lowerTargetUrl.includes(".m3u") || lowerTargetUrl.includes("/auth/");
 
-      const streamHeaders = {
-        "User-Agent": "IPTVSmartersPro",
-        "Accept": "*/*",
-        "Connection": "keep-alive",
-        "Icy-Metadata": "1"
-      };
+      // ترويسات محاكية لتطبيق مشغل وسائط حقيقي مع الحفاظ على التوافقية
+      const streamHeaders = new Headers();
+      streamHeaders.set("User-Agent", "IPTVSmartersPro/3.1");
+      streamHeaders.set("Accept", "*/*");
+      streamHeaders.set("Connection", "keep-alive");
 
       const rangeHeader = request.headers.get("Range");
       if (rangeHeader) {
-        streamHeaders["Range"] = rangeHeader;
+        streamHeaders.set("Range", rangeHeader);
       }
 
       try {
