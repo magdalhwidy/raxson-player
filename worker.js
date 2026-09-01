@@ -116,80 +116,37 @@ export default {
       return jsonResponse(result, 200);
     }
 
-        // Stream Proxy (Advanced Pass-through)
+            // Stream Proxy (Direct Passthrough & 403 Bypass)
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
 
       targetUrl = normalizeUrl(targetUrl);
-      const lowerTargetUrl = targetUrl.toLowerCase();
-      const isM3U8ByExt = lowerTargetUrl.includes(".m3u8") || lowerTargetUrl.includes(".m3u") || lowerTargetUrl.includes("/auth/");
-
-      // ترويسات محاكية لتطبيق مشغل وسائط حقيقي مع الحفاظ على التوافقية
-      const streamHeaders = new Headers();
-      streamHeaders.set("User-Agent", "IPTVSmartersPro/3.1");
-      streamHeaders.set("Accept", "*/*");
-      streamHeaders.set("Connection", "keep-alive");
+      
+      const upstreamHeaders = {
+        "User-Agent": "VLC/3.0.18 LibVLC/3.0.18",
+        "Accept": "*/*",
+        "Accept-Encoding": "identity",
+        "Connection": "keep-alive"
+      };
 
       const rangeHeader = request.headers.get("Range");
       if (rangeHeader) {
-        streamHeaders.set("Range", rangeHeader);
+        upstreamHeaders["Range"] = rangeHeader;
       }
 
       try {
-        const method = request.method === "HEAD" ? "HEAD" : "GET";
-        const response = await fetch(targetUrl, { 
-          method, 
-          headers: streamHeaders, 
-          redirect: "follow" 
+        const response = await fetch(targetUrl, {
+          method: request.method,
+          headers: upstreamHeaders,
+          redirect: "follow"
         });
-
-        const finalUrl = response.url || targetUrl;
-        const basePath = getBasePath(finalUrl);
-        const contentType = response.headers.get("Content-Type") || "";
-        const lowerContentType = contentType.toLowerCase();
-
-        let isActuallyM3U8 = lowerContentType.includes("mpegurl") || 
-                             lowerContentType.includes("m3u") ||
-                             lowerContentType.includes("text/plain") ||
-                             isM3U8ByExt;
-
-        if (isActuallyM3U8 && !lowerTargetUrl.endsWith(".mp4") && !lowerTargetUrl.endsWith(".mkv")) {
-          const text = await response.text();
-          const lines = text.split("\n");
-          const newLines = lines.map(line => {
-            const stripped = line.trim();
-            if (stripped && !stripped.startsWith("#")) {
-              if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
-                return "/stream?url=" + encodeURIComponent(stripped);
-              }
-              try {
-                const resolved = new URL(stripped, basePath).href;
-                return "/stream?url=" + encodeURIComponent(resolved);
-              } catch { return line; }
-            }
-            return line;
-          });
-
-          return new Response(newLines.join("\n"), {
-            status: 200,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/vnd.apple.mpegurl",
-              "Cache-Control": "no-cache"
-            }
-          });
-        }
 
         const newHeaders = new Headers(response.headers);
         newHeaders.set("Access-Control-Allow-Origin", "*");
-        newHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, Range");
         newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-        newHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Type");
-        
-        if (lowerTargetUrl.endsWith(".mp4")) newHeaders.set("Content-Type", "video/mp4");
-        else if (lowerTargetUrl.endsWith(".mkv")) newHeaders.set("Content-Type", "video/x-matroska");
-        else if (lowerTargetUrl.endsWith(".ts")) newHeaders.set("Content-Type", "video/mp2t");
+        newHeaders.set("Access-Control-Allow-Headers", "Range, Content-Type");
+        newHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
 
         return new Response(response.body, {
           status: response.status,
@@ -204,6 +161,7 @@ export default {
         }, 502);
       }
     }
+
 
     return jsonResponse({ error: "Not found" }, 404);
   }
