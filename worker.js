@@ -31,12 +31,8 @@ export default {
     function normalizeUrl(urlStr) {
       let s = urlStr.trim();
       if (s.endsWith("/")) s = s.slice(0, -1);
-      if (s.startsWith("http://") && s.endsWith(":80")) {
-        s = s.slice(0, -3);
-      }
-      if (s.startsWith("https://") && s.endsWith(":443")) {
-        s = s.slice(0, -4);
-      }
+      if (s.startsWith("http://") && s.endsWith(":80")) s = s.slice(0, -3);
+      if (s.startsWith("https://") && s.endsWith(":443")) s = s.slice(0, -4);
       return s;
     }
 
@@ -49,17 +45,9 @@ export default {
           timer = setTimeout(() => controller.abort(), timeoutMs);
           const response = await fetch(targetUrl, { method: "GET", headers: originHeaders, signal: controller.signal, redirect: "follow" });
           clearTimeout(timer);
-
-          if (!response.ok) {
-            return { error: `HTTP ${response.status}`, details: response.statusText };
-          }
-
+          if (!response.ok) return { error: `HTTP ${response.status}`, details: response.statusText };
           const text = await response.text();
-          try {
-            return JSON.parse(text);
-          } catch (jsonErr) {
-            return { raw: text, notJson: true };
-          }
+          try { return JSON.parse(text); } catch { return { raw: text, notJson: true }; }
         } catch (err) {
           if (timer) clearTimeout(timer);
           lastError = err?.name === "AbortError" ? "Request timeout" : (err?.message || String(err));
@@ -69,58 +57,37 @@ export default {
       return { error: `Failed after ${maxRetries} attempts: ${lastError}` };
     }
 
-    // Health Check
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // API Proxy
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
       const pwd = (url.searchParams.get("pass") || "").trim();
       const action = (url.searchParams.get("action") || "").trim();
       const extra = url.searchParams.get("extra") || "";
-
-      if (!host || !user || !pwd || !action) {
-        return jsonResponse({ error: "Missing parameters" }, 400);
-      }
-
+      if (!host || !user || !pwd || !action) return jsonResponse({ error: "Missing parameters" }, 400);
       const cleanHost = normalizeUrl(host);
       const apiUrl = `${cleanHost}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pwd)}&action=${encodeURIComponent(action)}${extra}`;
-
       const timeout = action === "get_live_streams" ? 60000 : 35000;
       const result = await fetchWithRetry(apiUrl, 3, timeout);
-
       if (result && typeof result === "object" && "error" in result) {
-        return jsonResponse({
-          error: result.error,
-          details: result.details,
-          debugUrl: apiUrl.replace(/password=[^&]+/, "password=***")
-        }, 502);
+        return jsonResponse({ error: result.error, details: result.details, debugUrl: apiUrl.replace(/password=[^&]+/, "password=***") }, 502);
       }
-
       if (result && typeof result === "object" && result.notJson) {
-        return jsonResponse({
-          error: "Invalid response from server",
-          details: "Server returned non-JSON data.",
-          debugUrl: apiUrl.replace(/password=[^&]+/, "password=***"),
-          preview: result.raw?.substring(0, 200) || ""
-        }, 502);
+        return jsonResponse({ error: "Invalid response from server", details: "Server returned non-JSON data.", debugUrl: apiUrl.replace(/password=[^&]+/, "password=***"), preview: result.raw?.substring(0, 200) || "" }, 502);
       }
-
       return jsonResponse(result, 200);
     }
 
-    // ✅ Stream Proxy — جلب المحتوى فعلياً وإعادته
+    // ✅ البروكسي الحقيقي — يجلب المحتوى ويعيده بدلاً من إعادة التوجيه
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
-
       targetUrl = normalizeUrl(targetUrl);
 
       try {
-        // نسخ headers الطلب الأصلي (Range مهم للفيديو)
         const reqHeaders = new Headers(originHeaders);
         const range = request.headers.get("Range");
         if (range) reqHeaders.set("Range", range);
@@ -131,33 +98,19 @@ export default {
           redirect: "follow"
         });
 
-        // بناء headers الرد مع CORS
         const newHeaders = new Headers(corsHeaders);
-        
-        // نسخ headers مهمّة من الرد الأصلي
-        const passThrough = [
-          "content-type", "content-length", "content-range", 
-          "accept-ranges", "last-modified", "etag", 
-          "cache-control", "expires"
-        ];
-        
-        passThrough.forEach(h => {
+        ["content-type","content-length","content-range","accept-ranges","last-modified","etag","cache-control","expires"].forEach(h => {
           const v = response.headers.get(h);
           if (v) newHeaders.set(h, v);
         });
 
-        // إرجاع المحتوى كـ Stream
         return new Response(response.body, {
           status: response.status,
           statusText: response.statusText,
           headers: newHeaders
         });
-
       } catch (err) {
-        return jsonResponse({ 
-          error: "Stream proxy failed", 
-          details: err.message 
-        }, 502);
+        return jsonResponse({ error: "Stream proxy failed", details: err.message }, 502);
       }
     }
 
