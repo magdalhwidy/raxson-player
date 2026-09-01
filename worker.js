@@ -13,7 +13,6 @@ export default {
         "Content-Length,Content-Range,Accept-Ranges,Last-Modified,ETag,Content-Type"
     };
 
-    // Flask would effectively allow OPTIONS requests.
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -33,25 +32,6 @@ export default {
     };
 
     // =========================================================
-    // /health
-    // =========================================================
-    if (url.pathname === "/health") {
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          service: "raxson-player"
-        }),
-        {
-          status: 200,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json; charset=utf-8"
-          }
-        }
-      );
-    }
-
-    // =========================================================
     // Helper: JSON response
     // =========================================================
     function jsonResponse(data, status = 200) {
@@ -67,78 +47,59 @@ export default {
 
     // =========================================================
     // Helper: fetch JSON with retry
-    //
-    // Equivalent to:
-    // fetch_with_retry(url, max_retries=3, timeout=45)
-    // from app.py
     // =========================================================
     async function fetchWithRetry(targetUrl, maxRetries = 3, timeoutMs = 45000) {
       let lastError = null;
-
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         let timer = null;
-
         try {
           const controller = new AbortController();
-
-          timer = setTimeout(() => {
-            controller.abort();
-          }, timeoutMs);
-
+          timer = setTimeout(() => { controller.abort(); }, timeoutMs);
           const response = await fetch(targetUrl, {
             method: "GET",
             headers: originHeaders,
             signal: controller.signal,
             redirect: "follow"
           });
-
           clearTimeout(timer);
           timer = null;
-
-          // Same basic behavior as urllib:
-          // HTTP errors are returned as errors.
           if (!response.ok) {
             return {
               error: `HTTP ${response.status}`,
               details: response.statusText || `HTTP ${response.status}`
             };
           }
-
-          const contentType =
-            response.headers.get("Content-Type") || "";
-
           const text = await response.text();
-
-          // app.py tries json.loads first.
           try {
             return JSON.parse(text);
           } catch {
-            return {
-              raw: text
-            };
+            return { raw: text };
           }
         } catch (err) {
-          if (timer) {
-            clearTimeout(timer);
-          }
-
-          if (err && err.name === "AbortError") {
-            lastError = "Request timeout";
-          } else {
-            lastError = err?.message || String(err);
-          }
-
-          // Equivalent to:
-          // time.sleep(1.5)
+          if (timer) clearTimeout(timer);
+          lastError = err?.name === "AbortError" ? "Request timeout" : (err?.message || String(err));
           if (attempt < maxRetries - 1) {
             await new Promise(resolve => setTimeout(resolve, 1500));
           }
         }
       }
+      return { error: `Failed after ${maxRetries} attempts: ${lastError}` };
+    }
 
-      return {
-        error: `Failed after ${maxRetries} attempts: ${lastError}`
-      };
+    // =========================================================
+    // /health
+    // =========================================================
+    if (url.pathname === "/health") {
+      return new Response(
+        JSON.stringify({ status: "ok", service: "raxson-player" }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json; charset=utf-8"
+          }
+        }
+      );
     }
 
     // =========================================================
@@ -150,103 +111,59 @@ export default {
       const pwd = (url.searchParams.get("pass") || "").trim();
       const action = (url.searchParams.get("action") || "").trim();
       const extra = url.searchParams.get("extra") || "";
-
-      // Same validation as app.py
       if (!host || !user || !pwd || !action) {
-        return jsonResponse(
-          {
-            error: "Missing parameters"
-          },
-          400
-        );
+        return jsonResponse({ error: "Missing parameters" }, 400);
       }
-
-      // Same as:
-      // if host.endswith("/"): host = host[:-1]
-      const cleanHost = host.endsWith("/")
-        ? host.slice(0, -1)
-        : host;
-
-      // Same query structure as app.py
+      const cleanHost = host.endsWith("/") ? host.slice(0, -1) : host;
       const apiUrl =
         `${cleanHost}/player_api.php` +
         `?username=${encodeURIComponent(user)}` +
         `&password=${encodeURIComponent(pwd)}` +
         `&action=${encodeURIComponent(action)}` +
         extra;
-
-      // Same timeout logic:
-      // 60 sec for get_live_streams
-      // 35 sec for everything else
-      const timeout =
-        action === "get_live_streams"
-          ? 60000
-          : 35000;
-
-      const result = await fetchWithRetry(
-        apiUrl,
-        3,
-        timeout
-      );
-
-      // Same general behavior as app.py:
-      // if "error" in result -> 502
-      if (
-        result &&
-        typeof result === "object" &&
-        Object.prototype.hasOwnProperty.call(result, "error")
-      ) {
+      const timeout = action === "get_live_streams" ? 60000 : 35000;
+      const result = await fetchWithRetry(apiUrl, 3, timeout);
+      if (result && typeof result === "object" && Object.prototype.hasOwnProperty.call(result, "error")) {
         return jsonResponse(result, 502);
       }
-
       return jsonResponse(result, 200);
     }
 
     // =========================================================
-    // /stream
+    // /stream  (FIXED)
     // =========================================================
     if (url.pathname === "/stream") {
-      const targetUrl =
-        (url.searchParams.get("url") || "").trim();
-
+      const targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) {
-        return jsonResponse(
-          {
-            error: "Missing url parameter"
-          },
-          400
-        );
+        return jsonResponse({ error: "Missing url parameter" }, 400);
       }
 
-      // Same headers as app.py
+      // Build origin request headers
       const streamHeaders = {
-        "User-Agent":
-          "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
         "Accept": "*/*",
         "Referer": "http://barqtv.website/"
       };
 
-      // Critical for seeking/scrubbing.
+      // Forward Range header from browser (critical for seek/scrub)
       const rangeHeader = request.headers.get("Range");
-
       if (rangeHeader) {
         streamHeaders["Range"] = rangeHeader;
       }
 
       try {
+        // Support HEAD requests (some players send HEAD before GET)
+        const method = request.method === "HEAD" ? "HEAD" : "GET";
+
         const response = await fetch(targetUrl, {
-          method: "GET",
+          method: method,
           headers: streamHeaders,
           redirect: "follow"
         });
 
-        const contentType =
-          response.headers.get("Content-Type") || "";
+        const contentType = response.headers.get("Content-Type") || "";
+        const lowerTargetUrl = targetUrl.toLowerCase();
 
-        const lowerTargetUrl =
-          targetUrl.toLowerCase();
-
-        // Same M3U8/M3U detection logic.
         const isM3U8 =
           contentType.toLowerCase().includes("mpegurl") ||
           lowerTargetUrl.endsWith(".m3u8") ||
@@ -257,63 +174,25 @@ export default {
         // =====================================================
         if (isM3U8) {
           const text = await response.text();
-
-          // Equivalent to:
-          // base_path = url[:url.rfind('/') + 1]
           let baseUrl;
-
           try {
             baseUrl = new URL(targetUrl);
           } catch {
-            return jsonResponse(
-              {
-                error: "Invalid stream URL"
-              },
-              400
-            );
+            return jsonResponse({ error: "Invalid stream URL" }, 400);
           }
-
-          // We use the directory containing the playlist
-          // as the base for relative URLs.
-          const basePath =
-            targetUrl.substring(
-              0,
-              targetUrl.lastIndexOf("/") + 1
-            );
-
+          const basePath = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
           const lines = text.split("\n");
-
           const newLines = lines.map(line => {
             const stripped = line.trim();
-
-            // Preserve empty lines and #EXT... lines.
-            if (
-              !stripped ||
-              stripped.startsWith("#")
-            ) {
+            if (!stripped || stripped.startsWith("#")) {
               return line;
             }
-
-            // Absolute HTTP/HTTPS URL
-            if (
-              stripped.startsWith("http://") ||
-              stripped.startsWith("https://")
-            ) {
-              return (
-                "/stream?url=" +
-                encodeURIComponent(stripped)
-              );
+            if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
+              return "/stream?url=" + encodeURIComponent(stripped);
             }
-
-            // Relative URL
             try {
-              const resolved =
-                new URL(stripped, basePath).href;
-
-              return (
-                "/stream?url=" +
-                encodeURIComponent(resolved)
-              );
+              const resolved = new URL(stripped, basePath).href;
+              return "/stream?url=" + encodeURIComponent(resolved);
             } catch {
               return line;
             }
@@ -325,45 +204,37 @@ export default {
               status: response.status,
               headers: {
                 ...corsHeaders,
-                "Content-Type":
-                  "application/vnd.apple.mpegurl",
-                "Cache-Control":
-                  "no-cache, no-store, must-revalidate"
+                "Content-Type": "application/vnd.apple.mpegurl",
+                "Cache-Control": "no-cache, no-store, must-revalidate"
               }
             }
           );
         }
 
         // =====================================================
-        // Normal video stream
+        // Normal video stream — forward ALL safe headers
         // =====================================================
-        const responseHeaders = {
-          ...corsHeaders
-        };
-
-        // Same essential headers as app.py
-        const headersToForward = [
-          "Content-Type",
-          "Content-Length",
-          "Content-Range",
-          "Accept-Ranges",
-          "Last-Modified",
-          "ETag"
+        const hopByHop = [
+          "connection", "keep-alive", "proxy-authenticate",
+          "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade"
         ];
 
-        for (const headerName of headersToForward) {
-          const value =
-            response.headers.get(headerName);
+        const responseHeaders = { ...corsHeaders };
+        response.headers.forEach((value, key) => {
+          const lowerKey = key.toLowerCase();
+          if (hopByHop.includes(lowerKey)) return;
+          // Remove content-encoding / content-length to avoid mismatch
+          // after Cloudflare auto-decompresses the body
+          if (lowerKey === "content-encoding") return;
+          if (lowerKey === "content-length") return;
+          responseHeaders[key] = value;
+        });
 
-          if (value) {
-            responseHeaders[headerName] = value;
-          }
+        // Ensure Accept-Ranges is present for video seek
+        if (!responseHeaders["Accept-Ranges"] && rangeHeader) {
+          responseHeaders["Accept-Ranges"] = "bytes";
         }
 
-        // Return origin body directly.
-        //
-        // This is the Cloudflare equivalent of the
-        // generator() in app.py.
         return new Response(
           response.body,
           {
@@ -375,10 +246,7 @@ export default {
 
       } catch (err) {
         return jsonResponse(
-          {
-            error: "Stream failed",
-            details: err?.message || String(err)
-          },
+          { error: "Stream failed", details: err?.message || String(err) },
           502
         );
       }
@@ -387,109 +255,42 @@ export default {
     // =========================================================
     // Static files
     // =========================================================
-    //
-    // Equivalent to Flask:
-    //
-    // /
-    // /manifest.json
-    // /sw.js
-    // /logo1.png
-    // /images/<filename>
-    //
-    // Cloudflare serves them through env.ASSETS.
-    // =========================================================
-
     try {
-      const assetResponse =
-        await env.ASSETS.fetch(request);
-
-      // /
-      if (
-        url.pathname === "/" ||
-        url.pathname === "/index.html"
-      ) {
-        const headers =
-          new Headers(assetResponse.headers);
-
-        headers.set(
-          "Cache-Control",
-          "no-cache, no-store, must-revalidate"
-        );
-
-        return new Response(
-          assetResponse.body,
-          {
-            status: assetResponse.status,
-            statusText: assetResponse.statusText,
-            headers
-          }
-        );
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (url.pathname === "/" || url.pathname === "/index.html") {
+        const headers = new Headers(assetResponse.headers);
+        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+        return new Response(assetResponse.body, {
+          status: assetResponse.status,
+          statusText: assetResponse.statusText,
+          headers
+        });
       }
-
-      // /manifest.json
       if (url.pathname === "/manifest.json") {
-        const headers =
-          new Headers(assetResponse.headers);
-
-        headers.set(
-          "Content-Type",
-          "application/json"
-        );
-
-        headers.set(
-          "Cache-Control",
-          "no-cache, no-store, must-revalidate"
-        );
-
-        return new Response(
-          assetResponse.body,
-          {
-            status: assetResponse.status,
-            statusText: assetResponse.statusText,
-            headers
-          }
-        );
+        const headers = new Headers(assetResponse.headers);
+        headers.set("Content-Type", "application/json");
+        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+        return new Response(assetResponse.body, {
+          status: assetResponse.status,
+          statusText: assetResponse.statusText,
+          headers
+        });
       }
-
-      // /sw.js
       if (url.pathname === "/sw.js") {
-        const headers =
-          new Headers(assetResponse.headers);
-
-        headers.set(
-          "Content-Type",
-          "application/javascript"
-        );
-
-        headers.set(
-          "Cache-Control",
-          "no-cache, no-store, must-revalidate"
-        );
-
-        headers.set(
-          "Service-Worker-Allowed",
-          "/"
-        );
-
-        return new Response(
-          assetResponse.body,
-          {
-            status: assetResponse.status,
-            statusText: assetResponse.statusText,
-            headers
-          }
-        );
+        const headers = new Headers(assetResponse.headers);
+        headers.set("Content-Type", "application/javascript");
+        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+        headers.set("Service-Worker-Allowed", "/");
+        return new Response(assetResponse.body, {
+          status: assetResponse.status,
+          statusText: assetResponse.statusText,
+          headers
+        });
       }
-
-      // Everything else
       return assetResponse;
-
     } catch (err) {
       return jsonResponse(
-        {
-          error: "Asset failed",
-          details: err?.message || String(err)
-        },
+        { error: "Asset failed", details: err?.message || String(err) },
         500
       );
     }
