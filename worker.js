@@ -16,7 +16,8 @@ export default {
     const originHeaders = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept": "*/*",
-      "Accept-Language": "ar,en;q=0.9",
+      "Accept-Encoding": "identity",
+      "Connection": "keep-alive",
       "Referer": "http://barqtv.website/"
     };
 
@@ -111,7 +112,7 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy (Direct Content Streaming with CORS and Header Emulation)
+    // Stream Proxy
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
@@ -150,7 +151,7 @@ export default {
           headers: newHeaders
         });
 
-      } async (err) => {
+      } catch (err) {
         return jsonResponse({
           error: "Stream fetch failed",
           details: err?.message || String(err)
