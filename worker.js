@@ -74,7 +74,7 @@ export default {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // API Proxy (جلب البيانات والـ JSON)
+    // API Proxy
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -112,20 +112,53 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy - التوجيه المباشر للسيرفر الأصلي لتجنب حظر الـ 403
+    // ✅ Stream Proxy — جلب المحتوى فعلياً وإعادته
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
 
       targetUrl = normalizeUrl(targetUrl);
 
-      return new Response(null, {
-        status: 307,
-        headers: {
-          ...corsHeaders,
-          "Location": targetUrl
-        }
-      });
+      try {
+        // نسخ headers الطلب الأصلي (Range مهم للفيديو)
+        const reqHeaders = new Headers(originHeaders);
+        const range = request.headers.get("Range");
+        if (range) reqHeaders.set("Range", range);
+
+        const response = await fetch(targetUrl, {
+          method: request.method,
+          headers: reqHeaders,
+          redirect: "follow"
+        });
+
+        // بناء headers الرد مع CORS
+        const newHeaders = new Headers(corsHeaders);
+        
+        // نسخ headers مهمّة من الرد الأصلي
+        const passThrough = [
+          "content-type", "content-length", "content-range", 
+          "accept-ranges", "last-modified", "etag", 
+          "cache-control", "expires"
+        ];
+        
+        passThrough.forEach(h => {
+          const v = response.headers.get(h);
+          if (v) newHeaders.set(h, v);
+        });
+
+        // إرجاع المحتوى كـ Stream
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+
+      } catch (err) {
+        return jsonResponse({ 
+          error: "Stream proxy failed", 
+          details: err.message 
+        }, 502);
+      }
     }
 
     return jsonResponse({ error: "Not found" }, 404);
