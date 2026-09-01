@@ -27,15 +27,12 @@ export default {
       });
     }
 
-    // Helper: normalize URL (remove :80/:443)
     function normalizeUrl(urlStr) {
       let s = urlStr.trim();
       if (s.endsWith("/")) s = s.slice(0, -1);
-      // Remove :80 from http URLs
       if (s.startsWith("http://") && s.endsWith(":80")) {
         s = s.slice(0, -3);
       }
-      // Remove :443 from https URLs
       if (s.startsWith("https://") && s.endsWith(":443")) {
         s = s.slice(0, -4);
       }
@@ -76,12 +73,10 @@ export default {
       return { error: `Failed after ${maxRetries} attempts: ${lastError}` };
     }
 
-    // Health Check
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // API Proxy
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -119,7 +114,6 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
@@ -127,11 +121,11 @@ export default {
       targetUrl = normalizeUrl(targetUrl);
 
       const lowerTargetUrl = targetUrl.toLowerCase();
-      const isM3U8ByExt = lowerTargetUrl.endsWith(".m3u8") || lowerTargetUrl.endsWith(".m3u");
+      const isM3U8ByExt = lowerTargetUrl.includes(".m3u8") || lowerTargetUrl.includes(".m3u") || lowerTargetUrl.includes("/auth/");
 
       const streamHeaders = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
-        "Accept": isM3U8ByExt ? "application/vnd.apple.mpegurl, audio/mpegurl, */*" : "*/*",
+        "Accept": "*/*",
         "Referer": targetUrl.substring(0, targetUrl.indexOf("/", targetUrl.indexOf("://") + 3) + 1) || "http://barqtv.website/"
       };
 
@@ -152,6 +146,7 @@ export default {
 
         let isActuallyM3U8 = lowerContentType.includes("mpegurl") || 
                              lowerContentType.includes("m3u") ||
+                             lowerContentType.includes("text/plain") ||
                              isM3U8ByExt;
 
         if (isActuallyM3U8) {
@@ -209,7 +204,6 @@ export default {
           });
         }
 
-        // Video/Audio segments pass-through
         const newHeaders = new Headers();
         const passThrough = ["Content-Type", "Content-Length", "Accept-Ranges", "Content-Range", "Last-Modified", "ETag", "Cache-Control", "Content-Disposition"];
         passThrough.forEach(h => {
