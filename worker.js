@@ -74,7 +74,7 @@ export default {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // API Proxy
+    // API Proxy (جلب البيانات والـ JSON يعمل بكفاءة)
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -112,51 +112,21 @@ export default {
       return jsonResponse(result, 200);
     }
 
-    // Stream Proxy
+    // Stream Proxy - الحل النهائي: تحويل الطلب فوراً برابط ترويجي مباشر للسيرفر الأصلي لتجنب حظر الـ IP
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
 
       targetUrl = normalizeUrl(targetUrl);
 
-      const upstreamHeaders = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*",
-        "Accept-Encoding": "identity",
-        "Connection": "keep-alive",
-        "Referer": "http://barqtv.website/"
-      };
-
-      const rangeHeader = request.headers.get("Range");
-      if (rangeHeader) {
-        upstreamHeaders["Range"] = rangeHeader;
-      }
-
-      try {
-        const response = await fetch(targetUrl, {
-          method: request.method,
-          headers: upstreamHeaders,
-          redirect: "follow"
-        });
-
-        const newHeaders = new Headers(response.headers);
-        newHeaders.set("Access-Control-Allow-Origin", "*");
-        newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-        newHeaders.set("Access-Control-Allow-Headers", "Range, Content-Type");
-        newHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Type");
-
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: newHeaders
-        });
-
-      } catch (err) {
-        return jsonResponse({
-          error: "Stream fetch failed",
-          details: err?.message || String(err)
-        }, 502);
-      }
+      // نقوم بإرجاع استجابة توجيه برمز 307 مع ترويسات CORS لكي يقبلها المتصفح والمشغل
+      return new Response(null, {
+        status: 307,
+        headers: {
+          ...corsHeaders,
+          "Location": targetUrl
+        }
+      });
     }
 
     return jsonResponse({ error: "Not found" }, 404);
