@@ -73,10 +73,12 @@ export default {
       return { error: `Failed after ${maxRetries} attempts: ${lastError}` };
     }
 
+    // Health Check
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // API Proxy
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -114,23 +116,23 @@ export default {
       return jsonResponse(result, 200);
     }
 
+    // Stream Proxy
     if (url.pathname === "/stream") {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
 
       targetUrl = normalizeUrl(targetUrl);
-
       const lowerTargetUrl = targetUrl.toLowerCase();
       const isM3U8ByExt = lowerTargetUrl.includes(".m3u8") || lowerTargetUrl.includes(".m3u") || lowerTargetUrl.includes("/auth/");
 
       const streamHeaders = {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "*/*",
-        "Referer": targetUrl.substring(0, targetUrl.indexOf("/", targetUrl.indexOf("://") + 3) + 1) || "http://barqtv.website/"
+        "Referer": "http://barqtv.website/"
       };
 
       const rangeHeader = request.headers.get("Range");
-      if (rangeHeader && !isM3U8ByExt) {
+      if (rangeHeader) {
         streamHeaders["Range"] = rangeHeader;
       }
 
@@ -140,7 +142,6 @@ export default {
 
         const finalUrl = response.url || targetUrl;
         const basePath = getBasePath(finalUrl);
-
         const contentType = response.headers.get("Content-Type") || "";
         const lowerContentType = contentType.toLowerCase();
 
@@ -149,23 +150,13 @@ export default {
                              lowerContentType.includes("text/plain") ||
                              isM3U8ByExt;
 
-        if (isActuallyM3U8) {
+        if (isActuallyM3U8 && !lowerTargetUrl.endsWith(".mp4") && !lowerTargetUrl.endsWith(".mkv")) {
           const text = await response.text();
           const trimmed = text.trim();
-
-          if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) {
-            return jsonResponse({
-              error: "Server returned HTML instead of M3U8",
-              details: "The stream URL may be invalid or the server is blocking Cloudflare IPs.",
-              url: targetUrl.replace(/\/[^/]+\/[^/]+\//, "/*****/*****/"),
-              preview: trimmed.substring(0, 300)
-            }, 502);
-          }
 
           const lines = text.split("\n");
           const newLines = lines.map(line => {
             const stripped = line.trim();
-
             if (stripped && !stripped.startsWith("#")) {
               if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
                 return "/stream?url=" + encodeURIComponent(stripped);
@@ -175,22 +166,6 @@ export default {
                 return "/stream?url=" + encodeURIComponent(resolved);
               } catch { return line; }
             }
-
-            if (stripped.startsWith("#")) {
-              const uriMatch = stripped.match(/URI="([^"]+)"/);
-              if (uriMatch) {
-                const originalUri = uriMatch[1];
-                let resolvedUri;
-                if (originalUri.startsWith("http://") || originalUri.startsWith("https://")) {
-                  resolvedUri = originalUri;
-                } else {
-                  try { resolvedUri = new URL(originalUri, basePath).href; } catch { return line; }
-                }
-                const proxyUri = "/stream?url=" + encodeURIComponent(resolvedUri);
-                return line.replace(`URI="${originalUri}"`, `URI="${proxyUri}"`);
-              }
-            }
-
             return line;
           });
 
@@ -199,35 +174,21 @@ export default {
             headers: {
               ...corsHeaders,
               "Content-Type": "application/vnd.apple.mpegurl",
-              "Cache-Control": "no-cache, no-store, must-revalidate"
+              "Cache-Control": "no-cache"
             }
           });
         }
 
-        const newHeaders = new Headers();
-        const passThrough = ["Content-Type", "Content-Length", "Accept-Ranges", "Content-Range", "Last-Modified", "ETag", "Cache-Control", "Content-Disposition"];
-        passThrough.forEach(h => {
-          const v = response.headers.get(h);
-          if (v) newHeaders.set(h, v);
-        });
-
-        if (lowerTargetUrl.endsWith(".mp4")) newHeaders.set("Content-Type", "video/mp4");
-        else if (lowerTargetUrl.endsWith(".ts") || lowerTargetUrl.endsWith(".m2ts")) newHeaders.set("Content-Type", "video/mp2t");
-        else if (lowerTargetUrl.endsWith(".mkv")) newHeaders.set("Content-Type", "video/x-matroska");
-        else if (lowerTargetUrl.endsWith(".avi")) newHeaders.set("Content-Type", "video/x-msvideo");
-        else if (lowerTargetUrl.endsWith(".aac")) newHeaders.set("Content-Type", "audio/aac");
-        else if (lowerTargetUrl.endsWith(".mp3")) newHeaders.set("Content-Type", "audio/mpeg");
-
-        if (!newHeaders.has("Accept-Ranges")) {
-          newHeaders.set("Accept-Ranges", "bytes");
-        }
-
+        // Pass-through headers for Video/Audio files (mp4, mkv, ts, etc.)
+        const newHeaders = new Headers(response.headers);
         newHeaders.set("Access-Control-Allow-Origin", "*");
-        newHeaders.set("Access-Control-Allow-Headers", "Content-Type,Authorization,Range");
-        newHeaders.set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
-        newHeaders.set("Access-Control-Expose-Headers", "Content-Length,Content-Range,Accept-Ranges,Last-Modified,ETag,Content-Type");
-        newHeaders.set("Cache-Control", "no-transform, no-store, must-revalidate, private");
-        newHeaders.set("X-Content-Type-Options", "nosniff");
+        newHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, Range");
+        newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+        newHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Type");
+        
+        if (lowerTargetUrl.endsWith(".mp4")) newHeaders.set("Content-Type", "video/mp4");
+        else if (lowerTargetUrl.endsWith(".mkv")) newHeaders.set("Content-Type", "video/x-matroska");
+        else if (lowerTargetUrl.endsWith(".ts")) newHeaders.set("Content-Type", "video/mp2t");
 
         return new Response(response.body, {
           status: response.status,
@@ -238,8 +199,7 @@ export default {
       } catch (err) {
         return jsonResponse({
           error: "Stream fetch failed",
-          details: err?.message || String(err),
-          url: targetUrl.replace(/\/[^/]+\/[^/]+\//, "/*****/*****/")
+          details: err?.message || String(err)
         }, 502);
       }
     }
