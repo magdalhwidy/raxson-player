@@ -48,10 +48,12 @@ export default {
       return { error: `Failed after ${maxRetries} attempts: ${lastError}` };
     }
 
+    // ─── Health Check ───
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({ status: "ok", service: "raxson-player" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ─── API Proxy ───
     if (url.pathname === "/api") {
       const host = (url.searchParams.get("host") || "").trim();
       const user = (url.searchParams.get("user") || "").trim();
@@ -67,6 +69,7 @@ export default {
       return jsonResponse(result, 200);
     }
 
+    // ─── Stream Proxy ───
     if (url.pathname === "/stream") {
       const targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
@@ -90,49 +93,81 @@ export default {
         if (isM3U8) {
           const text = await response.text();
           const basePath = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
+
+          // ── M3U8 Rewriting with URI= support ──
           const lines = text.split("\n");
           const newLines = lines.map(line => {
             const stripped = line.trim();
-            if (!stripped || stripped.startsWith("#")) return line;
-            if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
-              return "/stream?url=" + encodeURIComponent(stripped);
+
+            // 1) Direct URL lines (not comments)
+            if (stripped && !stripped.startsWith("#")) {
+              if (stripped.startsWith("http://") || stripped.startsWith("https://")) {
+                return "/stream?url=" + encodeURIComponent(stripped);
+              }
+              try {
+                const resolved = new URL(stripped, basePath).href;
+                return "/stream?url=" + encodeURIComponent(resolved);
+              } catch { return line; }
             }
-            try {
-              const resolved = new URL(stripped, basePath).href;
-              return "/stream?url=" + encodeURIComponent(resolved);
-            } catch { return line; }
+
+            // 2) Comment lines that contain URI="..." — CRITICAL FIX
+            if (stripped.startsWith("#")) {
+              // Match URI="..." patterns inside tags
+              const uriMatch = stripped.match(/URI="([^"]+)"/);
+              if (uriMatch) {
+                const originalUri = uriMatch[1];
+                let resolvedUri;
+                if (originalUri.startsWith("http://") || originalUri.startsWith("https://")) {
+                  resolvedUri = originalUri;
+                } else {
+                  try { resolvedUri = new URL(originalUri, basePath).href; } catch { return line; }
+                }
+                const proxyUri = "/stream?url=" + encodeURIComponent(resolvedUri);
+                return line.replace(`URI="${originalUri}"`, `URI="${proxyUri}"`);
+              }
+            }
+
+            return line;
           });
+
           return new Response(newLines.join("\n"), {
             status: response.status,
-            headers: { ...corsHeaders, "Content-Type": "application/vnd.apple.mpegurl", "Cache-Control": "no-cache, no-store, must-revalidate" }
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/vnd.apple.mpegurl",
+              "Cache-Control": "no-cache, no-store, must-revalidate"
+            }
           });
         }
 
-        // For video/audio streams: build CLEAN headers from scratch
+        // ── Video/Audio Segments Pass-through ──
         const newHeaders = new Headers();
-        // Only copy essential headers from origin
-        const essential = ["Content-Type", "Accept-Ranges", "Content-Range", "Last-Modified", "ETag"];
-        essential.forEach(h => {
+        const passThrough = ["Content-Type", "Content-Length", "Accept-Ranges", "Content-Range", "Last-Modified", "ETag", "Cache-Control", "Content-Disposition"];
+        passThrough.forEach(h => {
           const v = response.headers.get(h);
           if (v) newHeaders.set(h, v);
         });
+
         // Force correct Content-Type based on extension
         if (lowerTargetUrl.endsWith(".mp4")) newHeaders.set("Content-Type", "video/mp4");
         else if (lowerTargetUrl.endsWith(".ts") || lowerTargetUrl.endsWith(".m2ts")) newHeaders.set("Content-Type", "video/mp2t");
         else if (lowerTargetUrl.endsWith(".mkv")) newHeaders.set("Content-Type", "video/x-matroska");
         else if (lowerTargetUrl.endsWith(".avi")) newHeaders.set("Content-Type", "video/x-msvideo");
-        // Add CORS
-        newHeaders.set("Access-Control-Allow-Origin", "*");
-        newHeaders.set("Access-Control-Allow-Headers", "Content-Type,Authorization,Range");
-        newHeaders.set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
-        newHeaders.set("Access-Control-Expose-Headers", "Content-Length,Content-Range,Accept-Ranges,Last-Modified,ETag,Content-Type");
-        // Prevent Cloudflare from transforming the stream
-        newHeaders.set("Cache-Control", "no-transform, no-store, must-revalidate, private");
-        newHeaders.set("X-Content-Type-Options", "nosniff");
+        else if (lowerTargetUrl.endsWith(".aac")) newHeaders.set("Content-Type", "audio/aac");
+        else if (lowerTargetUrl.endsWith(".mp3")) newHeaders.set("Content-Type", "audio/mpeg");
+
         // Ensure range support
         if (!newHeaders.has("Accept-Ranges")) {
           newHeaders.set("Accept-Ranges", "bytes");
         }
+
+        // CORS + anti-transform
+        newHeaders.set("Access-Control-Allow-Origin", "*");
+        newHeaders.set("Access-Control-Allow-Headers", "Content-Type,Authorization,Range");
+        newHeaders.set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+        newHeaders.set("Access-Control-Expose-Headers", "Content-Length,Content-Range,Accept-Ranges,Last-Modified,ETag,Content-Type");
+        newHeaders.set("Cache-Control", "no-transform, no-store, must-revalidate, private");
+        newHeaders.set("X-Content-Type-Options", "nosniff");
 
         return new Response(response.body, {
           status: response.status,
@@ -145,7 +180,7 @@ export default {
       }
     }
 
-    // Static files
+    // ─── Static Assets ───
     try {
       const assetResponse = await env.ASSETS.fetch(request);
       if (url.pathname === "/" || url.pathname === "/index.html") {
