@@ -214,6 +214,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 </style>
 <link rel="apple-touch-icon" href="/logo1.png">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -1164,11 +1165,15 @@ function openPlayer(url, name, live, item) {
  E.playerVideo.style.objectFit = FIT_MODES[0].value;
  E.playerVideo.playbackRate = SPEED_LEVELS[0];
 
+ // ✅ استخدم proxyUrl دائماً — حتى للـ M3U8
+ const proxyUrl = url.startsWith('/stream?') ? url : '/stream?url=' + encodeURIComponent(url);
+
  if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
   // ✅ Proxy Loader: يجبر HLS.js على إرسال كل طلب عبر الـ Worker
   class ProxyLoader extends Hls.DefaultConfig.loader {
    load(context, config, callbacks) {
-    if (context.url && !context.url.startsWith('/stream?')) {
+    // تحقق من أن الرابط لم يُحوّل بعد (relative أو absolute)
+    if (context.url && !context.url.includes('/stream?url=')) {
      context.url = '/stream?url=' + encodeURIComponent(context.url);
     }
     super.load(context, config, callbacks);
@@ -1183,7 +1188,7 @@ function openPlayer(url, name, live, item) {
    loader: ProxyLoader
   });
 
-  HLS.loadSource(url); 
+  HLS.loadSource(proxyUrl); // ✅ استخدم proxyUrl بدلاً من url الأصلي
   HLS.attachMedia(E.playerVideo);
 
   HLS.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
@@ -1212,7 +1217,7 @@ function openPlayer(url, name, live, item) {
    }
   });
  } else {
-  const proxyUrl = url.startsWith('/stream?') ? url : '/stream?url=' + encodeURIComponent(url);
+  // ✅ للـ MP4 أو Safari (iOS)
   E.playerVideo.src = proxyUrl;
   E.playerVideo.play().catch(() => {});
   if (E.playerLoader) E.playerLoader.classList.add("hidden");
