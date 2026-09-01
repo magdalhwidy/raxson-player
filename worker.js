@@ -29,8 +29,7 @@ export default {
     const originHeaders = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept": "*/*",
-      "Accept-Encoding": "identity",
-      "Connection": "keep-alive",
+      "Accept-Language": "en-US,en;q=0.9",
       "Referer": "https://barqtv.website/"
     };
 
@@ -83,20 +82,10 @@ export default {
       let targetUrl = (url.searchParams.get("url") || "").trim();
       if (!targetUrl) return jsonResponse({ error: "Missing url parameter" }, 400);
       
-      // ✅ تطبيق نصيحة Kimi: فرض استخدام HTTPS وتصحيح الرابط تلقائياً
-      if (targetUrl.startsWith("http://")) {
-        targetUrl = targetUrl.replace("http://", "https://");
-      }
-      
-      // اختياري: إضافة المنفذ 443 صراحة إذا لم يكن موجوداً لضمان الاتصال الآمن السليم
-      try {
-        const parsedObj = new URL(targetUrl);
-        if (!parsedObj.port && parsedObj.protocol === "https:") {
-          // بعض السيرفرات تفضل رؤية البورت صراحة أو تحبذه
-          // parsedObj.port = "443";
-          // targetUrl = parsedObj.toString();
-        }
-      } catch (e) {}
+      // لا تحول http إلى https تلقائياً — بعض سيرفرات IPTV تستخدم http فقط
+      // if (targetUrl.startsWith("http://")) {
+      //   targetUrl = targetUrl.replace("http://", "https://");
+      // }
 
       targetUrl = normalizeUrl(targetUrl);
 
@@ -106,8 +95,6 @@ export default {
         reqHeaders.set("User-Agent", userAgent);
         reqHeaders.set("Accept", request.headers.get("Accept") || "*/*");
         reqHeaders.set("Accept-Language", request.headers.get("Accept-Language") || "en-US,en;q=0.9");
-        reqHeaders.set("Accept-Encoding", "identity");
-        reqHeaders.set("Connection", "keep-alive");
         reqHeaders.set("Referer", "https://barqtv.website/");
         
         const clientIp = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || request.headers.get("X-Real-IP");
@@ -116,6 +103,7 @@ export default {
           reqHeaders.set("X-Real-IP", clientIp);
         }
         
+        // تمرير Range header (مهم جداً للفيديو)
         const range = request.headers.get("Range");
         if (range) reqHeaders.set("Range", range);
 
@@ -124,6 +112,40 @@ export default {
           headers: reqHeaders,
           redirect: "follow"
         });
+
+        const contentType = response.headers.get("content-type") || "";
+
+        if (contentType.toLowerCase().includes("mpegurl") || targetUrl.toLowerCase().endsWith(".m3u8") || targetUrl.toLowerCase().endsWith(".m3u")) {
+          const text = await response.text();
+          
+          const basePath = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
+          
+          const lines = text.split("\n");
+          const newLines = [];
+          
+          for (let line of lines) {
+            const stripped = line.trim();
+            if (!stripped || stripped.startsWith("#")) {
+              newLines.push(line);
+            } else if (stripped.startsWith("http")) {
+              newLines.push("/stream?url=" + encodeURIComponent(stripped));
+            } else {
+              const resolved = new URL(stripped, basePath).href;
+              newLines.push("/stream?url=" + encodeURIComponent(resolved));
+            }
+          }
+          
+          const newText = newLines.join("\n");
+          const newHeaders = new Headers(corsHeaders);
+          newHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
+          newHeaders.set("Cache-Control", "no-cache, no-store, must-revalidate");
+          
+          return new Response(newText, {
+            status: 200,
+            headers: newHeaders
+          });
+        }
+
 
         const newHeaders = new Headers(corsHeaders);
         ["content-type","content-length","content-range","accept-ranges","last-modified","etag","cache-control","expires"].forEach(h => {
