@@ -902,7 +902,7 @@ function lazyImg() {
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function showLoad(v, t) { E.loadingOverlay.hidden = !v; if (t) E.loadingText.textContent = t; }
 
-// ===== PLAYER - NEW LOGIC: Native → HLS Direct → HLS Proxy =====
+// ===== PLAYER: Direct → Proxy (simple & reliable) =====
 function openPlayer(originalUrl, name, live, item) {
  window.CURRENT_ITEM = item || null;
  if (item) addToWatched(item);
@@ -916,6 +916,7 @@ function openPlayer(originalUrl, name, live, item) {
  if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
  if (E.audioTrackLabel) E.audioTrackLabel.textContent = "--";
 
+ // Show player UI
  E.playerOverlay.style.display = "flex";
  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
  document.body.style.overflow = "hidden";
@@ -924,240 +925,117 @@ function openPlayer(originalUrl, name, live, item) {
  if (E.playerLoader) E.playerLoader.classList.remove("hidden");
  if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
 
+ // Cleanup any previous player state
  cleanupPlayer();
  if (playerOpenTimeout) { clearTimeout(playerOpenTimeout); playerOpenTimeout = null; }
 
  const isM3U8 = originalUrl.includes('.m3u8');
  const proxyUrl = "/stream?url=" + encodeURIComponent(originalUrl);
 
- // ===== STEP 1: Try Native <video> for M3U8 (Safari/iOS/Android) =====
- if (isM3U8 && canPlayNativeM3U8()) {
-  console.log('[Player] Trying native <video> for M3U8:', originalUrl);
-  tryNativeVideo(originalUrl, name, live, proxyUrl);
-  return;
- }
-
- // ===== STEP 2: Try HLS.js Direct (Desktop Chrome) =====
+ // ===== M3U8: Try Direct HLS.js first, fallback to Proxy HLS.js =====
  if (isM3U8 && typeof Hls !== 'undefined' && Hls.isSupported()) {
-  console.log('[Player] Trying HLS.js direct:', originalUrl);
-  tryHlsDirect(originalUrl, name, live, proxyUrl);
-  return;
+  let fallbackUsed = false;
+
+  function initHls(url) {
+   console.log('[Player] Loading HLS:', url.substring(0, 80) + '...');
+   if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
+
+   HLS = new Hls({
+    enableWorker: true,
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+    startLevel: -1
+   });
+
+   HLS.loadSource(url);
+   HLS.attachMedia(E.playerVideo);
+
+   HLS.on(Hls.Events.MANIFEST_PARSED, () => {
+    if (E.playerLoader) E.playerLoader.classList.add("hidden");
+    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+    E.playerVideo.play().catch(() => {});
+    if (HLS.levels && HLS.levels.length > 1) {
+     if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
+     if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
+    }
+   });
+
+   HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (e, data) => {
+    if (data.audioTracks && data.audioTracks.length > 1) {
+     if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
+     const track = data.audioTracks[HLS.audioTrack] || data.audioTracks[0];
+     if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (HLS.audioTrack + 1));
+    }
+   });
+
+   HLS.on(Hls.Events.ERROR, (e, d) => {
+    if (!d.fatal) return;
+    console.log('[Player] HLS fatal error:', d.type, d.details);
+
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+     if (!fallbackUsed) {
+      fallbackUsed = true;
+      console.log('[Player] Network error → fallback to proxy');
+      initHls(proxyUrl);
+     } else {
+      // Already on proxy, try recover
+      HLS.startLoad();
+     }
+    } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
+     HLS.recoverMediaError();
+    } else {
+     if (!fallbackUsed) {
+      fallbackUsed = true;
+      console.log('[Player] Fatal error → fallback to proxy');
+      initHls(proxyUrl);
+     }
+    }
+   });
+  }
+
+  // Start with Direct URL
+  initHls(originalUrl);
+
+  // Safety timeout: if video hasn't started after 10s, switch to proxy
+  playerOpenTimeout = setTimeout(() => {
+   if (!fallbackUsed && E.playerVideo.readyState < 2) {
+    fallbackUsed = true;
+    console.log('[Player] Timeout → fallback to proxy');
+    initHls(proxyUrl);
+   }
+  }, 10000);
+
+ // ===== MP4 or no HLS support: Direct <video> =====
+ } else {
+  console.log('[Player] Direct video src:', originalUrl);
+  E.playerVideo.src = originalUrl;
+  E.playerVideo.play().catch((err) => {
+   console.log('[Player] Direct play failed:', err);
+   if (!E.playerVideo.src.includes('/stream?url=')) {
+    E.playerVideo.src = proxyUrl;
+    E.playerVideo.play().catch(() => {});
+   }
+  });
+  E.playerVideo.onerror = () => {
+   console.log('[Player] Video error, code:', E.playerVideo.error?.code);
+   if (!E.playerVideo.src.includes('/stream?url=')) {
+    E.playerVideo.src = proxyUrl;
+    E.playerVideo.play().catch(() => {});
+   }
+  };
+  if (E.playerLoader) E.playerLoader.classList.add("hidden");
+  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
  }
-
- // ===== STEP 3: MP4 or no HLS support → Direct <video> =====
- console.log('[Player] Direct <video> src:', originalUrl);
- E.playerVideo.src = originalUrl;
- E.playerVideo.play().catch((err) => {
-  console.log('[Player] Direct MP4 failed:', err);
-  loadWithProxy(proxyUrl);
- });
- E.playerVideo.onerror = () => {
-  if (!E.playerVideo.src.includes('/stream?url=')) {
-   loadWithProxy(proxyUrl);
-  }
- };
-
- // Safety timeout for MP4
- playerOpenTimeout = setTimeout(() => {
-  if (E.playerVideo.readyState < 2 && !E.playerVideo.src.includes('/stream?url=')) {
-   console.log('[Player] MP4 timeout, switching to proxy');
-   loadWithProxy(proxyUrl);
-  }
- }, 10000);
 
  showControls();
 }
 
-function canPlayNativeM3U8() {
- // Check if browser supports M3U8 natively
- const canPlay = E.playerVideo.canPlayType('application/vnd.apple.mpegurl');
- return canPlay === 'probably' || canPlay === 'maybe';
-}
-
 function cleanupPlayer() {
- if (HLS) { HLS.destroy(); HLS = null; }
+ if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
  E.playerVideo.pause();
  E.playerVideo.removeAttribute('src');
  E.playerVideo.load();
  E.playerVideo.onerror = null;
- E.playerVideo.oncanplay = null;
- E.playerVideo.onplaying = null;
-}
-
-// ===== NATIVE VIDEO ATTEMPT =====
-function tryNativeVideo(originalUrl, name, live, proxyUrl) {
- let hasFailed = false;
- let hasStarted = false;
-
- E.playerVideo.src = originalUrl;
-
- function onNativeError() {
-  if (hasFailed || hasStarted) return;
-  hasFailed = true;
-  console.log('[Player] Native video error, falling back to HLS.js');
-  cleanupPlayer();
-  if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-   tryHlsDirect(originalUrl, name, live, proxyUrl);
-  } else {
-   loadWithProxy(proxyUrl);
-  }
- }
-
- function onNativePlaying() {
-  hasStarted = true;
-  console.log('[Player] Native video playing! Zero proxy bandwidth.');
-  if (E.playerLoader) E.playerLoader.classList.add("hidden");
-  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
- }
-
- E.playerVideo.addEventListener('error', onNativeError, { once: true });
- E.playerVideo.addEventListener('playing', onNativePlaying, { once: true });
-
- // Timeout: if not playing within 8 seconds, fallback
- const timeout = setTimeout(() => {
-  if (!hasFailed && !hasStarted && E.playerVideo.readyState < 3) {
-   hasFailed = true;
-   console.log('[Player] Native video timeout, falling back to HLS.js');
-   cleanupPlayer();
-   if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-    tryHlsDirect(originalUrl, name, live, proxyUrl);
-   } else {
-    loadWithProxy(proxyUrl);
-   }
-  }
- }, 8000);
-
- E.playerVideo.play().catch(() => {
-  if (!hasFailed && !hasStarted) {
-   hasFailed = true;
-   clearTimeout(timeout);
-   console.log('[Player] Native play() rejected, falling back to HLS.js');
-   cleanupPlayer();
-   if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-    tryHlsDirect(originalUrl, name, live, proxyUrl);
-   } else {
-    loadWithProxy(proxyUrl);
-   }
-  }
- });
-
- showControls();
-}
-
-// ===== HLS.JS DIRECT ATTEMPT =====
-function tryHlsDirect(originalUrl, name, live, proxyUrl) {
- if (typeof Hls === 'undefined' || !Hls.isSupported()) {
-  loadWithProxy(proxyUrl);
-  return;
- }
-
- HLS = new Hls({
-  enableWorker: true,
-  maxBufferLength: 30,
-  maxMaxBufferLength: 60,
-  startLevel: -1
- });
-
- HLS.loadSource(originalUrl);
- HLS.attachMedia(E.playerVideo);
-
- let retryCount = 0;
- const MAX_RETRIES = 2;
- let fallbackTriggered = false;
-
- HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-  if (E.playerLoader) E.playerLoader.classList.add("hidden");
-  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-  E.playerVideo.play().catch(() => {});
- });
-
- HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
-  if (data.audioTracks && data.audioTracks.length > 1) {
-   if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
-   const current = HLS.audioTrack;
-   const track = data.audioTracks[current] || data.audioTracks[0];
-   if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (current + 1));
-  }
- });
-
- HLS.on(Hls.Events.ERROR, (e, d) => {
-  if (!d.fatal) return;
-
-  if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
-   retryCount++;
-   if (retryCount <= MAX_RETRIES) {
-    console.log('[Player] HLS direct retry', retryCount + '/' + MAX_RETRIES);
-    HLS.startLoad();
-   } else if (!fallbackTriggered) {
-    fallbackTriggered = true;
-    console.log('[Player] HLS direct failed, switching to proxy');
-    HLS.destroy(); HLS = null;
-    loadWithProxy(proxyUrl);
-   }
-  } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
-   HLS.recoverMediaError();
-  } else {
-   if (!fallbackTriggered) {
-    fallbackTriggered = true;
-    console.log('[Player] HLS fatal error, switching to proxy');
-    HLS.destroy(); HLS = null;
-    loadWithProxy(proxyUrl);
-   }
-  }
- });
-
- showControls();
-}
-
-// ===== PROXY FALLBACK =====
-function loadWithProxy(proxyUrl) {
- console.log('[Player] Loading via proxy:', proxyUrl);
- cleanupPlayer();
-
- if (proxyUrl.includes('.m3u8') && typeof Hls !== 'undefined' && Hls.isSupported()) {
-  HLS = new Hls({
-   enableWorker: true,
-   maxBufferLength: 30,
-   maxMaxBufferLength: 60,
-   startLevel: -1
-  });
-
-  HLS.loadSource(proxyUrl);
-  HLS.attachMedia(E.playerVideo);
-
-  HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-   if (E.playerLoader) E.playerLoader.classList.add("hidden");
-   if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-   E.playerVideo.play().catch(() => {});
-   const data = HLS.levels;
-   if (data && data.length > 1) {
-    if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
-    if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
-   }
-  });
-
-  HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
-   if (data.audioTracks && data.audioTracks.length > 1) {
-    if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
-    const current = HLS.audioTrack;
-    const track = data.audioTracks[current] || data.audioTracks[0];
-    if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (current + 1));
-   }
-  });
-
-  HLS.on(Hls.Events.ERROR, (e, d) => {
-   if (d.fatal) {
-    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
-    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError();
-    else { HLS.destroy(); HLS = null; }
-   }
-  });
- } else {
-  E.playerVideo.src = proxyUrl;
-  E.playerVideo.play().catch(() => {});
-  if (E.playerLoader) E.playerLoader.classList.add("hidden");
-  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
- }
 }
 
 function closePlayer() {
@@ -1255,7 +1133,6 @@ function showControls() {
   }
  }, 3000);
 }
-
 // ===== PLAYER CONTROLS & EVENTS =====
 function initPlayer() {
  E.playerClose.addEventListener("click", closePlayer);
