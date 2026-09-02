@@ -89,6 +89,9 @@ def api():
         return jsonify(result), 502
     return jsonify(result)
 
+# Media file extensions that should go DIRECT (not proxied)
+MEDIA_EXTENSIONS = ('.ts', '.aac', '.mp3', '.mp4', '.m4a', '.m4v', '.webvtt', '.vtt')
+
 @app.route("/stream")
 def stream_proxy():
     url = request.args.get("url", "").strip()
@@ -111,12 +114,14 @@ def stream_proxy():
 
         content_type = resp.headers.get('Content-Type', '')
 
-        # If this is an M3U8 playlist, rewrite relative URLs to absolute proxy URLs
+        # If this is an M3U8 playlist, rewrite URLs:
+        # - TS/media segments → ABSOLUTE DIRECT URLs (bypass proxy, save bandwidth)
+        # - Other playlists/keys → proxied via /stream (to handle CORS)
         if 'mpegurl' in content_type.lower() or url.endswith('.m3u8') or url.endswith('.m3u'):
             data = resp.read()
             text = data.decode('utf-8', errors='ignore')
 
-            # Get base path of the original URL
+            # Get base path of the original URL (for resolving relative URLs)
             base_path = url[:url.rfind('/') + 1]
 
             lines = text.split('\n')
@@ -124,13 +129,26 @@ def stream_proxy():
             for line in lines:
                 stripped = line.strip()
                 if not stripped or stripped.startswith('#'):
+                    # Keep comments and empty lines as-is
                     new_lines.append(line)
-                elif stripped.startswith('http'):
-                    # Absolute URL - proxy it
-                    new_lines.append('/stream?url=' + urllib.parse.quote(stripped, safe=''))
+                    continue
+
+                # Resolve URL to absolute (whether relative or already absolute)
+                if stripped.startswith('http'):
+                    resolved = stripped
                 else:
-                    # Relative URL - resolve against base_path and proxy
                     resolved = urllib.parse.urljoin(base_path, stripped)
+
+                # Check if this is a media segment (TS, AAC, MP4, etc.)
+                resolved_lower = resolved.lower()
+                is_media = any(resolved_lower.endswith(ext) for ext in MEDIA_EXTENSIONS)
+
+                if is_media:
+                    # MEDIA SEGMENTS: Use DIRECT absolute URL (bypass proxy)
+                    # This saves hosting bandwidth - video data comes straight from source
+                    new_lines.append(resolved)
+                else:
+                    # PLAYLISTS / KEYS: Proxy through /stream (CORS bypass)
                     new_lines.append('/stream?url=' + urllib.parse.quote(resolved, safe=''))
 
             new_text = '\n'.join(new_lines)
@@ -139,7 +157,7 @@ def stream_proxy():
             response.headers['Access-Control-Allow-Origin'] = '*'
             return response
 
-        # Pass through essential headers from origin
+        # For non-M3U8 (MP4, etc.), pass through with headers
         response_headers = {}
         for h in ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'Last-Modified', 'ETag']:
             val = resp.headers.get(h)
@@ -155,7 +173,6 @@ def stream_proxy():
 
         status = resp.getcode()
         response = Response(generate(), status=status, headers=response_headers)
-        # MODIFIED: Add CORS headers for non-M3U8 streams too
         response.headers['Access-Control-Allow-Origin'] = '*'
         return response
     except Exception as e:
