@@ -1,74 +1,61 @@
-const CACHE_NAME = 'raxson-player-v17';
+const CACHE_NAME = 'raxson-v3';
 const STATIC_ASSETS = [
+  '/',
+  '/index.html',
   '/manifest.json',
   '/logo1.png'
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching assets...');
-      return Promise.all(
-        STATIC_ASSETS.map(url => 
-          fetch(url).then(response => {
-            if (response.ok) return cache.put(url, response);
-          }).catch(() => {})
-        )
-      );
+      return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
+        cacheNames.map((name) => caches.delete(name))
       );
-    })
+    }).then(() => clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  const url = new URL(event.request.url);
 
-  // Never cache API or stream requests
-  if (url.pathname === '/api' || url.pathname === '/stream') {
-    event.respondWith(fetch(request));
+  // NEVER intercept video/media streams or /stream proxy
+  // Let video requests go directly (either to source or via /stream proxy)
+  const isVideo = url.pathname === '/stream' || 
+                  url.pathname.match(/\.(ts|mp4|m3u8|m3u|aac|mp3|m4a|m4v|vtt|webvtt)$/i);
+
+  if (isVideo) {
+    return; // Pass through to network directly - no caching, no interception
+  }
+
+  // For API calls, always go network-first
+  if (url.pathname === '/api') {
+    event.respondWith(fetch(event.request));
     return;
   }
 
-  // For index.html - ALWAYS fetch from network, never cache
-  if (url.pathname === '/' || url.pathname === '/index.html') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // For other assets - cache first, fallback to network
+  // For static assets, cache-first
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (response.ok && request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clone);
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request).then((fetchResponse) => {
+        // Only cache same-origin static assets
+        if (fetchResponse.ok && url.origin === self.location.origin) {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, fetchResponse.clone());
+            return fetchResponse;
           });
         }
-        return response;
-      }).catch(() => new Response('Offline', { status: 503 }));
+        return fetchResponse;
+      });
     })
   );
 });
