@@ -92,6 +92,13 @@ def api():
 # Media file extensions that should go DIRECT (not proxied)
 MEDIA_EXTENSIONS = ('.ts', '.aac', '.mp3', '.mp4', '.m4a', '.m4v', '.webvtt', '.vtt')
 
+def is_media_segment(url):
+    """Check if URL points to a media segment (video/audio data).
+    Strips query string and fragment before checking extension."""
+    # Remove query string and fragment for extension check
+    clean = url.split('?')[0].split('#')[0].lower()
+    return any(clean.endswith(ext) for ext in MEDIA_EXTENSIONS)
+
 @app.route("/stream")
 def stream_proxy():
     url = request.args.get("url", "").strip()
@@ -140,10 +147,7 @@ def stream_proxy():
                     resolved = urllib.parse.urljoin(base_path, stripped)
 
                 # Check if this is a media segment (TS, AAC, MP4, etc.)
-                resolved_lower = resolved.lower()
-                is_media = any(resolved_lower.endswith(ext) for ext in MEDIA_EXTENSIONS)
-
-                if is_media:
+                if is_media_segment(resolved):
                     # MEDIA SEGMENTS: Use DIRECT absolute URL (bypass proxy)
                     # This saves hosting bandwidth - video data comes straight from source
                     new_lines.append(resolved)
