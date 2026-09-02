@@ -1,4 +1,4 @@
-#!/usr/bin/env #!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify, send_from_directory, make_response, Response
 import urllib.request
@@ -154,7 +154,10 @@ def stream_proxy():
                 yield chunk
 
         status = resp.getcode()
-        return Response(generate(), status=status, headers=response_headers)
+        response = Response(generate(), status=status, headers=response_headers)
+        # MODIFIED: Add CORS headers for non-M3U8 streams too
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
     except Exception as e:
         return jsonify({"error": "Stream failed", "details": str(e)}), 502
 
