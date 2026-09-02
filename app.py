@@ -88,11 +88,6 @@ def api():
         return jsonify(result), 502
     return jsonify(result)
 
-def is_playlist_url(url):
-    """Check if URL is a playlist (.m3u8/.m3u) that might need CORS proxy."""
-    clean = url.split('?')[0].split('#')[0].lower()
-    return clean.endswith('.m3u8') or clean.endswith('.m3u')
-
 @app.route("/stream")
 def stream_proxy():
     url = request.args.get("url", "").strip()
@@ -112,7 +107,9 @@ def stream_proxy():
         resp = urllib.request.urlopen(req, timeout=30)
         content_type = resp.headers.get('Content-Type', '')
 
-        # M3U8 playlist: rewrite URLs inside it
+        # M3U8 playlist: rewrite ALL URLs inside to proxy URLs
+        # This is REQUIRED because if M3U8 needs proxy (CORS), 
+        # the segments inside it also need proxy (same origin, same CORS policy)
         if 'mpegurl' in content_type.lower() or url.endswith('.m3u8') or url.endswith('.m3u'):
             data = resp.read()
             text = data.decode('utf-8', errors='ignore')
@@ -132,13 +129,9 @@ def stream_proxy():
                 else:
                     resolved = urllib.parse.urljoin(base_path, stripped)
 
-                # RULE: Only nested playlists (.m3u8/.m3u) go through proxy.
-                # Everything else (TS, AAC, MP4, keys, etc.) goes DIRECT absolute URL.
-                # This ensures video data (bandwidth-heavy) bypasses hosting.
-                if is_playlist_url(resolved):
-                    new_lines.append('/stream?url=' + urllib.parse.quote(resolved, safe=''))
-                else:
-                    new_lines.append(resolved)
+                # Proxy EVERYTHING inside M3U8 (segments, keys, playlists)
+                # CORS applies to all resources from the same origin
+                new_lines.append('/stream?url=' + urllib.parse.quote(resolved, safe=''))
 
             new_text = '\n'.join(new_lines)
             response = make_response(new_text)
@@ -146,7 +139,7 @@ def stream_proxy():
             response.headers['Access-Control-Allow-Origin'] = '*'
             return response
 
-        # Non-M3U8 (MP4 direct, etc.): pass through
+        # Non-M3U8 (MP4 direct files): pass through
         response_headers = {}
         for h in ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'Last-Modified', 'ETag']:
             val = resp.headers.get(h)
