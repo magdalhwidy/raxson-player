@@ -213,6 +213,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .big-play svg{width:28px;height:28px;fill:currentColor;pointer-events:none}
 </style>
 <link rel="apple-touch-icon" href="/logo1.png">
+<base target="_blank">
 </head>
 <body>
 
@@ -372,7 +373,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
    </div>
    <div class="controls-right">
     <button class="ctrl-btn" id="settingsBtn" title="إعدادات">
-     <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.488.488 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.63c-.04.34-.07.67-.07 1 0 .33.03.66.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.63Z"/></svg>
+     <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.488.488 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.63c-.04.34-.07.67-.07 1 0 .33.03.66.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.63Z"/></svg>
     </button>
     <button class="ctrl-btn" id="fullscreenBtn" title="ملء الشاشة">
      <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
@@ -405,11 +406,13 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
+
 const DEFAULT_HOST = "http://barqtv.website:80";
 const AUTH = { host: DEFAULT_HOST, user: "", pass: "" };
 let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false, seriesInfo: null };
 let DATA = { live: { cats: [], items: [], ok: false, loading: false, error: null }, vod: { cats: [], items: [], ok: false, loading: false, error: null }, series: { cats: [], items: [], ok: false, loading: false, error: null } };
 let HLS = null, SUB_EXPIRY = "", WATCHED = [];
+let playerOpenTimeout = null;
 
 const $ = id => document.getElementById(id);
 const E = {
@@ -861,8 +864,8 @@ async function handleClick(item, tab) {
   showLoad(false); return;
  }
  const streamUrl = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
- const proxyUrl = "/stream?url=" + encodeURIComponent(streamUrl);
- openPlayer(proxyUrl, name, tab === "live", item);
+ // MODIFIED: Pass original URL directly, let openPlayer handle fallback
+ openPlayer(streamUrl, name, tab === "live", item);
 }
 
 function renderEps(info, sname) {
@@ -882,7 +885,8 @@ function renderEps(info, sname) {
    const btn = document.createElement("button"); btn.className = "ep-btn";
    btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
    const epStreamUrl = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4";
-   btn.addEventListener("click", () => openPlayer("/stream?url=" + encodeURIComponent(epStreamUrl), sname + " - " + en, false, ep));
+   // MODIFIED: Pass original URL directly
+   btn.addEventListener("click", () => openPlayer(epStreamUrl, sname + " - " + en, false, ep));
    grid.appendChild(btn);
   });
   sec.appendChild(grid); E.episodesArea.appendChild(sec);
@@ -915,7 +919,8 @@ function showWatched() {
   card.innerHTML = '<div class="card-thumb">' + (img ? '<img data-src="' + esc(img) + '" class="card-img lazy" alt="">' : "") + '<div class="card-icon">' + icon + '</div><div class="card-overlay"></div></div><div class="card-info"><div class="card-title">' + esc(name) + '</div></div>';
   card.addEventListener("click", () => {
    const streamUrl = item.type === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + item.stream_id + ".m3u8" : AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + (item.stream_id || item.id) + ".mp4";
-   openPlayer("/stream?url=" + encodeURIComponent(streamUrl), name, item.type === "live", item);
+   // MODIFIED: Pass original URL directly
+   openPlayer(streamUrl, name, item.type === "live", item);
   });
   E.contentGrid.appendChild(card);
  });
@@ -1138,7 +1143,8 @@ function setPlayIcon(playing) {
  }
 }
 
-function openPlayer(url, name, live, item) {
+// ===== MODIFIED openPlayer: Direct first, then Fallback to Proxy =====
+function openPlayer(originalUrl, name, live, item) {
  window.CURRENT_ITEM = item || null;
  if (item) addToWatched(item);
 
@@ -1166,54 +1172,157 @@ function openPlayer(url, name, live, item) {
  E.playerVideo.style.objectFit = FIT_MODES[0].value;
  E.playerVideo.playbackRate = SPEED_LEVELS[0];
 
- if (url.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
-  HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
-  HLS.loadSource(url); HLS.attachMedia(E.playerVideo);
+ // Clear any pending timeout from previous open
+ if (playerOpenTimeout) { clearTimeout(playerOpenTimeout); playerOpenTimeout = null; }
+ // Remove old error handler
+ E.playerVideo.onerror = null;
 
-  // Quality levels detection
-  HLS.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+ // State tracking for fallback (prevents loops)
+ let fallbackUsed = false;
+ let hlsRetryCount = 0;
+ const MAX_HLS_RETRIES = 2;
+ const proxyUrl = "/stream?url=" + encodeURIComponent(originalUrl);
+
+ function cleanupPlayer() {
+  if (HLS) { HLS.destroy(); HLS = null; }
+  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
+  E.playerVideo.onerror = null;
+ }
+
+ // ===== LOAD VIA PROXY (FALLBACK) =====
+ function loadWithProxy() {
+  if (fallbackUsed) return;
+  fallbackUsed = true;
+  console.log("[Player] Direct failed, switching to proxy:", proxyUrl);
+  cleanupPlayer();
+
+  if (proxyUrl.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
+   HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+   HLS.loadSource(proxyUrl);
+   HLS.attachMedia(E.playerVideo);
+
+   HLS.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+    if (E.playerLoader) E.playerLoader.classList.add("hidden");
+    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+    E.playerVideo.play().catch(() => {});
+    if (data.levels && data.levels.length > 1) {
+     if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
+     if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
+    }
+   });
+
+   HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
+    if (data.audioTracks && data.audioTracks.length > 1) {
+     if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
+     const current = HLS.audioTrack;
+     const track = data.audioTracks[current] || data.audioTracks[0];
+     if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (current + 1));
+    }
+   });
+
+   HLS.on(Hls.Events.ERROR, (e, d) => {
+    if (d.fatal) {
+     if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
+     else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError();
+     else { HLS.destroy(); HLS = null; }
+    }
+   });
+  } else {
+   E.playerVideo.src = proxyUrl;
+   E.playerVideo.play().catch(() => {});
    if (E.playerLoader) E.playerLoader.classList.add("hidden");
    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-   E.playerVideo.play().catch(() => {});
-
-   // Show quality button if multiple levels
-   if (data.levels && data.levels.length > 1) {
-    if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
-    if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
-   }
-  });
-
-  // Audio tracks detection
-  HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
-   if (data.audioTracks && data.audioTracks.length > 1) {
-    if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
-    const current = HLS.audioTrack;
-    const track = data.audioTracks[current] || data.audioTracks[0];
-    if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (current + 1));
-   }
-  });
-
-  HLS.on(Hls.Events.ERROR, (e, d) => {
-   if (d.fatal) {
-    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) HLS.startLoad();
-    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) HLS.recoverMediaError();
-    else { HLS.destroy(); HLS = null; }
-   }
-  });
- } else {
-  E.playerVideo.src = url;
-  E.playerVideo.play().catch(() => {});
-  if (E.playerLoader) E.playerLoader.classList.add("hidden");
-  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+  }
  }
+
+ // ===== TRY DIRECT FIRST =====
+ function tryDirect() {
+  console.log("[Player] Trying direct URL:", originalUrl);
+
+  if (originalUrl.includes(".m3u8") && typeof Hls !== "undefined" && Hls.isSupported()) {
+   HLS = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, startLevel: -1 });
+   HLS.loadSource(originalUrl); // Direct original URL
+   HLS.attachMedia(E.playerVideo);
+
+   HLS.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+    if (E.playerLoader) E.playerLoader.classList.add("hidden");
+    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+    E.playerVideo.play().catch(() => {});
+    if (data.levels && data.levels.length > 1) {
+     if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
+     if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
+    }
+   });
+
+   HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
+    if (data.audioTracks && data.audioTracks.length > 1) {
+     if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
+     const current = HLS.audioTrack;
+     const track = data.audioTracks[current] || data.audioTracks[0];
+     if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (current + 1));
+    }
+   });
+
+   HLS.on(Hls.Events.ERROR, (e, d) => {
+    if (d.fatal) {
+     if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      hlsRetryCount++;
+      if (hlsRetryCount <= MAX_HLS_RETRIES) {
+       console.log("[Player] HLS network error, retry " + hlsRetryCount + "/" + MAX_HLS_RETRIES);
+       HLS.startLoad();
+      } else if (!fallbackUsed) {
+       console.log("[Player] HLS retries exhausted, switching to proxy");
+       loadWithProxy();
+      }
+     } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
+      HLS.recoverMediaError();
+     } else {
+      if (!fallbackUsed) {
+       console.log("[Player] HLS fatal error, switching to proxy");
+       loadWithProxy();
+      }
+     }
+    }
+   });
+  } else {
+   // For MP4 and other direct formats
+   E.playerVideo.src = originalUrl;
+   E.playerVideo.play().catch((err) => {
+    console.log("[Player] Direct play failed:", err?.name || err?.message || err);
+    if (!fallbackUsed) {
+     loadWithProxy();
+    }
+   });
+
+   E.playerVideo.onerror = () => {
+    console.log("[Player] Video element error, code:", E.playerVideo.error?.code, "message:", E.playerVideo.error?.message);
+    if (!fallbackUsed) {
+     loadWithProxy();
+    }
+   };
+  }
+
+  // Safety timeout: if video hasn't started playing within 10 seconds, fallback to proxy
+  playerOpenTimeout = setTimeout(() => {
+   if (!fallbackUsed && E.playerVideo.readyState < 2) {
+    console.log("[Player] Timeout: video not playing after 10s, switching to proxy");
+    loadWithProxy();
+   }
+  }, 10000);
+ }
+
+ tryDirect();
  showControls();
 }
 
 function closePlayer() {
+ // Clear any pending fallback timeout
+ if (playerOpenTimeout) { clearTimeout(playerOpenTimeout); playerOpenTimeout = null; }
  E.playerOverlay.classList.remove("visible");
  setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
  if (HLS) { HLS.destroy(); HLS = null; }
  E.playerVideo.pause(); E.playerVideo.removeAttribute("src"); E.playerVideo.load();
+ E.playerVideo.onerror = null; // Clean up error handler
  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
