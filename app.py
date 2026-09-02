@@ -9,7 +9,6 @@ import time
 import os
 
 app = Flask(__name__)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @app.after_request
@@ -89,15 +88,10 @@ def api():
         return jsonify(result), 502
     return jsonify(result)
 
-# Media file extensions that should go DIRECT (not proxied)
-MEDIA_EXTENSIONS = ('.ts', '.aac', '.mp3', '.mp4', '.m4a', '.m4v', '.webvtt', '.vtt')
-
-def is_media_segment(url):
-    """Check if URL points to a media segment (video/audio data).
-    Strips query string and fragment before checking extension."""
-    # Remove query string and fragment for extension check
+def is_playlist_url(url):
+    """Check if URL is a playlist (.m3u8/.m3u) that might need CORS proxy."""
     clean = url.split('?')[0].split('#')[0].lower()
-    return any(clean.endswith(ext) for ext in MEDIA_EXTENSIONS)
+    return clean.endswith('.m3u8') or clean.endswith('.m3u')
 
 @app.route("/stream")
 def stream_proxy():
@@ -105,30 +99,23 @@ def stream_proxy():
     if not url:
         return jsonify({"error": "Missing url parameter"}), 400
     try:
-        # Build headers to forward to origin server
         headers = {
             "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
             "Accept": "*/*",
             "Referer": "http://barqtv.website/"
         }
-        # Forward Range header from browser (critical for seek/scrub)
         range_header = request.headers.get('Range')
         if range_header:
             headers['Range'] = range_header
 
         req = urllib.request.Request(url, headers=headers)
         resp = urllib.request.urlopen(req, timeout=30)
-
         content_type = resp.headers.get('Content-Type', '')
 
-        # If this is an M3U8 playlist, rewrite URLs:
-        # - TS/media segments → ABSOLUTE DIRECT URLs (bypass proxy, save bandwidth)
-        # - Other playlists/keys → proxied via /stream (to handle CORS)
+        # M3U8 playlist: rewrite URLs inside it
         if 'mpegurl' in content_type.lower() or url.endswith('.m3u8') or url.endswith('.m3u'):
             data = resp.read()
             text = data.decode('utf-8', errors='ignore')
-
-            # Get base path of the original URL (for resolving relative URLs)
             base_path = url[:url.rfind('/') + 1]
 
             lines = text.split('\n')
@@ -136,24 +123,22 @@ def stream_proxy():
             for line in lines:
                 stripped = line.strip()
                 if not stripped or stripped.startswith('#'):
-                    # Keep comments and empty lines as-is
                     new_lines.append(line)
                     continue
 
-                # Resolve URL to absolute (whether relative or already absolute)
+                # Resolve to absolute URL
                 if stripped.startswith('http'):
                     resolved = stripped
                 else:
                     resolved = urllib.parse.urljoin(base_path, stripped)
 
-                # Check if this is a media segment (TS, AAC, MP4, etc.)
-                if is_media_segment(resolved):
-                    # MEDIA SEGMENTS: Use DIRECT absolute URL (bypass proxy)
-                    # This saves hosting bandwidth - video data comes straight from source
-                    new_lines.append(resolved)
-                else:
-                    # PLAYLISTS / KEYS: Proxy through /stream (CORS bypass)
+                # RULE: Only nested playlists (.m3u8/.m3u) go through proxy.
+                # Everything else (TS, AAC, MP4, keys, etc.) goes DIRECT absolute URL.
+                # This ensures video data (bandwidth-heavy) bypasses hosting.
+                if is_playlist_url(resolved):
                     new_lines.append('/stream?url=' + urllib.parse.quote(resolved, safe=''))
+                else:
+                    new_lines.append(resolved)
 
             new_text = '\n'.join(new_lines)
             response = make_response(new_text)
@@ -161,7 +146,7 @@ def stream_proxy():
             response.headers['Access-Control-Allow-Origin'] = '*'
             return response
 
-        # For non-M3U8 (MP4, etc.), pass through with headers
+        # Non-M3U8 (MP4 direct, etc.): pass through
         response_headers = {}
         for h in ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'Last-Modified', 'ETag']:
             val = resp.headers.get(h)
