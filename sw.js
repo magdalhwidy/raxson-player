@@ -1,4 +1,4 @@
-const CACHE_NAME = 'raxson-v5';
+const CACHE_NAME = 'raxson-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -19,7 +19,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((name) => caches.delete(name))
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
+          }
+        })
       );
     }).then(() => clients.claim())
   );
