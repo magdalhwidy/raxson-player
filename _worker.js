@@ -5,8 +5,8 @@ export default {
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range, Accept',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
     };
 
     if (request.method === 'OPTIONS') {
@@ -22,6 +22,7 @@ export default {
         return await handleStream(url, request, corsHeaders);
       }
 
+      // Serve static assets (index.html, sw.js, logo, manifest, etc.)
       if (env.ASSETS) {
         return env.ASSETS.fetch(request);
       }
@@ -32,8 +33,7 @@ export default {
       console.error('[Worker Error]', err);
       return jsonResponse({
         error: 'Worker Error',
-        details: err.message,
-        stack: err.stack
+        details: err.message
       }, 500, corsHeaders);
     }
   }
@@ -68,7 +68,8 @@ async function handleApi(url, request, corsHeaders) {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'ar,en;q=0.9',
-        'Referer': 'http://barqtv.website/'
+        'Referer': cleanHost + '/',
+        'Origin': cleanHost
       },
       signal: controller.signal,
       redirect: 'follow'
@@ -115,7 +116,8 @@ async function handleStream(url, request, corsHeaders) {
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0',
     'Accept': '*/*',
-    'Referer': 'http://barqtv.website/'
+    'Referer': 'http://barqtv.website/',
+    'Origin': 'http://barqtv.website'
   };
 
   const rangeHeader = request.headers.get('Range');
