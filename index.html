@@ -8,8 +8,8 @@
       var hadSW = regs.length > 0;
       var promises = regs.map(function(r) { return r.unregister(); });
       Promise.all(promises).then(function() {
-        if (hadSW && !sessionStorage.getItem('sw_cleared_v5')) {
-          sessionStorage.setItem('sw_cleared_v5', '1');
+        if (hadSW && !sessionStorage.getItem('sw_cleared_v6')) {
+          sessionStorage.setItem('sw_cleared_v6', '1');
           window.location.reload();
         }
       });
@@ -191,6 +191,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .big-play svg{width:28px;height:28px;fill:currentColor;pointer-events:none}
 </style>
 <link rel="apple-touch-icon" href="/logo1.png">
+<base target="_blank">
 <base target="_blank">
 <base target="_blank">
 </head>
