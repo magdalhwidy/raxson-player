@@ -23,8 +23,13 @@ export default {
       }
 
       if (env.ASSETS) {
-        return env.ASSETS.fetch(request);
+        let response = await env.ASSETS.fetch(request);
+        if (response.status === 404) {
+          return env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+        }
+        return response;
       }
+
 
       return new Response('Not Found', { status: 404, headers: corsHeaders });
 
