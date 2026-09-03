@@ -4,151 +4,123 @@ export default {
     const pathname = url.pathname;
 
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers':
-        'Content-Type, Authorization, Range, Accept',
-      'Access-Control-Allow-Methods':
-        'GET, HEAD, OPTIONS',
-      'Access-Control-Expose-Headers':
-        'Content-Length, Content-Range, Accept-Ranges, Content-Type, ETag, Last-Modified, Content-Disposition',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, Range, Accept, Origin, Referer",
+      "Access-Control-Allow-Methods":
+        "GET, HEAD, OPTIONS",
+      "Access-Control-Expose-Headers":
+        "Content-Length, Content-Range, Accept-Ranges, Content-Type, ETag, Last-Modified, Content-Disposition",
     };
 
+    // ---------------------------------------------------------
     // CORS preflight
-    if (request.method === 'OPTIONS') {
+    // ---------------------------------------------------------
+    if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
-        headers: corsHeaders
+        headers: corsHeaders,
       });
     }
 
     try {
+      // -------------------------------------------------------
       // API
-      if (pathname === '/api') {
-        return await handleApi(
-          url,
-          request,
-          corsHeaders
-        );
+      // -------------------------------------------------------
+      if (pathname === "/api") {
+        return await handleApi(request, url, corsHeaders);
       }
 
-      // STREAM / VOD / LIVE / HLS
-      if (pathname === '/stream') {
-        return await handleStream(
-          url,
-          request,
-          corsHeaders
-        );
+      // -------------------------------------------------------
+      // STREAM
+      // -------------------------------------------------------
+      if (pathname === "/stream") {
+        return await handleStream(request, url, corsHeaders);
       }
 
-      // Cloudflare Pages static files
+      // -------------------------------------------------------
+      // DEBUG
+      // -------------------------------------------------------
+      if (pathname === "/debug") {
+        return await handleDebug(request, url, corsHeaders);
+      }
+
+      // -------------------------------------------------------
+      // STATIC ASSETS
+      // -------------------------------------------------------
       if (env.ASSETS) {
         return env.ASSETS.fetch(request);
       }
 
-      return new Response(
-        'Not Found',
-        {
-          status: 404,
-          headers: corsHeaders
-        }
-      );
+      return new Response("Not Found", {
+        status: 404,
+        headers: corsHeaders,
+      });
 
     } catch (err) {
-      console.error(
-        '[Worker Error]',
-        err
-      );
+      console.error("[WORKER ERROR]", err);
 
       return jsonResponse(
         {
-          error: 'Worker Error',
-          details:
-            err?.message ||
-            String(err)
+          error: "Worker Error",
+          details: err?.message || String(err),
         },
         500,
         corsHeaders
       );
     }
-  }
+  },
 };
 
 
-/* =========================================================
-   API
-========================================================= */
+// =============================================================
+// API
+// =============================================================
 
-async function handleApi(
-  url,
-  request,
-  corsHeaders
-) {
-  const host =
-    url.searchParams
-      .get('host')
-      ?.trim() || '';
+async function handleApi(request, url, corsHeaders) {
+  const host = url.searchParams.get("host")?.trim() || "";
+  const user = url.searchParams.get("user")?.trim() || "";
+  const pass = url.searchParams.get("pass")?.trim() || "";
+  const action = url.searchParams.get("action")?.trim() || "";
+  const extra = url.searchParams.get("extra") || "";
 
-  const user =
-    url.searchParams
-      .get('user')
-      ?.trim() || '';
-
-  const pwd =
-    url.searchParams
-      .get('pass')
-      ?.trim() || '';
-
-  const action =
-    url.searchParams
-      .get('action')
-      ?.trim() || '';
-
-  const extra =
-    url.searchParams
-      .get('extra') || '';
-
-  if (
-    !host ||
-    !user ||
-    !pwd ||
-    !action
-  ) {
+  if (!host || !user || !pass || !action) {
     return jsonResponse(
-      {
-        error: 'Missing parameters'
-      },
+      { error: "Missing parameters" },
       400,
       corsHeaders
     );
   }
 
-  const cleanHost =
-    host.endsWith('/')
-      ? host.slice(0, -1)
-      : host;
+  const cleanHost = host.replace(/\/+$/, "");
 
-  /*
-   * Keep the same API behavior as the old
-   * working Vercel backend.
-   */
   const targetUrl =
     `${cleanHost}/player_api.php` +
     `?username=${encodeURIComponent(user)}` +
-    `&password=${encodeURIComponent(pwd)}` +
+    `&password=${encodeURIComponent(pass)}` +
     `&action=${encodeURIComponent(action)}` +
     `${extra}`;
 
-  console.log(
-    '[API]',
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "ar,en;q=0.9",
+    "Referer": `${cleanHost}/`,
+  };
+
+  console.log("[API REQUEST]", {
     action,
-    'host=',
-    cleanHost
-  );
+    url: targetUrl,
+  });
 
   const heavyActions = [
-    'get_live_streams',
-    'get_vod_streams',
-    'get_series'
+    "get_live_streams",
+    "get_vod_streams",
+    "get_series",
+    "get_vod_categories",
+    "get_series_categories",
+    "get_live_categories",
   ];
 
   const timeout =
@@ -156,106 +128,61 @@ async function handleApi(
       ? 90000
       : 40000;
 
-  const controller =
-    new AbortController();
+  const controller = new AbortController();
 
-  const timer =
-    setTimeout(
-      () => controller.abort(),
-      timeout
-    );
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeout);
 
   try {
-
-    /*
-     * IMPORTANT:
-     *
-     * No Origin header here.
-     *
-     * This matches the old Vercel backend.
-     */
-    const resp =
-      await fetch(
-        targetUrl,
-        {
-          method: 'GET',
-
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0',
-
-            'Accept':
-              'application/json, text/plain, */*',
-
-            'Accept-Language':
-              'ar,en;q=0.9',
-
-            'Referer':
-              'http://barqtv.website/'
-          },
-
-          signal:
-            controller.signal,
-
-          /*
-           * Keep normal HTTP redirect behavior.
-           */
-          redirect: 'follow'
-        }
-      );
+    const response = await fetch(targetUrl, {
+      method: "GET",
+      headers,
+      redirect: "follow",
+      signal: controller.signal,
+    });
 
     clearTimeout(timer);
 
-    console.log(
-      '[API]',
+    console.log("[API RESPONSE]", {
       action,
-      'status=',
-      resp.status,
-      'final-url=',
-      resp.url
-    );
+      status: response.status,
+      url: response.url,
+      contentType: response.headers.get("Content-Type"),
+    });
 
-    const body =
-      await resp.text();
+    const body = await response.text();
 
-    return new Response(
-      body,
-      {
-        status: resp.status,
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        ...corsHeaders,
+        "Content-Type":
+          response.headers.get("Content-Type") ||
+          "application/json; charset=utf-8",
 
-        headers: {
-          ...corsHeaders,
+        "Cache-Control":
+          "no-cache, no-store, must-revalidate",
 
-          'Content-Type':
-            resp.headers.get(
-              'Content-Type'
-            ) ||
-            'application/json',
-
-          'Cache-Control':
-            'no-cache, no-store, must-revalidate'
-        }
-      }
-    );
+        "Pragma": "no-cache",
+      },
+    });
 
   } catch (err) {
-
     clearTimeout(timer);
 
-    console.error(
-      '[API Error]',
+    console.error("[API ERROR]", {
       action,
-      err?.message ||
-        String(err)
-    );
+      url: targetUrl,
+      error: err?.message || String(err),
+    });
 
     return jsonResponse(
       {
-        error: 'Fetch failed',
-        details:
-          err?.message ||
-          String(err),
-        url: targetUrl
+        error: "Fetch failed",
+        details: err?.message || String(err),
+        url: targetUrl,
       },
       502,
       corsHeaders
@@ -264,451 +191,332 @@ async function handleApi(
 }
 
 
-/* =========================================================
-   STREAM
-   LIVE / VOD / MP4 / TS / M3U8
-========================================================= */
+// =============================================================
+// STREAM
+// =============================================================
 
-async function handleStream(
-  url,
-  request,
-  corsHeaders
-) {
+async function handleStream(request, url, corsHeaders) {
   const targetUrl =
-    url.searchParams
-      .get('url')
-      ?.trim() || '';
+    url.searchParams.get("url")?.trim() || "";
 
   if (!targetUrl) {
     return jsonResponse(
-      {
-        error:
-          'Missing url parameter'
-      },
+      { error: "Missing url parameter" },
       400,
       corsHeaders
     );
   }
 
-  /*
-   * Validate URL.
-   */
-  let parsedTarget;
+  let parsed;
 
   try {
-
-    parsedTarget =
-      new URL(targetUrl);
+    parsed = new URL(targetUrl);
 
     if (
-      parsedTarget.protocol !==
-        'http:' &&
-      parsedTarget.protocol !==
-        'https:'
+      parsed.protocol !== "http:" &&
+      parsed.protocol !== "https:"
     ) {
       return jsonResponse(
-        {
-          error:
-            'Invalid URL scheme'
-        },
+        { error: "Invalid URL scheme" },
         400,
         corsHeaders
       );
     }
 
   } catch {
-
     return jsonResponse(
-      {
-        error:
-          'Invalid URL'
-      },
+      { error: "Invalid URL" },
       400,
       corsHeaders
     );
   }
 
+  const method =
+    request.method === "HEAD"
+      ? "HEAD"
+      : "GET";
 
-  /*
-   * =======================================================
-   * Headers
-   *
-   * IMPORTANT:
-   *
-   * These intentionally match the working Vercel
-   * stream_proxy() implementation.
-   *
-   * We DO NOT send Origin.
-   * =======================================================
-   */
+  // -----------------------------------------------------------
+  // Headers deliberately kept close to the working Vercel
+  // implementation.
+  //
+  // IMPORTANT:
+  // No Origin header is sent upstream.
+  // -----------------------------------------------------------
 
-  const upstreamHeaders = {
-    'User-Agent':
-      'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0',
+  const baseHeaders = {
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
 
-    'Accept':
-      '*/*',
+    "Accept": "*/*",
 
-    'Referer':
-      'http://barqtv.website/'
+    "Referer": "http://barqtv.website/",
   };
 
+  // -----------------------------------------------------------
+  // Forward Range exactly as received from the player.
+  // -----------------------------------------------------------
 
-  /*
-   * =======================================================
-   * RANGE
-   *
-   * Critical for MP4/VOD seeking.
-   *
-   * Example:
-   *
-   * Range: bytes=0-
-   * Range: bytes=5000000-
-   * =======================================================
-   */
+  const range = request.headers.get("Range");
 
-  const rangeHeader =
-    request.headers.get(
-      'Range'
-    );
-
-  if (rangeHeader) {
-
-    upstreamHeaders['Range'] =
-      rangeHeader;
-
-    console.log(
-      '[STREAM] Range=',
-      rangeHeader
-    );
+  if (range) {
+    baseHeaders["Range"] = range;
   }
 
-
-  console.log(
-    '[STREAM] request=',
-    targetUrl.substring(0, 300)
-  );
-
+  console.log("[STREAM REQUEST]", {
+    method,
+    targetUrl,
+    range: range || null,
+  });
 
   try {
+    // ---------------------------------------------------------
+    // First try:
+    // exact URL supplied by frontend
+    // ---------------------------------------------------------
 
-    /*
-     * =====================================================
-     * Fetch with controlled redirects.
-     *
-     * We manually follow redirects so that we know:
-     *
-     * 1. Original URL
-     * 2. Redirect URL
-     * 3. Final URL
-     * 4. Status returned by final server
-     *
-     * Maximum 5 redirects.
-     * =====================================================
-     */
-
-    const result =
-      await fetchWithRedirects(
-        targetUrl,
-        request.method === 'HEAD'
-          ? 'HEAD'
-          : 'GET',
-        upstreamHeaders
-      );
-
-    const resp =
-      result.response;
-
-    const finalUrl =
-      result.finalUrl;
-
-    /*
-     * =====================================================
-     * Detailed diagnostics
-     * =====================================================
-     */
-
-    const contentType =
-      resp.headers.get(
-        'Content-Type'
-      ) || '';
-
-    const contentLength =
-      resp.headers.get(
-        'Content-Length'
-      );
-
-    const contentRange =
-      resp.headers.get(
-        'Content-Range'
-      );
-
-    const acceptRanges =
-      resp.headers.get(
-        'Accept-Ranges'
-      );
-
-    const location =
-      resp.headers.get(
-        'Location'
-      );
-
-    console.log(
-      '[STREAM RESULT]',
-      JSON.stringify({
-        status:
-          resp.status,
-
-        originalUrl:
-          targetUrl,
-
-        finalUrl:
-          finalUrl,
-
-        redirected:
-          finalUrl !== targetUrl,
-
-        contentType:
-          contentType,
-
-        contentLength:
-          contentLength,
-
-        contentRange:
-          contentRange,
-
-        acceptRanges:
-          acceptRanges,
-
-        location:
-          location,
-
-        requestedRange:
-          rangeHeader || null
-      })
+    const result = await fetchWithRedirects(
+      targetUrl,
+      method,
+      baseHeaders
     );
 
+    let response = result.response;
+    let finalUrl = result.finalUrl;
 
-    /*
-     * =====================================================
-     * M3U8
-     *
-     * Playlist must be read as text because we need
-     * to rewrite its internal URLs.
-     * =====================================================
-     */
+    // ---------------------------------------------------------
+    // If HTTP returned 403, optionally try HTTPS equivalent.
+    //
+    // This does NOT bypass authentication. It simply tests the
+    // HTTPS version of the same host/path.
+    // ---------------------------------------------------------
+
+    if (
+      response.status === 403 &&
+      parsed.protocol === "http:"
+    ) {
+      const httpsUrl = new URL(targetUrl);
+
+      httpsUrl.protocol = "https:";
+
+      // Port 80 should not be retained when switching to HTTPS.
+      if (httpsUrl.port === "80") {
+        httpsUrl.port = "";
+      }
+
+      console.log(
+        "[STREAM HTTPS FALLBACK]",
+        httpsUrl.href
+      );
+
+      try {
+        const httpsResult = await fetchWithRedirects(
+          httpsUrl.href,
+          method,
+          baseHeaders
+        );
+
+        console.log("[STREAM HTTPS RESULT]", {
+          status: httpsResult.response.status,
+          finalUrl: httpsResult.finalUrl,
+        });
+
+        // Use HTTPS if it succeeds or if the original response
+        // was an error.
+        if (
+          httpsResult.response.status >= 200 &&
+          httpsResult.response.status < 400
+        ) {
+          response = httpsResult.response;
+          finalUrl = httpsResult.finalUrl;
+        }
+
+      } catch (httpsError) {
+        console.error(
+          "[STREAM HTTPS ERROR]",
+          httpsError?.message || String(httpsError)
+        );
+      }
+    }
+
+    // ---------------------------------------------------------
+    // Diagnostics
+    // ---------------------------------------------------------
+
+    const contentType =
+      response.headers.get("Content-Type") || "";
+
+    const contentLength =
+      response.headers.get("Content-Length");
+
+    const contentRange =
+      response.headers.get("Content-Range");
+
+    const acceptRanges =
+      response.headers.get("Accept-Ranges");
+
+    const location =
+      response.headers.get("Location");
+
+    const server =
+      response.headers.get("Server");
+
+    const via =
+      response.headers.get("Via");
+
+    const cacheStatus =
+      response.headers.get("CF-Cache-Status");
 
     const lowerType =
       contentType.toLowerCase();
 
-    const lowerFinalUrl =
+    const lowerUrl =
       finalUrl.toLowerCase();
 
     const isM3U8 =
-      lowerType.includes(
-        'mpegurl'
-      ) ||
+      lowerType.includes("mpegurl") ||
+      lowerType.includes("m3u8") ||
+      lowerUrl.includes(".m3u8") ||
+      lowerUrl.includes(".m3u");
 
-      lowerType.includes(
-        'm3u8'
-      ) ||
+    console.log(
+      "[STREAM RESPONSE]",
+      JSON.stringify({
+        status: response.status,
+        statusText: response.statusText,
+        originalUrl: targetUrl,
+        finalUrl,
+        redirected: finalUrl !== targetUrl,
+        contentType,
+        contentLength,
+        contentRange,
+        acceptRanges,
+        location,
+        server,
+        via,
+        cacheStatus,
+        requestedRange: range || null,
+        isM3U8,
+      })
+    );
 
-      lowerFinalUrl.endsWith(
-        '.m3u8'
-      ) ||
+    // ---------------------------------------------------------
+    // M3U8
+    // ---------------------------------------------------------
 
-      lowerFinalUrl.endsWith(
-        '.m3u'
-      );
-
-
-    /*
-     * Only rewrite successful playlist responses.
-     */
     if (
       isM3U8 &&
-      resp.status >= 200 &&
-      resp.status < 300
+      response.status >= 200 &&
+      response.status < 300
     ) {
-
-      const text =
-        await resp.text();
+      const playlist =
+        await response.text();
 
       const rewritten =
         rewriteM3U8(
-          text,
+          playlist,
           finalUrl
         );
 
-      return new Response(
-        rewritten,
-        {
-          status: resp.status,
+      return new Response(rewritten, {
+        status: response.status,
+        statusText: response.statusText,
 
-          headers: {
-            ...corsHeaders,
+        headers: {
+          ...corsHeaders,
 
-            'Content-Type':
-              'application/vnd.apple.mpegurl',
+          "Content-Type":
+            "application/vnd.apple.mpegurl",
 
-            'Cache-Control':
-              'no-cache, no-store, must-revalidate',
+          "Cache-Control":
+            "no-cache, no-store, must-revalidate",
 
-            'Pragma':
-              'no-cache'
-          }
-        }
-      );
+          "Pragma": "no-cache",
+        },
+      });
     }
 
-
-    /*
-     * =====================================================
-     * BINARY STREAM
-     *
-     * MP4
-     * TS
-     * MPEG
-     * AAC
-     * etc.
-     *
-     * DO NOT:
-     *
-     * await resp.text()
-     * await resp.arrayBuffer()
-     * await resp.blob()
-     *
-     * We pass resp.body directly.
-     * =====================================================
-     */
+    // ---------------------------------------------------------
+    // Non-M3U8
+    //
+    // IMPORTANT:
+    // Do NOT call text(), json(), arrayBuffer(), etc.
+    //
+    // Pass the ReadableStream directly.
+    // ---------------------------------------------------------
 
     const responseHeaders = {
       ...corsHeaders,
 
-      'Content-Type':
+      "Content-Type":
         contentType ||
-        'application/octet-stream',
+        "application/octet-stream",
 
-      'Cache-Control':
-        'no-cache, no-store, must-revalidate',
+      "Cache-Control":
+        "no-cache, no-store, must-revalidate",
 
-      'Pragma':
-        'no-cache'
+      "Pragma": "no-cache",
     };
 
-
-    /*
-     * Headers required by HTML5 video,
-     * seeking and partial content.
-     */
-
-    const passHeaders = [
-      'Content-Length',
-      'Content-Range',
-      'Accept-Ranges',
-      'Last-Modified',
-      'ETag',
-      'Content-Disposition',
-      'Expires',
-      'Vary'
+    // Preserve important media headers.
+    const headersToCopy = [
+      "Content-Length",
+      "Content-Range",
+      "Accept-Ranges",
+      "Last-Modified",
+      "ETag",
+      "Content-Disposition",
+      "Expires",
+      "Vary",
+      "Content-Encoding",
     ];
 
-
-    for (
-      const headerName
-      of passHeaders
-    ) {
-
+    for (const name of headersToCopy) {
       const value =
-        resp.headers.get(
-          headerName
-        );
+        response.headers.get(name);
 
       if (value) {
-
-        responseHeaders[
-          headerName
-        ] = value;
+        responseHeaders[name] = value;
       }
     }
 
-
-    /*
-     * If the upstream supports byte ranges,
-     * explicitly expose it.
-     *
-     * We do NOT change the upstream status.
-     */
-
+    // If origin returned 206 but omitted Accept-Ranges,
+    // tell the player that byte ranges are supported.
     if (
-      !responseHeaders[
-        'Accept-Ranges'
-      ]
+      response.status === 206 &&
+      !responseHeaders["Accept-Ranges"]
     ) {
-
-      if (
-        resp.status === 206
-      ) {
-
-        responseHeaders[
-          'Accept-Ranges'
-        ] = 'bytes';
-      }
+      responseHeaders["Accept-Ranges"] = "bytes";
     }
-
-
-    /*
-     * =====================================================
-     * CRITICAL:
-     *
-     * Preserve upstream status.
-     *
-     * 200 = normal response
-     * 206 = Partial Content
-     * 403 = Forbidden
-     * 404 = Not Found
-     * 416 = Range Not Satisfiable
-     *
-     * And pass the stream directly.
-     * =====================================================
-     */
 
     return new Response(
-      resp.body,
+      response.body,
       {
-        status:
-          resp.status,
-
-        headers:
-          responseHeaders
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
       }
     );
 
   } catch (err) {
 
     console.error(
-      '[STREAM ERROR]',
+      "[STREAM ERROR]",
       JSON.stringify({
-        url:
-          targetUrl,
-
+        targetUrl,
         error:
           err?.message ||
-          String(err)
+          String(err),
       })
     );
 
     return jsonResponse(
       {
-        error:
-          'Stream failed',
-
+        error: "Stream failed",
         details:
           err?.message ||
           String(err),
-
-        url:
-          targetUrl
+        url: targetUrl,
       },
       502,
       corsHeaders
@@ -717,9 +525,185 @@ async function handleStream(
 }
 
 
-/* =========================================================
-   FETCH WITH REDIRECTS
-========================================================= */
+// =============================================================
+// DEBUG
+//
+// /debug?url=https://example.com/...
+//
+// This endpoint is intentionally diagnostic.
+// It reads only a small amount of the upstream response body
+// when possible, so we can see what a 403 actually contains.
+//
+// Do NOT use this endpoint for normal video playback.
+// =============================================================
+
+async function handleDebug(request, url, corsHeaders) {
+  const targetUrl =
+    url.searchParams.get("url")?.trim() || "";
+
+  if (!targetUrl) {
+    return jsonResponse(
+      {
+        error:
+          "Missing url parameter",
+      },
+      400,
+      corsHeaders
+    );
+  }
+
+  let parsed;
+
+  try {
+    parsed = new URL(targetUrl);
+
+    if (
+      parsed.protocol !== "http:" &&
+      parsed.protocol !== "https:"
+    ) {
+      throw new Error(
+        "Only HTTP/HTTPS allowed"
+      );
+    }
+
+  } catch (err) {
+    return jsonResponse(
+      {
+        error: "Invalid URL",
+        details:
+          err?.message ||
+          String(err),
+      },
+      400,
+      corsHeaders
+    );
+  }
+
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
+
+    "Accept": "*/*",
+
+    "Referer": "http://barqtv.website/",
+  };
+
+  const range =
+    request.headers.get("Range");
+
+  if (range) {
+    headers["Range"] = range;
+  }
+
+  try {
+    const result =
+      await fetchWithRedirects(
+        targetUrl,
+        "GET",
+        headers
+      );
+
+    const response =
+      result.response;
+
+    const body =
+      await readSmallBody(
+        response,
+        4096
+      );
+
+    return jsonResponse(
+      {
+        request: {
+          url: targetUrl,
+          protocol: parsed.protocol,
+          range: range || null,
+        },
+
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          finalUrl: result.finalUrl,
+
+          headers: {
+            contentType:
+              response.headers.get(
+                "Content-Type"
+              ),
+
+            contentLength:
+              response.headers.get(
+                "Content-Length"
+              ),
+
+            contentRange:
+              response.headers.get(
+                "Content-Range"
+              ),
+
+            acceptRanges:
+              response.headers.get(
+                "Accept-Ranges"
+              ),
+
+            location:
+              response.headers.get(
+                "Location"
+              ),
+
+            server:
+              response.headers.get(
+                "Server"
+              ),
+
+            via:
+              response.headers.get(
+                "Via"
+              ),
+
+            wwwAuthenticate:
+              response.headers.get(
+                "WWW-Authenticate"
+              ),
+
+            cacheControl:
+              response.headers.get(
+                "Cache-Control"
+              ),
+
+            cfCacheStatus:
+              response.headers.get(
+                "CF-Cache-Status"
+              ),
+          },
+
+          bodyPreview: body,
+        },
+      },
+      200,
+      corsHeaders
+    );
+
+  } catch (err) {
+    return jsonResponse(
+      {
+        error: "Debug fetch failed",
+        details:
+          err?.message ||
+          String(err),
+
+        url: targetUrl,
+      },
+      502,
+      corsHeaders
+    );
+  }
+}
+
+
+// =============================================================
+// REDIRECT HANDLER
+// =============================================================
 
 async function fetchWithRedirects(
   initialUrl,
@@ -738,11 +722,13 @@ async function fetchWithRedirects(
   ) {
 
     console.log(
-      '[STREAM FETCH]',
-      i + 1,
-      currentUrl.substring(0, 300)
+      "[UPSTREAM FETCH]",
+      {
+        attempt: i + 1,
+        url: currentUrl,
+        method,
+      }
     );
-
 
     const response =
       await fetch(
@@ -751,138 +737,81 @@ async function fetchWithRedirects(
           method,
 
           headers: {
-            ...headers
+            ...headers,
           },
 
-          /*
-           * Manual redirect handling.
-           */
-          redirect: 'manual'
+          redirect: "manual",
+
+          // Do not cache media requests.
+          cache: "no-store",
         }
       );
 
-
-    /*
-     * Not a redirect.
-     */
+    // Not a redirect.
     if (
       !isRedirectStatus(
         response.status
       )
     ) {
-
       return {
         response,
-        finalUrl:
-          currentUrl
+        finalUrl: currentUrl,
       };
     }
 
-
-    /*
-     * Redirect response.
-     */
     const location =
       response.headers.get(
-        'Location'
+        "Location"
       );
-
 
     console.log(
-      '[STREAM REDIRECT]',
-      JSON.stringify({
-        status:
-          response.status,
-
-        from:
-          currentUrl,
-
-        location:
-          location
-      })
+      "[UPSTREAM REDIRECT]",
+      {
+        status: response.status,
+        from: currentUrl,
+        location,
+      }
     );
 
-
-    /*
-     * Redirect without Location.
-     */
     if (!location) {
-
       return {
         response,
-        finalUrl:
-          currentUrl
+        finalUrl: currentUrl,
       };
     }
 
-
-    /*
-     * Too many redirects.
-     */
-    if (
-      i >= maxRedirects
-    ) {
-
+    if (i >= maxRedirects) {
       console.error(
-        '[STREAM] Too many redirects'
+        "[UPSTREAM] Too many redirects"
       );
 
       return {
         response,
-        finalUrl:
-          currentUrl
+        finalUrl: currentUrl,
       };
     }
 
-
-    /*
-     * Resolve relative Location headers correctly.
-     *
-     * Example:
-     *
-     * Location: /movie/file.mp4
-     *
-     * becomes:
-     *
-     * https://domain.com/movie/file.mp4
-     */
-
-    currentUrl =
+    const nextUrl =
       new URL(
         location,
         currentUrl
-      ).href;
+      );
 
-
-    /*
-     * Continue with the SAME headers.
-     *
-     * This keeps:
-     *
-     * User-Agent
-     * Accept
-     * Referer
-     * Range
-     *
-     * on the redirected request.
-     */
-
+    currentUrl =
+      nextUrl.href;
   }
 
-
   throw new Error(
-    'Redirect handling failed'
+    "Redirect handling failed"
   );
 }
 
 
-/* =========================================================
-   REDIRECT STATUS
-========================================================= */
+// =============================================================
+// REDIRECT STATUS
+// =============================================================
 
-function isRedirectStatus(
-  status
-) {
+function isRedirectStatus(status) {
   return (
     status === 301 ||
     status === 302 ||
@@ -893,18 +822,18 @@ function isRedirectStatus(
 }
 
 
-/* =========================================================
-   M3U8 REWRITE
-========================================================= */
+// =============================================================
+// M3U8 REWRITER
+// =============================================================
 
 function rewriteM3U8(
   text,
   baseUrl
 ) {
   const lines =
-    text.split('\n');
+    text.split("\n");
 
-  const out = [];
+  const output = [];
 
   for (
     let i = 0;
@@ -915,12 +844,12 @@ function rewriteM3U8(
     let line =
       lines[i];
 
+    // ---------------------------------------------------------
+    // M3U8 tags
+    // ---------------------------------------------------------
 
-    /*
-     * HLS tags.
-     */
     if (
-      line.startsWith('#')
+      line.startsWith("#")
     ) {
 
       line =
@@ -929,52 +858,42 @@ function rewriteM3U8(
           baseUrl
         );
 
-      out.push(line);
+      output.push(line);
 
       continue;
     }
-
 
     const trimmed =
       line.trim();
 
-
-    /*
-     * Empty line.
-     */
+    // Empty line.
     if (!trimmed) {
-
-      out.push(line);
-
+      output.push(line);
       continue;
     }
 
+    // ---------------------------------------------------------
+    // Segment / playlist URL
+    // ---------------------------------------------------------
 
-    /*
-     * Segment / playlist URL.
-     */
     const resolved =
       resolveUrl(
         trimmed,
         baseUrl
       );
 
-
-    out.push(
-      proxyUrl(
-        resolved
-      )
+    output.push(
+      proxyUrl(resolved)
     );
   }
 
-
-  return out.join('\n');
+  return output.join("\n");
 }
 
 
-/* =========================================================
-   M3U8 URI TAG
-========================================================= */
+// =============================================================
+// Rewrite URI="..." inside M3U8 tags
+// =============================================================
 
 function rewriteUriInTag(
   line,
@@ -984,27 +903,18 @@ function rewriteUriInTag(
     /URI="([^"]+)"/g,
     (match, uri) => {
 
-      /*
-       * Do not modify data/skd URIs.
-       */
       if (
-        uri.startsWith(
-          'data:'
-        ) ||
-        uri.startsWith(
-          'skd:'
-        )
+        uri.startsWith("data:") ||
+        uri.startsWith("skd:")
       ) {
         return match;
       }
-
 
       const resolved =
         resolveUrl(
           uri,
           baseUrl
         );
-
 
       return (
         `URI="${proxyUrl(resolved)}"`
@@ -1014,63 +924,131 @@ function rewriteUriInTag(
 }
 
 
-/* =========================================================
-   RESOLVE URL
-========================================================= */
+// =============================================================
+// Resolve relative M3U8 URLs
+// =============================================================
 
 function resolveUrl(
-  url,
+  value,
   base
 ) {
-  /*
-   * Absolute URL.
-   */
   if (
-    url.startsWith(
-      'http://'
+    value.startsWith(
+      "http://"
     ) ||
-    url.startsWith(
-      'https://'
+    value.startsWith(
+      "https://"
     )
   ) {
-    return url;
+    return value;
   }
 
-
-  /*
-   * Relative URL.
-   */
   try {
-
     return new URL(
-      url,
+      value,
       base
     ).href;
 
   } catch {
-
-    return url;
+    return value;
   }
 }
 
 
-/* =========================================================
-   PROXY URL
-========================================================= */
+// =============================================================
+// Convert upstream URL to Worker /stream URL
+// =============================================================
 
-function proxyUrl(
-  url
-) {
+function proxyUrl(url) {
   return (
-    '/stream?url=' +
+    "/stream?url=" +
     encodeURIComponent(url)
   );
 }
 
 
-/* =========================================================
-   JSON RESPONSE
-========================================================= */
+// =============================================================
+// Read only a small diagnostic body
+// =============================================================
+
+async function readSmallBody(
+  response,
+  maxBytes
+) {
+  try {
+    if (!response.body) {
+      return "";
+    }
+
+    const reader =
+      response.body.getReader();
+
+    const decoder =
+      new TextDecoder();
+
+    let result = "";
+    let total = 0;
+
+    while (
+      total < maxBytes
+    ) {
+
+      const {
+        value,
+        done,
+      } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      if (!value) {
+        continue;
+      }
+
+      const remaining =
+        maxBytes - total;
+
+      const chunk =
+        value.slice(
+          0,
+          remaining
+        );
+
+      result +=
+        decoder.decode(
+          chunk,
+          {
+            stream: true,
+          }
+        );
+
+      total +=
+        chunk.byteLength;
+
+      if (
+        total >= maxBytes
+      ) {
+        break;
+      }
+    }
+
+    return result;
+
+  } catch (err) {
+    return (
+      "[Unable to read body: " +
+      (err?.message ||
+        String(err)) +
+      "]"
+    );
+  }
+}
+
+
+// =============================================================
+// JSON RESPONSE
+// =============================================================
 
 function jsonResponse(
   data,
@@ -1078,22 +1056,26 @@ function jsonResponse(
   corsHeaders
 ) {
   return new Response(
-    JSON.stringify(data),
+    JSON.stringify(
+      data,
+      null,
+      2
+    ),
     {
       status,
 
       headers: {
         ...corsHeaders,
 
-        'Content-Type':
-          'application/json; charset=utf-8',
+        "Content-Type":
+          "application/json; charset=utf-8",
 
-        'Cache-Control':
-          'no-cache, no-store, must-revalidate',
+        "Cache-Control":
+          "no-cache, no-store, must-revalidate",
 
-        'Pragma':
-          'no-cache'
-      }
+        "Pragma":
+          "no-cache",
+      },
     }
   );
 }
