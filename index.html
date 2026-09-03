@@ -2,15 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
 <script>
-// Force clear old service worker and reload once
 (function() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(regs) {
       var hadSW = regs.length > 0;
       var promises = regs.map(function(r) { return r.unregister(); });
       Promise.all(promises).then(function() {
-        if (hadSW && !sessionStorage.getItem('sw_cleared_v4')) {
-          sessionStorage.setItem('sw_cleared_v4', '1');
+        if (hadSW && !sessionStorage.getItem('sw_cleared_v5')) {
+          sessionStorage.setItem('sw_cleared_v5', '1');
           window.location.reload();
         }
       });
@@ -33,15 +32,9 @@
 
 <title>Raxson Player</title>
 <style>
-:root{
- --c-p:#e91e63;--c-p-d:#c2185b;--c-bg:#0a0a0f;--c-sf:#14141f;
- --c-t:#fff;--c-t2:#a0a0b0;--c-tm:#6a6a7a;--c-ok:#00ff99;
- --g-bg:rgba(255,255,255,0.03);--g-b:rgba(255,255,255,0.08);
- --r-md:12px;--r-lg:16px;--r-xl:20px;--tr:250ms cubic-bezier(0.4,0,0.2,1);
-}
+:root{--c-p:#e91e63;--c-p-d:#c2185b;--c-bg:#0a0a0f;--c-sf:#14141f;--c-t:#fff;--c-t2:#a0a0b0;--c-tm:#6a6a7a;--c-ok:#00ff99;--g-bg:rgba(255,255,255,0.03);--g-b:rgba(255,255,255,0.08);--r-md:12px;--r-lg:16px;--r-xl:20px;--tr:250ms cubic-bezier(0.4,0,0.2,1)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);overflow:hidden;-webkit-tap-highlight-color:transparent}
-
 .login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;background:radial-gradient(ellipse at 20% 20%,rgba(233,30,99,0.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,255,208,0.05) 0%,transparent 50%),var(--c-bg)}
 .neon-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,255,208,0.99);opacity:0.15;animation:pr 4s ease-in-out infinite;pointer-events:none}
 .ring-1{width:500px;height:500px;top:-150px;left:-150px}.ring-2{width:400px;height:400px;bottom:-100px;right:-100px;animation-delay:2s}
@@ -66,7 +59,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 @keyframes spin{to{transform:rotate(360deg)}}
 .login-error{min-height:20px;text-align:center;font-size:13px;color:#ff3366;opacity:0;transition:opacity 150ms}.login-error.show{opacity:1}
 .login-log{text-align:center;font-size:11px;color:var(--c-tm);min-height:16px}
-
 .app-container{display:none;height:100vh;flex-direction:column;overflow:hidden}
 .app-container.active{display:flex}
 .app-header{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--g-b);padding:12px 16px;display:flex;align-items:center;gap:16px}
@@ -112,8 +104,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .season-title{font-size:13px;font-weight:700;color:#3b82f6;margin-bottom:10px;padding-right:8px;border-right:3px solid #3b82f6}
 .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .ep-btn{background:rgba(255,255,255,0.03);border:1px solid var(--g-b);border-radius:10px;padding:12px;text-align:right;color:#fff;cursor:pointer;transition:all 200ms}.ep-btn:hover{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3)}.ep-btn:active{transform:scale(0.98)}
-
-/* PLAYER */
 .player-overlay{position:fixed;inset:0;background:#000;z-index:99;display:none;flex-direction:column;animation:fi 0.3s ease}
 @keyframes fi{from{opacity:0}to{opacity:1}}
 .player-overlay.visible{display:flex}
@@ -123,8 +113,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .player-video{flex:1;width:100%;height:100%;background:#000;object-fit:contain}
 .big-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:50px;border-radius:14px;background:var(--c-p);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;z-index:15;box-shadow:0 0 25px rgba(233,30,99,0.18)}.big-play:hover{transform:translate(-50%,-50%) scale(1.1);background:var(--c-p-d)}.big-play.hidden{opacity:0;pointer-events:none}
 .player-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;pointer-events:none}.player-loader.hidden{display:none}.player-loader div{width:48px;height:48px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}
-
-/* DOUBLE TAP */
 .dt-zone{position:absolute;top:0;bottom:90px;z-index:5;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .dt-zone.left{left:0;width:25%}
 .dt-zone.center{left:25%;width:50%;z-index:4}
@@ -138,8 +126,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 @keyframes dtRipple{0%{transform:scale(0.5);opacity:1}100%{transform:scale(1.5);opacity:0}}
 .dt-text{font-size:13px;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:8px;white-space:nowrap}
 @keyframes dtFade{0%{opacity:0;transform:translateY(-50%) scale(0.8)}20%{opacity:1;transform:translateY(-50%) scale(1)}80%{opacity:1;transform:translateY(-50%) scale(1)}100%{opacity:0;transform:translateY(-50%) scale(1)}}
-
-/* PROGRESS - RTL Fixed */
 .progress-container{width:100%;height:28px;display:flex;align-items:center;cursor:pointer;position:relative;touch-action:none;-webkit-user-select:none;user-select:none;z-index:12}
 .progress-track{width:100%;height:4px;background:rgba(255,255,255,0.2);border-radius:9999px;position:relative;overflow:visible;transition:height 0.15s}
 .progress-container:hover .progress-track,.progress-container.dragging .progress-track{height:6px}
@@ -148,16 +134,12 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .progress-container:hover .progress-fill::after,.progress-container.dragging .progress-fill::after{transform:translateY(-50%) scale(1)}
 .progress-tooltip{position:absolute;top:-32px;background:rgba(0,0,0,0.85);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;z-index:30}
 .progress-container:hover .progress-tooltip,.progress-container.dragging .progress-tooltip{opacity:1}
-
-/* CONTROLS */
 .player-controls{position:absolute;bottom:0;left:0;right:0;padding:16px 16px 12px;background:linear-gradient(to top,rgba(0,0,0,0.85),transparent);display:flex;flex-direction:column;gap:8px;z-index:12;transition:opacity 0.3s}.player-controls.hidden{opacity:0;pointer-events:none}
 .controls-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.controls-left,.controls-right{display:flex;align-items:center;gap:4px}
 .ctrl-btn{width:40px;height:40px;border-radius:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 150ms;backdrop-filter:blur(4px);-webkit-tap-highlight-color:transparent}.ctrl-btn:hover{background:var(--c-p);border-color:var(--c-p);transform:scale(1.1);box-shadow:0 0 25px rgba(233,30,99,0.18)}
 .ctrl-btn.play-btn{width:auto;height:auto;background:transparent;border:none;padding:8px}.ctrl-btn.play-btn:hover{transform:scale(1.2);background:transparent;border:none;box-shadow:none}
 .time-display{font-size:11px;color:rgba(255,255,255,0.8);font-variant-numeric:tabular-nums;direction:ltr;white-space:nowrap}
 .live-badge{position:absolute;top:12px;left:12px;background:#ff3366;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;z-index:15;display:none;align-items:center;gap:6px;animation:pu 2s infinite}.live-badge::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%}@keyframes pu{0%,100%{opacity:1}50%{opacity:0.7}}
-
-/* SETTINGS MENU */
 .settings-menu{position:absolute;bottom:60px;right:16px;background:rgba(20,20,30,0.95);backdrop-filter:blur(20px);border:1px solid var(--g-b);border-radius:var(--r-lg);padding:8px;min-width:220px;display:none;flex-direction:column;gap:4px;z-index:25;box-shadow:0 10px 40px rgba(0,0,0,0.6)}
 .settings-menu.visible{display:flex;animation:ddIn 0.2s ease}
 .settings-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;cursor:pointer;transition:all 150ms;font-size:13px;color:var(--c-t);gap:12px}
@@ -166,9 +148,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .settings-item span:last-child{color:var(--c-p);font-weight:600;font-size:12px;direction:ltr}
 .settings-item.hidden{display:none}
 .settings-divider{height:1px;background:var(--g-b);margin:4px 0}
-
 .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.9);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:90}.loading-overlay[hidden]{display:none}.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--c-p);border-radius:50%;animation:spin 0.8s linear infinite}.loading-text{font-size:13px;color:var(--c-t2)}
-
 .install-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 300ms ease}
 .install-overlay.show{display:flex;opacity:1}
 .install-card{background:linear-gradient(180deg, rgba(30,30,45,0.98), rgba(15,15,25,0.98));border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:28px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(233,30,99,0.08);transform:scale(0.9) translateY(20px);transition:transform 300ms cubic-bezier(0.34,1.56,0.64,1)}
@@ -185,7 +165,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .install-btn-cancel:hover{background:rgba(255,255,255,0.1)}
 .install-btn-confirm{background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;box-shadow:0 4px 20px rgba(233,30,99,0.25)}
 .install-btn-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(233,30,99,0.35)}
-
 .header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
 .header-brand{flex:1;min-width:0;text-align:right}
 .install-header-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--c-p),var(--c-p-d));color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all 150ms;white-space:nowrap}
@@ -208,15 +187,14 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 @media(max-height:500px) and (orientation:landscape){.login-screen{align-items:flex-start;padding-top:20px;overflow-y:auto}.login-glass{margin:20px auto}}
 @media(hover:none) and (pointer:coarse){.card-overlay{opacity:0.3}.ctrl-btn:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}}
-
 .ctrl-btn svg{width:20px;height:20px;fill:currentColor}
 .big-play svg{width:28px;height:28px;fill:currentColor;pointer-events:none}
 </style>
 <link rel="apple-touch-icon" href="/logo1.png">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
-
 <div id="loginScreen" class="login-screen">
  <div class="neon-ring ring-1"></div>
  <div class="neon-ring ring-2"></div>
@@ -295,7 +273,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
  <div class="loading-text" id="loadingText">جاري التحميل...</div>
 </div>
 
-<!-- PLAYER OVERLAY -->
 <div id="playerOverlay" class="player-overlay">
  <div class="player-header" id="playerHeader">
   <span class="player-title" id="playerTitle">...</span>
@@ -326,10 +303,12 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   <div class="dt-text" id="dtRightText"><span style="margin-left:4px;">10 ثواني</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></div>
  </div>
 
- <div class="gesture-hint left" id="gestureLeft"></div>
- <div class="gesture-hint right" id="gestureRight"></div>
-
  <div class="settings-menu" id="settingsMenu">
+  <div class="settings-item" id="directToggleBtn">
+   <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> <span style="margin-right:8px;">تشغيل مباشر</span></span>
+   <span id="directLabel">معطل</span>
+  </div>
+  <div class="settings-divider"></div>
   <div class="settings-item" id="fitBtn">
    <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span style="margin-right:8px;">شكل الشاشة</span></span>
    <span id="fitLabel">ملائم</span>
@@ -402,13 +381,11 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
-
 const DEFAULT_HOST = "http://barqtv.website:80";
 const AUTH = { host: DEFAULT_HOST, user: "", pass: "" };
 let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false, seriesInfo: null };
 let DATA = { live: { cats: [], items: [], ok: false, loading: false, error: null }, vod: { cats: [], items: [], ok: false, loading: false, error: null }, series: { cats: [], items: [], ok: false, loading: false, error: null } };
 let HLS = null, SUB_EXPIRY = "", WATCHED = [];
-let playerOpenTimeout = null;
 
 const $ = id => document.getElementById(id);
 const E = {
@@ -423,10 +400,9 @@ const E = {
  fullscreenBtn: $("fullscreenBtn"), pipBtn: $("pipBtn"), settingsBtn: $("settingsBtn"), settingsMenu: $("settingsMenu"),
  fitBtn: $("fitBtn"), fitLabel: $("fitLabel"), speedBtn: $("speedBtn"), speedLabel: $("speedLabel"),
  qualityBtn: $("qualityBtn"), qualityLabel: $("qualityLabel"), audioTrackBtn: $("audioTrackBtn"), audioTrackLabel: $("audioTrackLabel"),
- settingsDownloadBtn: $("settingsDownloadBtn"),
+ settingsDownloadBtn: $("settingsDownloadBtn"), directToggleBtn: $("directToggleBtn"), directLabel: $("directLabel"),
  progressContainer: $("progressContainer"), progressFill: $("progressFill"), progressTooltip: $("progressTooltip"),
  timeDisplay: $("timeDisplay"), playerLoader: $("playerLoader"),
- gestureLeft: $("gestureLeft"), gestureRight: $("gestureRight"),
  installOverlay: $("installOverlay"), installCancel: $("installCancel"), installConfirm: $("installConfirm"),
  installHeaderBtn: $("installHeaderBtn"), installGuideText: $("installGuideText"), headerFullscreenBtn: $("headerFullscreenBtn"),
  dtZoneLeft: $("dtZoneLeft"), dtZoneCenter: $("dtZoneCenter"), dtZoneRight: $("dtZoneRight"),
@@ -480,6 +456,17 @@ function init() {
 }
 
 function initSettings() {
+ // Direct toggle
+ if (E.directToggleBtn) {
+  const isDirect = localStorage.getItem('rp_direct') === 'true';
+  if (E.directLabel) E.directLabel.textContent = isDirect ? 'مفعل' : 'معطل';
+  E.directToggleBtn.addEventListener("click", () => {
+   const newVal = localStorage.getItem('rp_direct') !== 'true';
+   localStorage.setItem('rp_direct', newVal ? 'true' : 'false');
+   if (E.directLabel) E.directLabel.textContent = newVal ? 'مفعل' : 'معطل';
+  });
+ }
+
  if (E.settingsBtn) {
   E.settingsBtn.addEventListener("click", (e) => {
    e.stopPropagation();
@@ -902,7 +889,7 @@ function lazyImg() {
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function showLoad(v, t) { E.loadingOverlay.hidden = !v; if (t) E.loadingText.textContent = t; }
 
-// ===== PLAYER: Direct → Proxy (simple & reliable) =====
+// ===== PLAYER: Clear Direct/Proxy path =====
 function openPlayer(originalUrl, name, live, item) {
  window.CURRENT_ITEM = item || null;
  if (item) addToWatched(item);
@@ -916,6 +903,13 @@ function openPlayer(originalUrl, name, live, item) {
  if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
  if (E.audioTrackLabel) E.audioTrackLabel.textContent = "--";
 
+ // Determine playback mode: Direct or Proxy
+ const useDirect = localStorage.getItem('rp_direct') === 'true';
+ const isM3U8 = originalUrl.includes('.m3u8');
+ const playUrl = useDirect ? originalUrl : ("/stream?url=" + encodeURIComponent(originalUrl));
+
+ console.log('[Player] Mode:', useDirect ? 'Direct' : 'Proxy', 'URL:', playUrl.substring(0, 80));
+
  // Show player UI
  E.playerOverlay.style.display = "flex";
  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
@@ -927,107 +921,68 @@ function openPlayer(originalUrl, name, live, item) {
 
  // Cleanup any previous player state
  cleanupPlayer();
- if (playerOpenTimeout) { clearTimeout(playerOpenTimeout); playerOpenTimeout = null; }
 
- const isM3U8 = originalUrl.includes('.m3u8');
- const proxyUrl = "/stream?url=" + encodeURIComponent(originalUrl);
-
- // ===== M3U8: Try Direct HLS.js first, fallback to Proxy HLS.js =====
+ // ===== M3U8 via HLS.js =====
  if (isM3U8 && typeof Hls !== 'undefined' && Hls.isSupported()) {
-  let fallbackUsed = false;
-
-  function initHls(url) {
-   console.log('[Player] Loading HLS:', url.substring(0, 80) + '...');
-   if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
-
-   HLS = new Hls({
-    enableWorker: true,
-    maxBufferLength: 30,
-    maxMaxBufferLength: 60,
-    startLevel: -1
-   });
-
-   HLS.loadSource(url);
-   HLS.attachMedia(E.playerVideo);
-
-   HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-    if (E.playerLoader) E.playerLoader.classList.add("hidden");
-    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-    E.playerVideo.play().catch(() => {});
-    if (HLS.levels && HLS.levels.length > 1) {
-     if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
-     if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
-    }
-   });
-
-   HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (e, data) => {
-    if (data.audioTracks && data.audioTracks.length > 1) {
-     if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
-     const track = data.audioTracks[HLS.audioTrack] || data.audioTracks[0];
-     if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (HLS.audioTrack + 1));
-    }
-   });
-
-   HLS.on(Hls.Events.ERROR, (e, d) => {
-    if (!d.fatal) return;
-    console.log('[Player] HLS fatal error:', d.type, d.details);
-
-    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
-     if (!fallbackUsed) {
-      fallbackUsed = true;
-      console.log('[Player] Network error → fallback to proxy');
-      initHls(proxyUrl);
-     } else {
-      // Already on proxy, try recover
-      HLS.startLoad();
-     }
-    } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
-     HLS.recoverMediaError();
-    } else {
-     if (!fallbackUsed) {
-      fallbackUsed = true;
-      console.log('[Player] Fatal error → fallback to proxy');
-      initHls(proxyUrl);
-     }
-    }
-   });
-  }
-
-  // Start with Direct URL
-  initHls(originalUrl);
-
-  // Safety timeout: if video hasn't started after 10s, switch to proxy
-  playerOpenTimeout = setTimeout(() => {
-   if (!fallbackUsed && E.playerVideo.readyState < 2) {
-    fallbackUsed = true;
-    console.log('[Player] Timeout → fallback to proxy');
-    initHls(proxyUrl);
-   }
-  }, 10000);
-
- // ===== MP4 or no HLS support: Direct <video> =====
+  initHls(playUrl);
  } else {
-  console.log('[Player] Direct video src:', originalUrl);
-  E.playerVideo.src = originalUrl;
+  // MP4 direct
+  console.log('[Player] Direct video src:', playUrl);
+  E.playerVideo.src = playUrl;
   E.playerVideo.play().catch((err) => {
    console.log('[Player] Direct play failed:', err);
-   if (!E.playerVideo.src.includes('/stream?url=')) {
-    E.playerVideo.src = proxyUrl;
-    E.playerVideo.play().catch(() => {});
-   }
   });
   E.playerVideo.onerror = () => {
    console.log('[Player] Video error, code:', E.playerVideo.error?.code);
-   if (!E.playerVideo.src.includes('/stream?url=')) {
-    E.playerVideo.src = proxyUrl;
-    E.playerVideo.play().catch(() => {});
-   }
   };
   if (E.playerLoader) E.playerLoader.classList.add("hidden");
   if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
  }
 
  showControls();
+}
+
+function initHls(url) {
+ console.log('[Player] Loading HLS:', url.substring(0, 80) + '...');
+ if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
+
+ HLS = new Hls({
+  enableWorker: true,
+  maxBufferLength: 30,
+  maxMaxBufferLength: 60,
+  startLevel: -1
+ });
+
+ HLS.loadSource(url);
+ HLS.attachMedia(E.playerVideo);
+
+ HLS.on(Hls.Events.MANIFEST_PARSED, () => {
+  if (E.playerLoader) E.playerLoader.classList.add("hidden");
+  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+  E.playerVideo.play().catch(() => {});
+  if (HLS.levels && HLS.levels.length > 1) {
+   if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
+   if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
+  }
+ });
+
+ HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (e, data) => {
+  if (data.audioTracks && data.audioTracks.length > 1) {
+   if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
+   const track = data.audioTracks[HLS.audioTrack] || data.audioTracks[0];
+   if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (HLS.audioTrack + 1));
+  }
+ });
+
+ HLS.on(Hls.Events.ERROR, (e, d) => {
+  if (!d.fatal) return;
+  console.log('[Player] HLS fatal error:', d.type, d.details);
+  if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+   HLS.startLoad();
+  } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
+   HLS.recoverMediaError();
+  }
+ });
 }
 
 function cleanupPlayer() {
@@ -1039,7 +994,6 @@ function cleanupPlayer() {
 }
 
 function closePlayer() {
- if (playerOpenTimeout) { clearTimeout(playerOpenTimeout); playerOpenTimeout = null; }
  E.playerOverlay.classList.remove("visible");
  setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
  cleanupPlayer();
@@ -1133,6 +1087,7 @@ function showControls() {
   }
  }, 3000);
 }
+
 // ===== PLAYER CONTROLS & EVENTS =====
 function initPlayer() {
  E.playerClose.addEventListener("click", closePlayer);
