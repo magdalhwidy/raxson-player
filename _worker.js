@@ -222,133 +222,196 @@ async function handleStream(request, url, cors) {
 
   try {
 
-    /*
-     * Manually follow redirects so we know exactly
-     * where the upstream server sends the request.
-     */
-    let result =
-      await followRedirects(
-        target,
-        method,
-        headers
-      );
-
-    let response =
-      result.response;
-
-    let finalUrl =
-      result.finalUrl;
-
-    console.log("[STREAM RESULT]", {
-      status:
-        response.status,
-
-      finalUrl,
-
-      redirected:
-        finalUrl !== target,
-
-      contentType:
-        response.headers.get(
-          "Content-Type"
-        ),
-
-      server:
-        response.headers.get(
-          "Server"
-        ),
-
-      contentLength:
-        response.headers.get(
-          "Content-Length"
-        ),
-
-      contentRange:
-        response.headers.get(
-          "Content-Range"
-        ),
-
-      acceptRanges:
-        response.headers.get(
-          "Accept-Ranges"
-        ),
-    });
-
-
     // ========================================================
-    // HTTPS FALLBACK
+    // HTTPS ALTERNATIVE
     // ========================================================
 
-    if (
-      response.status === 403 &&
-      parsed.protocol === "http:"
-    ) {
+    let httpsTarget = null;
 
-      const https =
-        new URL(target);
+    if (parsed.protocol === "http:") {
+      const httpsUrl = new URL(target);
 
-      https.protocol =
-        "https:";
+      httpsUrl.protocol = "https:";
 
-      if (https.port === "80") {
-        https.port = "";
+      if (httpsUrl.port === "80") {
+        httpsUrl.port = "";
       }
 
-      console.log(
-        "[STREAM] Original HTTP returned 403."
-      );
+      httpsTarget = httpsUrl.href;
+    }
+
+
+    // ========================================================
+    // TRY HTTPS FIRST
+    // ========================================================
+
+    let result = null;
+    let response = null;
+    let finalUrl = null;
+
+    if (httpsTarget) {
 
       console.log(
-        "[STREAM] Trying HTTPS equivalent:",
-        https.href
+        "[STREAM] Trying HTTPS first:",
+        httpsTarget
       );
 
       try {
 
         const httpsResult =
           await followRedirects(
-            https.href,
+            httpsTarget,
             method,
             headers
           );
 
+        const httpsResponse =
+          httpsResult.response;
+
         console.log(
-          "[STREAM HTTPS RESULT]",
+          "[STREAM HTTPS FIRST RESULT]",
           {
             status:
-              httpsResult.response.status,
+              httpsResponse.status,
 
             finalUrl:
               httpsResult.finalUrl,
+
+            contentType:
+              httpsResponse.headers.get(
+                "Content-Type"
+              ),
+
+            server:
+              httpsResponse.headers.get(
+                "Server"
+              ),
+
+            contentLength:
+              httpsResponse.headers.get(
+                "Content-Length"
+              ),
+
+            contentRange:
+              httpsResponse.headers.get(
+                "Content-Range"
+              ),
+
+            acceptRanges:
+              httpsResponse.headers.get(
+                "Accept-Ranges"
+              ),
           }
         );
 
+
         /*
-         * Prefer HTTPS when it actually succeeds.
+         * HTTPS is considered successful
+         * only when it returns a 2xx response.
          */
+
         if (
-          httpsResult.response.status >= 200 &&
-          httpsResult.response.status < 300
+          httpsResponse.status >= 200 &&
+          httpsResponse.status < 300
         ) {
 
           result =
             httpsResult;
 
           response =
-            httpsResult.response;
+            httpsResponse;
 
           finalUrl =
             httpsResult.finalUrl;
+
+          console.log(
+            "[STREAM] HTTPS succeeded."
+          );
+
+        } else {
+
+          console.log(
+            "[STREAM] HTTPS did not return 2xx."
+          );
+
+          console.log(
+            "[STREAM] Trying original HTTP."
+          );
         }
 
       } catch (err) {
 
         console.error(
-          "[STREAM HTTPS ERROR]",
+          "[STREAM HTTPS FIRST ERROR]",
           err?.message ||
             String(err)
         );
+
+        console.log(
+          "[STREAM] Falling back to original HTTP."
+        );
       }
+    }
+
+
+    // ========================================================
+    // ORIGINAL HTTP FALLBACK
+    // ========================================================
+
+    if (!response) {
+
+      console.log(
+        "[STREAM] Trying original URL:",
+        target
+      );
+
+      result =
+        await followRedirects(
+          target,
+          method,
+          headers
+        );
+
+      response =
+        result.response;
+
+      finalUrl =
+        result.finalUrl;
+
+      console.log(
+        "[STREAM HTTP RESULT]",
+        {
+          status:
+            response.status,
+
+          finalUrl,
+
+          contentType:
+            response.headers.get(
+              "Content-Type"
+            ),
+
+          server:
+            response.headers.get(
+              "Server"
+            ),
+
+          contentLength:
+            response.headers.get(
+              "Content-Length"
+            ),
+
+          contentRange:
+            response.headers.get(
+              "Content-Range"
+            ),
+
+          acceptRanges:
+            response.headers.get(
+              "Accept-Ranges"
+            ),
+        }
+      );
     }
 
 
