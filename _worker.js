@@ -40,6 +40,7 @@ export default {
         status: 404,
         headers: cors,
       });
+
     } catch (err) {
       console.error("[WORKER ERROR]", err);
 
@@ -69,7 +70,9 @@ async function handleApi(url, cors) {
 
   if (!host || !user || !pass || !action) {
     return json(
-      { error: "Missing parameters" },
+      {
+        error: "Missing parameters",
+      },
       400,
       cors
     );
@@ -116,14 +119,19 @@ async function handleApi(url, cors) {
 
     return new Response(body, {
       status: response.status,
+
       headers: {
         ...cors,
+
         "Content-Type":
           response.headers.get("Content-Type") ||
           "application/json; charset=utf-8",
+
         "Cache-Control":
           "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
+
+        "Pragma":
+          "no-cache",
       },
     });
 
@@ -133,7 +141,9 @@ async function handleApi(url, cors) {
     return json(
       {
         error: "Fetch failed",
-        details: err?.message || String(err),
+        details:
+          err?.message ||
+          String(err),
       },
       502,
       cors
@@ -147,11 +157,14 @@ async function handleApi(url, cors) {
 // ============================================================
 
 async function handleStream(request, url, cors) {
-  const target = url.searchParams.get("url")?.trim();
+  const target =
+    url.searchParams.get("url")?.trim();
 
   if (!target) {
     return json(
-      { error: "Missing url parameter" },
+      {
+        error: "Missing url parameter",
+      },
       400,
       cors
     );
@@ -168,9 +181,12 @@ async function handleStream(request, url, cors) {
     ) {
       throw new Error("Invalid protocol");
     }
+
   } catch {
     return json(
-      { error: "Invalid URL" },
+      {
+        error: "Invalid URL",
+      },
       400,
       cors
     );
@@ -205,39 +221,57 @@ async function handleStream(request, url, cors) {
   });
 
   try {
+
     /*
-     * IMPORTANT:
-     *
-     * We manually follow redirects so we know exactly where
-     * barqtv sends the request.
-     *
-     * We do NOT modify the /auth/... URL returned by the
-     * upstream server.
+     * Manually follow redirects so we know exactly
+     * where the upstream server sends the request.
      */
+    let result =
+      await followRedirects(
+        target,
+        method,
+        headers
+      );
 
-    let result = await followRedirects(
-      target,
-      method,
-      headers
-    );
+    let response =
+      result.response;
 
-    let response = result.response;
-    let finalUrl = result.finalUrl;
+    let finalUrl =
+      result.finalUrl;
 
     console.log("[STREAM RESULT]", {
-      status: response.status,
+      status:
+        response.status,
+
       finalUrl,
-      redirected: finalUrl !== target,
+
+      redirected:
+        finalUrl !== target,
+
       contentType:
-        response.headers.get("Content-Type"),
+        response.headers.get(
+          "Content-Type"
+        ),
+
       server:
-        response.headers.get("Server"),
+        response.headers.get(
+          "Server"
+        ),
+
       contentLength:
-        response.headers.get("Content-Length"),
+        response.headers.get(
+          "Content-Length"
+        ),
+
       contentRange:
-        response.headers.get("Content-Range"),
+        response.headers.get(
+          "Content-Range"
+        ),
+
       acceptRanges:
-        response.headers.get("Accept-Ranges"),
+        response.headers.get(
+          "Accept-Ranges"
+        ),
     });
 
 
@@ -249,9 +283,12 @@ async function handleStream(request, url, cors) {
       response.status === 403 &&
       parsed.protocol === "http:"
     ) {
-      const https = new URL(target);
 
-      https.protocol = "https:";
+      const https =
+        new URL(target);
+
+      https.protocol =
+        "https:";
 
       if (https.port === "80") {
         https.port = "";
@@ -267,6 +304,7 @@ async function handleStream(request, url, cors) {
       );
 
       try {
+
         const httpsResult =
           await followRedirects(
             https.href,
@@ -292,7 +330,9 @@ async function handleStream(request, url, cors) {
           httpsResult.response.status >= 200 &&
           httpsResult.response.status < 300
         ) {
-          result = httpsResult;
+
+          result =
+            httpsResult;
 
           response =
             httpsResult.response;
@@ -302,9 +342,11 @@ async function handleStream(request, url, cors) {
         }
 
       } catch (err) {
+
         console.error(
           "[STREAM HTTPS ERROR]",
-          err?.message || String(err)
+          err?.message ||
+            String(err)
         );
       }
     }
@@ -315,7 +357,9 @@ async function handleStream(request, url, cors) {
     // ========================================================
 
     const contentType =
-      response.headers.get("Content-Type") || "";
+      response.headers.get(
+        "Content-Type"
+      ) || "";
 
     const lowerType =
       contentType.toLowerCase();
@@ -339,6 +383,7 @@ async function handleStream(request, url, cors) {
       response.status >= 200 &&
       response.status < 300
     ) {
+
       const playlist =
         await response.text();
 
@@ -351,7 +396,8 @@ async function handleStream(request, url, cors) {
       return new Response(
         rewritten,
         {
-          status: response.status,
+          status:
+            response.status,
 
           headers: {
             ...cors,
@@ -400,12 +446,18 @@ async function handleStream(request, url, cors) {
       "Content-Encoding",
     ];
 
-    for (const name of copyHeaders) {
+    for (
+      const name of copyHeaders
+    ) {
+
       const value =
-        response.headers.get(name);
+        response.headers.get(
+          name
+        );
 
       if (value) {
-        responseHeaders[name] = value;
+        responseHeaders[name] =
+          value;
       }
     }
 
@@ -413,33 +465,44 @@ async function handleStream(request, url, cors) {
       response.status === 206 &&
       !responseHeaders["Accept-Ranges"]
     ) {
-      responseHeaders["Accept-Ranges"] =
-        "bytes";
+
+      responseHeaders[
+        "Accept-Ranges"
+      ] = "bytes";
     }
+
 
     /*
      * IMPORTANT:
      *
-     * Never call response.text() / arrayBuffer()
-     * for video data.
+     * Never call response.text()
+     * or arrayBuffer() for video.
      *
-     * Pass the upstream ReadableStream directly.
+     * Pass the upstream ReadableStream
+     * directly to the client.
      */
 
     return new Response(
       response.body,
       {
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders,
+        status:
+          response.status,
+
+        statusText:
+          response.statusText,
+
+        headers:
+          responseHeaders,
       }
     );
 
   } catch (err) {
+
     console.error(
       "[STREAM ERROR]",
       {
         url: target,
+
         error:
           err?.message ||
           String(err),
@@ -448,7 +511,9 @@ async function handleStream(request, url, cors) {
 
     return json(
       {
-        error: "Stream failed",
+        error:
+          "Stream failed",
+
         details:
           err?.message ||
           String(err),
@@ -469,7 +534,8 @@ async function followRedirects(
   method,
   headers
 ) {
-  let current = initialUrl;
+  let current =
+    initialUrl;
 
   const maxRedirects = 5;
 
@@ -482,8 +548,11 @@ async function followRedirects(
     console.log(
       "[UPSTREAM]",
       {
-        attempt: attempt + 1,
-        url: current,
+        attempt:
+          attempt + 1,
+
+        url:
+          current,
       }
     );
 
@@ -497,20 +566,29 @@ async function followRedirects(
             ...headers,
           },
 
-          redirect: "manual",
+          redirect:
+            "manual",
 
-          cache: "no-store",
+          cache:
+            "no-store",
         }
       );
 
+
     if (
-      !isRedirect(response.status)
+      !isRedirect(
+        response.status
+      )
     ) {
+
       return {
         response,
-        finalUrl: current,
+
+        finalUrl:
+          current,
       };
     }
+
 
     const location =
       response.headers.get(
@@ -520,31 +598,46 @@ async function followRedirects(
     console.log(
       "[REDIRECT]",
       {
-        status: response.status,
-        from: current,
+        status:
+          response.status,
+
+        from:
+          current,
+
         location,
       }
     );
 
+
     if (!location) {
+
       return {
         response,
-        finalUrl: current,
+
+        finalUrl:
+          current,
       };
     }
+
 
     if (
       attempt >= maxRedirects
     ) {
+
       return {
         response,
-        finalUrl: current,
+
+        finalUrl:
+          current,
       };
     }
 
+
     /*
-     * Resolve relative Location correctly.
+     * Resolve relative Location
+     * correctly.
      */
+
     current =
       new URL(
         location,
@@ -577,18 +670,24 @@ function rewriteM3U8(
   text,
   baseUrl
 ) {
+
   const lines =
     text.split("\n");
 
   const output = [];
 
-  for (const originalLine of lines) {
+  for (
+    const originalLine of lines
+  ) {
+
     let line =
       originalLine;
+
 
     if (
       line.startsWith("#")
     ) {
+
       line =
         rewriteTagUri(
           line,
@@ -596,16 +695,22 @@ function rewriteM3U8(
         );
 
       output.push(line);
+
       continue;
     }
+
 
     const value =
       line.trim();
 
+
     if (!value) {
+
       output.push(line);
+
       continue;
     }
+
 
     const resolved =
       resolveUrl(
@@ -613,8 +718,11 @@ function rewriteM3U8(
         baseUrl
       );
 
+
     output.push(
-      toProxyUrl(resolved)
+      toProxyUrl(
+        resolved
+      )
     );
   }
 
@@ -626,6 +734,7 @@ function rewriteTagUri(
   line,
   baseUrl
 ) {
+
   return line.replace(
     /URI="([^"]+)"/g,
     (match, uri) => {
@@ -634,14 +743,17 @@ function rewriteTagUri(
         uri.startsWith("data:") ||
         uri.startsWith("skd:")
       ) {
+
         return match;
       }
+
 
       const resolved =
         resolveUrl(
           uri,
           baseUrl
         );
+
 
       return (
         `URI="${toProxyUrl(resolved)}"`
@@ -655,19 +767,25 @@ function resolveUrl(
   value,
   base
 ) {
+
   if (
     value.startsWith("http://") ||
     value.startsWith("https://")
   ) {
+
     return value;
   }
 
+
   try {
+
     return new URL(
       value,
       base
     ).href;
+
   } catch {
+
     return value;
   }
 }
@@ -690,10 +808,15 @@ async function handleDebug(
   url,
   cors
 ) {
+
   const target =
-    url.searchParams.get("url")?.trim();
+    url.searchParams
+      .get("url")
+      ?.trim();
+
 
   if (!target) {
+
     return json(
       {
         error:
@@ -704,21 +827,28 @@ async function handleDebug(
     );
   }
 
+
   let parsed;
 
+
   try {
+
     parsed =
       new URL(target);
+
 
     if (
       parsed.protocol !== "http:" &&
       parsed.protocol !== "https:"
     ) {
+
       throw new Error(
         "Invalid protocol"
       );
     }
+
   } catch {
+
     return json(
       {
         error:
@@ -728,6 +858,13 @@ async function handleDebug(
       cors
     );
   }
+
+
+  const range =
+    request.headers.get(
+      "Range"
+    );
+
 
   const headers = {
     "User-Agent":
@@ -740,138 +877,509 @@ async function handleDebug(
       "http://barqtv.website/",
   };
 
-  const range =
-    request.headers.get("Range");
 
   if (range) {
-    headers["Range"] = range;
+    headers["Range"] =
+      range;
   }
 
+
+  /*
+   * IMPORTANT:
+   *
+   * This debug function does NOT use
+   * followRedirects().
+   *
+   * It follows every redirect manually
+   * so we can see every individual hop.
+   */
+
+  const hops = [];
+
+  let current =
+    target;
+
+  const maxRedirects = 5;
+
+
   try {
-    const result =
-      await followRedirects(
-        target,
-        "GET",
-        headers
-      );
 
-    const response =
-      result.response;
+    for (
+      let attempt = 0;
+      attempt <= maxRedirects;
+      attempt++
+    ) {
 
-    let bodyPreview = "";
+      let currentUrl;
 
-    /*
-     * Only read a tiny diagnostic body.
-     */
-    if (response.body) {
       try {
-        const reader =
-          response.body.getReader();
+        currentUrl =
+          new URL(current);
+      } catch {
+        break;
+      }
 
-        const decoder =
-          new TextDecoder();
 
-        const { value } =
-          await reader.read();
+      const response =
+        await fetch(
+          current,
+          {
+            method: "GET",
 
-        if (value) {
-          bodyPreview =
-            decoder.decode(
-              value
-            ).slice(0, 4096);
-        }
+            headers: {
+              ...headers,
+            },
+
+            redirect:
+              "manual",
+
+            cache:
+              "no-store",
+          }
+        );
+
+
+      const location =
+        response.headers.get(
+          "Location"
+        );
+
+
+      let locationHost =
+        null;
+
+      let locationProtocol =
+        null;
+
+      let resolvedLocation =
+        null;
+
+
+      if (location) {
 
         try {
-          await reader.cancel();
-        } catch {}
-      } catch (err) {
-        bodyPreview =
-          "[body read failed] " +
-          (err?.message ||
-            String(err));
+
+          const resolved =
+            new URL(
+              location,
+              current
+            );
+
+          resolvedLocation =
+            resolved.href;
+
+          locationHost =
+            resolved.hostname;
+
+          locationProtocol =
+            resolved.protocol;
+
+        } catch {
+
+          resolvedLocation =
+            location;
+        }
       }
-    }
 
-    return json(
-      {
-        request: {
-          url: target,
-          protocol:
-            parsed.protocol,
-          range:
-            range || null,
-        },
 
-        response: {
+      /*
+       * Diagnostic body.
+       *
+       * Only read a tiny amount.
+       */
+
+      let bodyPreview =
+        "";
+
+
+      if (
+        !location &&
+        response.body
+      ) {
+
+        try {
+
+          const reader =
+            response.body.getReader();
+
+          const decoder =
+            new TextDecoder();
+
+          const {
+            value
+          } =
+            await reader.read();
+
+
+          if (value) {
+
+            bodyPreview =
+              decoder
+                .decode(value)
+                .slice(
+                  0,
+                  4096
+                );
+          }
+
+
+          try {
+            await reader.cancel();
+          } catch {}
+
+        } catch (err) {
+
+          bodyPreview =
+            "[body read failed] " +
+            (
+              err?.message ||
+              String(err)
+            );
+        }
+      }
+
+
+      /*
+       * Save every redirect hop.
+       */
+
+      hops.push(
+        {
+          attempt:
+            attempt + 1,
+
+          requestUrl:
+            current,
+
+          requestHost:
+            currentUrl.hostname,
+
+          requestProtocol:
+            currentUrl.protocol,
+
+          requestPort:
+            currentUrl.port ||
+            (
+              currentUrl.protocol ===
+              "https:"
+                ? "443"
+                : "80"
+            ),
+
           status:
             response.status,
 
           statusText:
             response.statusText,
 
-          finalUrl:
-            result.finalUrl,
+          location:
+            location || null,
 
-          redirected:
-            result.finalUrl !== target,
+          resolvedLocation,
 
-          headers: {
-            contentType:
-              response.headers.get(
-                "Content-Type"
-              ),
+          locationHost,
 
-            contentLength:
-              response.headers.get(
-                "Content-Length"
-              ),
+          locationProtocol,
 
-            contentRange:
-              response.headers.get(
-                "Content-Range"
-              ),
+          contentType:
+            response.headers.get(
+              "Content-Type"
+            ),
 
-            acceptRanges:
-              response.headers.get(
-                "Accept-Ranges"
-              ),
+          contentLength:
+            response.headers.get(
+              "Content-Length"
+            ),
 
-            location:
-              response.headers.get(
-                "Location"
-              ),
+          contentRange:
+            response.headers.get(
+              "Content-Range"
+            ),
 
-            server:
-              response.headers.get(
-                "Server"
-              ),
+          acceptRanges:
+            response.headers.get(
+              "Accept-Ranges"
+            ),
 
-            wwwAuthenticate:
-              response.headers.get(
-                "WWW-Authenticate"
-              ),
+          server:
+            response.headers.get(
+              "Server"
+            ),
 
-            cacheControl:
-              response.headers.get(
-                "Cache-Control"
-              ),
+          via:
+            response.headers.get(
+              "Via"
+            ),
 
-            cfRay:
-              response.headers.get(
-                "CF-Ray"
-              ),
-          },
+          cfRay:
+            response.headers.get(
+              "CF-Ray"
+            ),
+
+          cfCacheStatus:
+            response.headers.get(
+              "CF-Cache-Status"
+            ),
+
+          cacheControl:
+            response.headers.get(
+              "Cache-Control"
+            ),
+
+          wwwAuthenticate:
+            response.headers.get(
+              "WWW-Authenticate"
+            ),
 
           bodyPreview,
+        }
+      );
+
+
+      /*
+       * Not a redirect:
+       * this is the final response.
+       */
+
+      if (
+        !isRedirect(
+          response.status
+        ) ||
+        !location
+      ) {
+
+        break;
+      }
+
+
+      /*
+       * Resolve the next URL.
+       */
+
+      current =
+        new URL(
+          location,
+          current
+        ).href;
+    }
+
+
+    const finalHop =
+      hops.length
+        ? hops[hops.length - 1]
+        : null;
+
+
+    /*
+     * Determine whether a redirect
+     * went directly to an IP address.
+     */
+
+    const redirectedToIp =
+      hops.some(
+        hop =>
+          hop.locationHost &&
+          isIpAddress(
+            hop.locationHost
+          )
+      );
+
+
+    /*
+     * Determine whether the final
+     * response is Cloudflare 1003.
+     */
+
+    const finalBody =
+      finalHop?.bodyPreview ||
+      "";
+
+
+    const finalIsCloudflare1003 =
+      finalHop?.status === 403 &&
+      (
+        finalBody.includes(
+          "1003"
+        ) ||
+        finalBody.includes(
+          "Direct IP Access Not Allowed"
+        )
+      );
+
+
+    /*
+     * Determine whether the request
+     * was redirected at all.
+     */
+
+    const redirected =
+      hops.some(
+        hop =>
+          !!hop.location
+      );
+
+
+    return json(
+      {
+
+        test:
+          "redirect-diagnostic",
+
+
+        request: {
+
+          url:
+            target,
+
+          protocol:
+            parsed.protocol,
+
+          hostname:
+            parsed.hostname,
+
+          port:
+            parsed.port ||
+            (
+              parsed.protocol ===
+              "https:"
+                ? "443"
+                : "80"
+            ),
+
+          range:
+            range || null,
+        },
+
+
+        redirectCount:
+          Math.max(
+            0,
+            hops.length - 1
+          ),
+
+
+        redirected,
+
+
+        hops,
+
+
+        final: {
+
+          url:
+            finalHop?.requestUrl ||
+            null,
+
+          host:
+            finalHop?.requestHost ||
+            null,
+
+          protocol:
+            finalHop?.requestProtocol ||
+            null,
+
+          status:
+            finalHop?.status ??
+            null,
+
+          statusText:
+            finalHop?.statusText ??
+            null,
+
+          server:
+            finalHop?.server ??
+            null,
+
+          contentType:
+            finalHop?.contentType ??
+            null,
+
+          contentLength:
+            finalHop?.contentLength ??
+            null,
+
+          contentRange:
+            finalHop?.contentRange ??
+            null,
+
+          acceptRanges:
+            finalHop?.acceptRanges ??
+            null,
+
+          bodyPreview:
+            finalBody,
+        },
+
+
+        diagnosis: {
+
+          reachedFinalResponse:
+            !!finalHop,
+
+          redirectedToIp,
+
+          finalIsCloudflare1003,
+
+          finalServerIsCloudflare:
+            (
+              finalHop?.server ||
+              ""
+            ).toLowerCase()
+              .includes(
+                "cloudflare"
+              ),
+
+          finalHost:
+            finalHop?.requestHost ||
+            null,
+
+          redirectChain:
+            hops.map(
+              hop => ({
+                status:
+                  hop.status,
+
+                from:
+                  hop.requestUrl,
+
+                to:
+                  hop.resolvedLocation ||
+                  null,
+
+                toHost:
+                  hop.locationHost ||
+                  null,
+              })
+            ),
         },
       },
+
       200,
+
       cors
     );
 
+
   } catch (err) {
+
+    console.error(
+      "[DEBUG ERROR]",
+      {
+        url:
+          target,
+
+        error:
+          err?.message ||
+          String(err),
+
+        hops,
+      }
+    );
+
+
     return json(
       {
+
         error:
           "Debug fetch failed",
 
@@ -879,12 +1387,58 @@ async function handleDebug(
           err?.message ||
           String(err),
 
-        url: target,
+        url:
+          target,
+
+        hops,
+
       },
+
       502,
+
       cors
     );
   }
+}
+
+
+// ============================================================
+// IP CHECK
+// ============================================================
+
+function isIpAddress(
+  hostname
+) {
+
+  /*
+   * IPv4
+   */
+
+  if (
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(
+      hostname
+    )
+  ) {
+
+    return true;
+  }
+
+
+  /*
+   * IPv6
+   *
+   * Basic detection.
+   */
+
+  if (
+    hostname.includes(":")
+  ) {
+
+    return true;
+  }
+
+
+  return false;
 }
 
 
@@ -897,12 +1451,14 @@ function json(
   status,
   cors
 ) {
+
   return new Response(
     JSON.stringify(
       data,
       null,
       2
     ),
+
     {
       status,
 
