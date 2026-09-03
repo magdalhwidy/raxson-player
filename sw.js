@@ -1,4 +1,4 @@
-const CACHE_NAME = 'raxson-v4';
+const CACHE_NAME = 'raxson-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -28,22 +28,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // NEVER intercept video/media streams or /stream proxy
-  // Let video requests go directly (either to source or via /stream proxy)
   const isVideo = url.pathname === '/stream' || 
                   url.pathname.match(/\.(ts|mp4|m3u8|m3u|aac|mp3|m4a|m4v|vtt|webvtt)$/i);
 
   if (isVideo) {
-    return; // Pass through to network directly - no caching, no interception
+    return;
   }
 
-  // For API calls, always go network-first
   if (url.pathname === '/api') {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // For static assets, cache-first
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request).then((fetchResponse) => {
