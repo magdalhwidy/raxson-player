@@ -239,4 +239,4 @@ function jsonResponse(data, status, corsHeaders) {
       'Content-Type': 'application/json'
     }
   });
-      }
+}
