@@ -87,6 +87,8 @@ async function handleApi(url, cors) {
     `&action=${encodeURIComponent(action)}` +
     extra;
 
+  const origin = getOrigin(cleanHost);
+
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
@@ -98,7 +100,7 @@ async function handleApi(url, cors) {
       "ar,en;q=0.9",
 
     "Referer":
-      `${cleanHost}/`,
+      origin + "/",
   };
 
   try {
@@ -119,7 +121,6 @@ async function handleApi(url, cors) {
 
     return new Response(body, {
       status: response.status,
-
       headers: {
         ...cors,
 
@@ -130,8 +131,7 @@ async function handleApi(url, cors) {
         "Cache-Control":
           "no-cache, no-store, must-revalidate",
 
-        "Pragma":
-          "no-cache",
+        "Pragma": "no-cache",
       },
     });
 
@@ -141,9 +141,7 @@ async function handleApi(url, cors) {
     return json(
       {
         error: "Fetch failed",
-        details:
-          err?.message ||
-          String(err),
+        details: err?.message || String(err),
       },
       502,
       cors
@@ -157,8 +155,7 @@ async function handleApi(url, cors) {
 // ============================================================
 
 async function handleStream(request, url, cors) {
-  const target =
-    url.searchParams.get("url")?.trim();
+  const target = url.searchParams.get("url")?.trim();
 
   if (!target) {
     return json(
@@ -197,221 +194,164 @@ async function handleStream(request, url, cors) {
       ? "HEAD"
       : "GET";
 
-  const headers = {
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
-
-    "Accept":
-      "*/*",
-
-    "Referer":
-      "http://barqtv.website/",
-  };
-
   const range =
     request.headers.get("Range");
+
+  const headers = buildStreamHeaders(parsed);
 
   if (range) {
     headers["Range"] = range;
   }
 
   console.log("[STREAM START]", {
-    url: target,
+    target,
+    method,
     range: range || null,
   });
 
   try {
+    /*
+     * ========================================================
+     * IMPORTANT:
+     *
+     * If the original URL is HTTP, HTTPS is tested FIRST.
+     *
+     * This is important because the HTTP endpoint may redirect
+     * to a Cloudflare-protected IP.
+     * ========================================================
+     */
 
-    // ========================================================
-    // HTTPS ALTERNATIVE
-    // ========================================================
-
-    let httpsTarget = null;
+    let result;
 
     if (parsed.protocol === "http:") {
-      const httpsUrl = new URL(target);
-
-      httpsUrl.protocol = "https:";
-
-      if (httpsUrl.port === "80") {
-        httpsUrl.port = "";
-      }
-
-      httpsTarget = httpsUrl.href;
-    }
-
-
-    // ========================================================
-    // TRY HTTPS FIRST
-    // ========================================================
-
-    let result = null;
-    let response = null;
-    let finalUrl = null;
-
-    if (httpsTarget) {
+      const httpsUrl = makeHttpsUrl(target);
 
       console.log(
         "[STREAM] Trying HTTPS first:",
-        httpsTarget
+        httpsUrl
       );
 
       try {
-
-        const httpsResult =
-          await followRedirects(
-            httpsTarget,
-            method,
-            headers
-          );
-
-        const httpsResponse =
-          httpsResult.response;
-
-        console.log(
-          "[STREAM HTTPS FIRST RESULT]",
-          {
-            status:
-              httpsResponse.status,
-
-            finalUrl:
-              httpsResult.finalUrl,
-
-            contentType:
-              httpsResponse.headers.get(
-                "Content-Type"
-              ),
-
-            server:
-              httpsResponse.headers.get(
-                "Server"
-              ),
-
-            contentLength:
-              httpsResponse.headers.get(
-                "Content-Length"
-              ),
-
-            contentRange:
-              httpsResponse.headers.get(
-                "Content-Range"
-              ),
-
-            acceptRanges:
-              httpsResponse.headers.get(
-                "Accept-Ranges"
-              ),
-          }
+        const httpsResult = await followRedirects(
+          httpsUrl,
+          method,
+          headers
         );
 
+        console.log("[STREAM HTTPS RESULT]", {
+          status: httpsResult.response.status,
+          finalUrl: httpsResult.finalUrl,
+          redirected:
+            httpsResult.finalUrl !== httpsUrl,
+        });
 
         /*
-         * HTTPS is considered successful
-         * only when it returns a 2xx response.
+         * Use HTTPS if it gives us a usable response.
+         *
+         * 2xx = definitely usable.
+         *
+         * We also keep a 3xx/4xx result temporarily so that
+         * we can report/fallback correctly.
          */
-
         if (
-          httpsResponse.status >= 200 &&
-          httpsResponse.status < 300
+          httpsResult.response.status >= 200 &&
+          httpsResult.response.status < 300
         ) {
-
-          result =
-            httpsResult;
-
-          response =
-            httpsResponse;
-
-          finalUrl =
-            httpsResult.finalUrl;
-
-          console.log(
-            "[STREAM] HTTPS succeeded."
-          );
-
-        } else {
-
-          console.log(
-            "[STREAM] HTTPS did not return 2xx."
-          );
-
-          console.log(
-            "[STREAM] Trying original HTTP."
-          );
+          result = httpsResult;
         }
 
       } catch (err) {
-
         console.error(
-          "[STREAM HTTPS FIRST ERROR]",
-          err?.message ||
-            String(err)
-        );
-
-        console.log(
-          "[STREAM] Falling back to original HTTP."
+          "[STREAM HTTPS ERROR]",
+          err?.message || String(err)
         );
       }
     }
 
+    /*
+     * ========================================================
+     * HTTP FALLBACK
+     * ========================================================
+     */
 
-    // ========================================================
-    // ORIGINAL HTTP FALLBACK
-    // ========================================================
-
-    if (!response) {
-
+    if (!result) {
       console.log(
         "[STREAM] Trying original URL:",
         target
       );
 
-      result =
-        await followRedirects(
-          target,
-          method,
-          headers
-        );
-
-      response =
-        result.response;
-
-      finalUrl =
-        result.finalUrl;
-
-      console.log(
-        "[STREAM HTTP RESULT]",
-        {
-          status:
-            response.status,
-
-          finalUrl,
-
-          contentType:
-            response.headers.get(
-              "Content-Type"
-            ),
-
-          server:
-            response.headers.get(
-              "Server"
-            ),
-
-          contentLength:
-            response.headers.get(
-              "Content-Length"
-            ),
-
-          contentRange:
-            response.headers.get(
-              "Content-Range"
-            ),
-
-          acceptRanges:
-            response.headers.get(
-              "Accept-Ranges"
-            ),
-        }
+      result = await followRedirects(
+        target,
+        method,
+        headers
       );
+    }
+
+    let response = result.response;
+    let finalUrl = result.finalUrl;
+
+    console.log("[STREAM FINAL]", {
+      status: response.status,
+      finalUrl,
+      redirected: finalUrl !== target,
+      contentType:
+        response.headers.get("Content-Type"),
+      contentLength:
+        response.headers.get("Content-Length"),
+      contentRange:
+        response.headers.get("Content-Range"),
+      acceptRanges:
+        response.headers.get("Accept-Ranges"),
+      server:
+        response.headers.get("Server"),
+    });
+
+
+    // ========================================================
+    // EXPLICIT CLOUDFLARE 1003 DIAGNOSIS
+    // ========================================================
+
+    if (
+      response.status === 403 &&
+      finalUrl
+    ) {
+      const finalParsed = new URL(finalUrl);
+
+      const bodyPreview =
+        await safeBodyPreview(response);
+
+      if (
+        isIpAddress(finalParsed.hostname) &&
+        bodyPreview.includes("1003")
+      ) {
+        return json(
+          {
+            error:
+              "Upstream redirected to a direct IP and Cloudflare rejected it.",
+
+            code: "CLOUDFLARE_1003",
+
+            originalUrl: target,
+
+            finalUrl,
+
+            message:
+              "The upstream server is redirecting the stream to a direct IP address. This cannot be fixed by the Worker unless the upstream provides a valid hostname/stream URL.",
+
+            bodyPreview,
+          },
+          502,
+          cors
+        );
+      }
+
+      /*
+       * We consumed the body above only for a diagnostic 1003
+       * check. For normal 403 responses do not consume it.
+       *
+       * Therefore the body is only consumed when it actually
+       * looks like Cloudflare 1003.
+       */
     }
 
 
@@ -420,9 +360,7 @@ async function handleStream(request, url, cors) {
     // ========================================================
 
     const contentType =
-      response.headers.get(
-        "Content-Type"
-      ) || "";
+      response.headers.get("Content-Type") || "";
 
     const lowerType =
       contentType.toLowerCase();
@@ -446,7 +384,6 @@ async function handleStream(request, url, cors) {
       response.status >= 200 &&
       response.status < 300
     ) {
-
       const playlist =
         await response.text();
 
@@ -459,8 +396,7 @@ async function handleStream(request, url, cors) {
       return new Response(
         rewritten,
         {
-          status:
-            response.status,
+          status: response.status,
 
           headers: {
             ...cors,
@@ -480,7 +416,7 @@ async function handleStream(request, url, cors) {
 
 
     // ========================================================
-    // BINARY STREAM
+    // BINARY VIDEO
     // ========================================================
 
     const responseHeaders = {
@@ -509,18 +445,12 @@ async function handleStream(request, url, cors) {
       "Content-Encoding",
     ];
 
-    for (
-      const name of copyHeaders
-    ) {
-
+    for (const name of copyHeaders) {
       const value =
-        response.headers.get(
-          name
-        );
+        response.headers.get(name);
 
       if (value) {
-        responseHeaders[name] =
-          value;
+        responseHeaders[name] = value;
       }
     }
 
@@ -528,44 +458,30 @@ async function handleStream(request, url, cors) {
       response.status === 206 &&
       !responseHeaders["Accept-Ranges"]
     ) {
-
-      responseHeaders[
-        "Accept-Ranges"
-      ] = "bytes";
+      responseHeaders["Accept-Ranges"] =
+        "bytes";
     }
 
-
     /*
-     * IMPORTANT:
+     * NEVER convert video to text/arrayBuffer.
      *
-     * Never call response.text()
-     * or arrayBuffer() for video.
-     *
-     * Pass the upstream ReadableStream
-     * directly to the client.
+     * Stream the upstream ReadableStream directly.
      */
 
     return new Response(
       response.body,
       {
-        status:
-          response.status,
-
-        statusText:
-          response.statusText,
-
-        headers:
-          responseHeaders,
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
       }
     );
 
   } catch (err) {
-
     console.error(
       "[STREAM ERROR]",
       {
-        url: target,
-
+        target,
         error:
           err?.message ||
           String(err),
@@ -574,8 +490,7 @@ async function handleStream(request, url, cors) {
 
     return json(
       {
-        error:
-          "Stream failed",
+        error: "Stream failed",
 
         details:
           err?.message ||
@@ -589,6 +504,56 @@ async function handleStream(request, url, cors) {
 
 
 // ============================================================
+// STREAM HEADERS
+// ============================================================
+
+function buildStreamHeaders(parsed) {
+  /*
+   * Use the source origin as Referer rather than a hard-coded
+   * unrelated domain.
+   */
+
+  const origin =
+    `${parsed.protocol}//${parsed.host}`;
+
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
+
+    "Accept":
+      "*/*",
+
+    "Accept-Language":
+      "ar,en;q=0.9",
+
+    "Referer":
+      origin + "/",
+  };
+}
+
+
+// ============================================================
+// HTTPS URL
+// ============================================================
+
+function makeHttpsUrl(value) {
+  const u = new URL(value);
+
+  u.protocol = "https:";
+
+  /*
+   * HTTP port 80 should not remain when switching to HTTPS.
+   */
+
+  if (u.port === "80") {
+    u.port = "";
+  }
+
+  return u.href;
+}
+
+
+// ============================================================
 // REDIRECT HANDLING
 // ============================================================
 
@@ -597,25 +562,22 @@ async function followRedirects(
   method,
   headers
 ) {
-  let current =
-    initialUrl;
+  let current = initialUrl;
 
   const maxRedirects = 5;
+
+  const hops = [];
 
   for (
     let attempt = 0;
     attempt <= maxRedirects;
     attempt++
   ) {
-
     console.log(
       "[UPSTREAM]",
       {
-        attempt:
-          attempt + 1,
-
-        url:
-          current,
+        attempt: attempt + 1,
+        url: current,
       }
     );
 
@@ -629,77 +591,72 @@ async function followRedirects(
             ...headers,
           },
 
-          redirect:
-            "manual",
+          redirect: "manual",
 
-          cache:
-            "no-store",
+          cache: "no-store",
         }
       );
 
+    const location =
+      response.headers.get("Location");
 
-    if (
-      !isRedirect(
-        response.status
-      )
-    ) {
+    hops.push({
+      attempt: attempt + 1,
 
+      url: current,
+
+      status:
+        response.status,
+
+      statusText:
+        response.statusText,
+
+      location:
+        location || null,
+
+      server:
+        response.headers.get("Server") ||
+        null,
+
+      contentType:
+        response.headers.get("Content-Type") ||
+        null,
+    });
+
+    if (!isRedirect(response.status)) {
       return {
         response,
-
-        finalUrl:
-          current,
+        finalUrl: current,
+        hops,
       };
     }
-
-
-    const location =
-      response.headers.get(
-        "Location"
-      );
 
     console.log(
       "[REDIRECT]",
       {
-        status:
-          response.status,
-
-        from:
-          current,
-
+        status: response.status,
+        from: current,
         location,
       }
     );
 
-
     if (!location) {
-
       return {
         response,
-
-        finalUrl:
-          current,
+        finalUrl: current,
+        hops,
       };
     }
-
 
     if (
       attempt >= maxRedirects
     ) {
-
       return {
         response,
-
-        finalUrl:
-          current,
+        finalUrl: current,
+        hops,
       };
     }
-
-
-    /*
-     * Resolve relative Location
-     * correctly.
-     */
 
     current =
       new URL(
@@ -713,6 +670,10 @@ async function followRedirects(
   );
 }
 
+
+// ============================================================
+// REDIRECT CHECK
+// ============================================================
 
 function isRedirect(status) {
   return (
@@ -733,24 +694,22 @@ function rewriteM3U8(
   text,
   baseUrl
 ) {
-
   const lines =
-    text.split("\n");
+    text.split(/\r?\n/);
 
   const output = [];
 
-  for (
-    const originalLine of lines
-  ) {
-
+  for (const originalLine of lines) {
     let line =
       originalLine;
 
+    /*
+     * HLS tags may contain URI="..."
+     */
 
     if (
       line.startsWith("#")
     ) {
-
       line =
         rewriteTagUri(
           line,
@@ -758,22 +717,21 @@ function rewriteM3U8(
         );
 
       output.push(line);
-
       continue;
     }
-
 
     const value =
       line.trim();
 
-
     if (!value) {
-
       output.push(line);
-
       continue;
     }
 
+    /*
+     * Every media/playlist URL is resolved against the
+     * final upstream URL and then proxied.
+     */
 
     const resolved =
       resolveUrl(
@@ -781,11 +739,8 @@ function rewriteM3U8(
         baseUrl
       );
 
-
     output.push(
-      toProxyUrl(
-        resolved
-      )
+      toProxyUrl(resolved)
     );
   }
 
@@ -793,11 +748,14 @@ function rewriteM3U8(
 }
 
 
+// ============================================================
+// HLS TAG URI
+// ============================================================
+
 function rewriteTagUri(
   line,
   baseUrl
 ) {
-
   return line.replace(
     /URI="([^"]+)"/g,
     (match, uri) => {
@@ -806,17 +764,14 @@ function rewriteTagUri(
         uri.startsWith("data:") ||
         uri.startsWith("skd:")
       ) {
-
         return match;
       }
-
 
       const resolved =
         resolveUrl(
           uri,
           baseUrl
         );
-
 
       return (
         `URI="${toProxyUrl(resolved)}"`
@@ -826,33 +781,36 @@ function rewriteTagUri(
 }
 
 
+// ============================================================
+// URL RESOLUTION
+// ============================================================
+
 function resolveUrl(
   value,
   base
 ) {
-
   if (
     value.startsWith("http://") ||
     value.startsWith("https://")
   ) {
-
     return value;
   }
 
-
   try {
-
     return new URL(
       value,
       base
     ).href;
 
   } catch {
-
     return value;
   }
 }
 
+
+// ============================================================
+// PROXY URL
+// ============================================================
 
 function toProxyUrl(url) {
   return (
@@ -871,15 +829,10 @@ async function handleDebug(
   url,
   cors
 ) {
-
   const target =
-    url.searchParams
-      .get("url")
-      ?.trim();
-
+    url.searchParams.get("url")?.trim();
 
   if (!target) {
-
     return json(
       {
         error:
@@ -890,28 +843,22 @@ async function handleDebug(
     );
   }
 
-
   let parsed;
 
-
   try {
-
     parsed =
       new URL(target);
-
 
     if (
       parsed.protocol !== "http:" &&
       parsed.protocol !== "https:"
     ) {
-
       throw new Error(
         "Invalid protocol"
       );
     }
 
   } catch {
-
     return json(
       {
         error:
@@ -922,545 +869,336 @@ async function handleDebug(
     );
   }
 
-
   const range =
-    request.headers.get(
-      "Range"
-    );
+    request.headers.get("Range");
 
-
-  const headers = {
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
-
-    "Accept":
-      "*/*",
-
-    "Referer":
-      "http://barqtv.website/",
-  };
-
+  const headers =
+    buildStreamHeaders(parsed);
 
   if (range) {
-    headers["Range"] =
-      range;
+    headers["Range"] = range;
   }
 
-
   /*
-   * IMPORTANT:
+   * ========================================================
+   * DEBUG BOTH PROTOCOLS
    *
-   * This debug function does NOT use
-   * followRedirects().
+   * This is the important change.
    *
-   * It follows every redirect manually
-   * so we can see every individual hop.
+   * If the supplied URL is HTTP, we test:
+   *
+   * 1. HTTPS
+   * 2. HTTP
+   *
+   * If supplied URL is HTTPS, we test HTTPS only.
+   * ========================================================
    */
 
-  const hops = [];
+  const tests = [];
 
-  let current =
-    target;
+  if (parsed.protocol === "http:") {
+    tests.push({
+      name: "HTTPS",
+      url: makeHttpsUrl(target),
+    });
 
-  const maxRedirects = 5;
+    tests.push({
+      name: "HTTP",
+      url: target,
+    });
 
+  } else {
+    tests.push({
+      name: "HTTPS",
+      url: target,
+    });
+  }
 
-  try {
+  const results = [];
 
-    for (
-      let attempt = 0;
-      attempt <= maxRedirects;
-      attempt++
-    ) {
-
-      let currentUrl;
-
-      try {
-        currentUrl =
-          new URL(current);
-      } catch {
-        break;
-      }
-
+  for (const test of tests) {
+    try {
+      const result =
+        await followRedirects(
+          test.url,
+          "GET",
+          headers
+        );
 
       const response =
-        await fetch(
-          current,
-          {
-            method: "GET",
+        result.response;
 
-            headers: {
-              ...headers,
-            },
-
-            redirect:
-              "manual",
-
-            cache:
-              "no-store",
-          }
+      const preview =
+        await safeBodyPreview(
+          response
         );
 
+      let finalHost = null;
+      let finalProtocol = null;
+      let redirectedToIp = false;
 
-      const location =
-        response.headers.get(
-          "Location"
-        );
+      try {
+        const finalParsed =
+          new URL(result.finalUrl);
 
+        finalHost =
+          finalParsed.hostname;
 
-      let locationHost =
-        null;
+        finalProtocol =
+          finalParsed.protocol;
 
-      let locationProtocol =
-        null;
-
-      let resolvedLocation =
-        null;
-
-
-      if (location) {
-
-        try {
-
-          const resolved =
-            new URL(
-              location,
-              current
-            );
-
-          resolvedLocation =
-            resolved.href;
-
-          locationHost =
-            resolved.hostname;
-
-          locationProtocol =
-            resolved.protocol;
-
-        } catch {
-
-          resolvedLocation =
-            location;
-        }
-      }
-
-
-      /*
-       * Diagnostic body.
-       *
-       * Only read a tiny amount.
-       */
-
-      let bodyPreview =
-        "";
-
-
-      if (
-        !location &&
-        response.body
-      ) {
-
-        try {
-
-          const reader =
-            response.body.getReader();
-
-          const decoder =
-            new TextDecoder();
-
-          const {
-            value
-          } =
-            await reader.read();
-
-
-          if (value) {
-
-            bodyPreview =
-              decoder
-                .decode(value)
-                .slice(
-                  0,
-                  4096
-                );
-          }
-
-
-          try {
-            await reader.cancel();
-          } catch {}
-
-        } catch (err) {
-
-          bodyPreview =
-            "[body read failed] " +
-            (
-              err?.message ||
-              String(err)
-            );
-        }
-      }
-
-
-      /*
-       * Save every redirect hop.
-       */
-
-      hops.push(
-        {
-          attempt:
-            attempt + 1,
-
-          requestUrl:
-            current,
-
-          requestHost:
-            currentUrl.hostname,
-
-          requestProtocol:
-            currentUrl.protocol,
-
-          requestPort:
-            currentUrl.port ||
-            (
-              currentUrl.protocol ===
-              "https:"
-                ? "443"
-                : "80"
-            ),
-
-          status:
-            response.status,
-
-          statusText:
-            response.statusText,
-
-          location:
-            location || null,
-
-          resolvedLocation,
-
-          locationHost,
-
-          locationProtocol,
-
-          contentType:
-            response.headers.get(
-              "Content-Type"
-            ),
-
-          contentLength:
-            response.headers.get(
-              "Content-Length"
-            ),
-
-          contentRange:
-            response.headers.get(
-              "Content-Range"
-            ),
-
-          acceptRanges:
-            response.headers.get(
-              "Accept-Ranges"
-            ),
-
-          server:
-            response.headers.get(
-              "Server"
-            ),
-
-          via:
-            response.headers.get(
-              "Via"
-            ),
-
-          cfRay:
-            response.headers.get(
-              "CF-Ray"
-            ),
-
-          cfCacheStatus:
-            response.headers.get(
-              "CF-Cache-Status"
-            ),
-
-          cacheControl:
-            response.headers.get(
-              "Cache-Control"
-            ),
-
-          wwwAuthenticate:
-            response.headers.get(
-              "WWW-Authenticate"
-            ),
-
-          bodyPreview,
-        }
-      );
-
-
-      /*
-       * Not a redirect:
-       * this is the final response.
-       */
-
-      if (
-        !isRedirect(
-          response.status
-        ) ||
-        !location
-      ) {
-
-        break;
-      }
-
-
-      /*
-       * Resolve the next URL.
-       */
-
-      current =
-        new URL(
-          location,
-          current
-        ).href;
-    }
-
-
-    const finalHop =
-      hops.length
-        ? hops[hops.length - 1]
-        : null;
-
-
-    /*
-     * Determine whether a redirect
-     * went directly to an IP address.
-     */
-
-    const redirectedToIp =
-      hops.some(
-        hop =>
-          hop.locationHost &&
+        redirectedToIp =
           isIpAddress(
-            hop.locationHost
-          )
-      );
+            finalParsed.hostname
+          );
 
+      } catch {}
 
-    /*
-     * Determine whether the final
-     * response is Cloudflare 1003.
-     */
+      results.push({
+        name: test.name,
 
-    const finalBody =
-      finalHop?.bodyPreview ||
-      "";
+        requestUrl:
+          test.url,
 
+        status:
+          response.status,
 
-    const finalIsCloudflare1003 =
-      finalHop?.status === 403 &&
-      (
-        finalBody.includes(
-          "1003"
-        ) ||
-        finalBody.includes(
-          "Direct IP Access Not Allowed"
-        )
-      );
+        statusText:
+          response.statusText,
 
+        finalUrl:
+          result.finalUrl,
 
-    /*
-     * Determine whether the request
-     * was redirected at all.
-     */
+        finalHost,
 
-    const redirected =
-      hops.some(
-        hop =>
-          !!hop.location
-      );
+        finalProtocol,
 
+        redirected:
+          result.finalUrl !== test.url,
 
-    return json(
-      {
+        redirectedToIp,
 
-        test:
-          "redirect-diagnostic",
-
-
-        request: {
-
-          url:
-            target,
-
-          protocol:
-            parsed.protocol,
-
-          hostname:
-            parsed.hostname,
-
-          port:
-            parsed.port ||
-            (
-              parsed.protocol ===
-              "https:"
-                ? "443"
-                : "80"
-            ),
-
-          range:
-            range || null,
-        },
-
-
-        redirectCount:
-          Math.max(
-            0,
-            hops.length - 1
+        contentType:
+          response.headers.get(
+            "Content-Type"
           ),
 
+        contentLength:
+          response.headers.get(
+            "Content-Length"
+          ),
 
-        redirected,
+        contentRange:
+          response.headers.get(
+            "Content-Range"
+          ),
 
+        acceptRanges:
+          response.headers.get(
+            "Accept-Ranges"
+          ),
 
-        hops,
+        location:
+          response.headers.get(
+            "Location"
+          ),
 
+        server:
+          response.headers.get(
+            "Server"
+          ),
 
-        final: {
+        cfRay:
+          response.headers.get(
+            "CF-Ray"
+          ),
 
-          url:
-            finalHop?.requestUrl ||
-            null,
+        bodyPreview:
+          preview,
 
-          host:
-            finalHop?.requestHost ||
-            null,
+        hops:
+          result.hops,
+      });
 
-          protocol:
-            finalHop?.requestProtocol ||
-            null,
+    } catch (err) {
+      results.push({
+        name: test.name,
 
-          status:
-            finalHop?.status ??
-            null,
-
-          statusText:
-            finalHop?.statusText ??
-            null,
-
-          server:
-            finalHop?.server ??
-            null,
-
-          contentType:
-            finalHop?.contentType ??
-            null,
-
-          contentLength:
-            finalHop?.contentLength ??
-            null,
-
-          contentRange:
-            finalHop?.contentRange ??
-            null,
-
-          acceptRanges:
-            finalHop?.acceptRanges ??
-            null,
-
-          bodyPreview:
-            finalBody,
-        },
-
-
-        diagnosis: {
-
-          reachedFinalResponse:
-            !!finalHop,
-
-          redirectedToIp,
-
-          finalIsCloudflare1003,
-
-          finalServerIsCloudflare:
-            (
-              finalHop?.server ||
-              ""
-            ).toLowerCase()
-              .includes(
-                "cloudflare"
-              ),
-
-          finalHost:
-            finalHop?.requestHost ||
-            null,
-
-          redirectChain:
-            hops.map(
-              hop => ({
-                status:
-                  hop.status,
-
-                from:
-                  hop.requestUrl,
-
-                to:
-                  hop.resolvedLocation ||
-                  null,
-
-                toHost:
-                  hop.locationHost ||
-                  null,
-              })
-            ),
-        },
-      },
-
-      200,
-
-      cors
-    );
-
-
-  } catch (err) {
-
-    console.error(
-      "[DEBUG ERROR]",
-      {
-        url:
-          target,
+        requestUrl:
+          test.url,
 
         error:
           err?.message ||
           String(err),
+      });
+    }
+  }
 
-        hops,
-      }
+  /*
+   * ========================================================
+   * DIAGNOSIS
+   * ========================================================
+   */
+
+  const working =
+    results.find(
+      r =>
+        r.status >= 200 &&
+        r.status < 300 &&
+        !r.error
     );
 
+  const cloudflare1003 =
+    results.filter(
+      r =>
+        r.status === 403 &&
+        r.redirectedToIp &&
+        String(
+          r.bodyPreview || ""
+        ).includes("1003")
+    );
 
-    return json(
-      {
+  let diagnosis;
 
-        error:
-          "Debug fetch failed",
+  if (working) {
+    diagnosis = {
+      status: "WORKING_PATH_FOUND",
 
-        details:
-          err?.message ||
-          String(err),
+      message:
+        `${working.name} returned a successful upstream response.`,
 
-        url:
-          target,
+      workingUrl:
+        working.requestUrl,
 
-        hops,
+      finalUrl:
+        working.finalUrl,
 
+      contentType:
+        working.contentType,
+    };
+
+  } else if (
+    cloudflare1003.length ===
+    results.length
+  ) {
+    diagnosis = {
+      status:
+        "UPSTREAM_DIRECT_IP_1003",
+
+      message:
+        "Both tested paths redirect to a direct IP and Cloudflare returns error 1003.",
+
+      explanation:
+        "The upstream stream URL needs to be corrected by the source/provider. A Worker cannot legitimately turn the Cloudflare direct-IP rejection into a working hostname.",
+    };
+
+  } else {
+    diagnosis = {
+      status:
+        "NO_WORKING_PATH",
+
+      message:
+        "Neither tested protocol returned a successful stream response.",
+
+      explanation:
+        "Check the individual HTTP/HTTPS results above.",
+    };
+  }
+
+  return json(
+    {
+      test:
+        "http-and-https-stream-diagnostic",
+
+      request: {
+        url: target,
+
+        protocol:
+          parsed.protocol,
+
+        range:
+          range || null,
       },
 
-      502,
+      results,
 
-      cors
+      diagnosis,
+    },
+    200,
+    cors
+  );
+}
+
+
+// ============================================================
+// BODY PREVIEW
+// ============================================================
+
+async function safeBodyPreview(
+  response
+) {
+  /*
+   * Only use this for small diagnostic/error bodies.
+   *
+   * Never call this on successful video streams.
+   */
+
+  const contentType =
+    response.headers.get(
+      "Content-Type"
+    ) || "";
+
+  const contentLength =
+    Number(
+      response.headers.get(
+        "Content-Length"
+      ) || "0"
     );
+
+  /*
+   * Only inspect likely text/error responses.
+   */
+
+  const looksText =
+    contentType.includes("text") ||
+    contentType.includes("json") ||
+    contentType.includes("plain");
+
+  if (
+    !looksText &&
+    contentLength > 4096
+  ) {
+    return "";
+  }
+
+  if (!response.body) {
+    return "";
+  }
+
+  try {
+    const reader =
+      response.body.getReader();
+
+    const decoder =
+      new TextDecoder();
+
+    const { value } =
+      await reader.read();
+
+    try {
+      await reader.cancel();
+    } catch {}
+
+    if (!value) {
+      return "";
+    }
+
+    return decoder
+      .decode(value)
+      .slice(0, 4096);
+
+  } catch {
+    return "";
   }
 }
 
@@ -1469,10 +1207,7 @@ async function handleDebug(
 // IP CHECK
 // ============================================================
 
-function isIpAddress(
-  hostname
-) {
-
+function isIpAddress(hostname) {
   /*
    * IPv4
    */
@@ -1482,26 +1217,42 @@ function isIpAddress(
       hostname
     )
   ) {
-
     return true;
   }
 
-
   /*
    * IPv6
-   *
-   * Basic detection.
    */
 
   if (
     hostname.includes(":")
   ) {
-
     return true;
   }
 
-
   return false;
+}
+
+
+// ============================================================
+// ORIGIN
+// ============================================================
+
+function getOrigin(host) {
+  try {
+    const u =
+      new URL(host);
+
+    return (
+      `${u.protocol}//${u.host}`
+    );
+
+  } catch {
+    return host.replace(
+      /\/+$/,
+      ""
+    );
+  }
 }
 
 
@@ -1514,14 +1265,12 @@ function json(
   status,
   cors
 ) {
-
   return new Response(
     JSON.stringify(
       data,
       null,
       2
     ),
-
     {
       status,
 
