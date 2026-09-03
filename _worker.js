@@ -30,7 +30,6 @@ export default {
         return response;
       }
 
-
       return new Response('Not Found', { status: 404, headers: corsHeaders });
 
     } catch (err) {
@@ -117,10 +116,19 @@ async function handleStream(url, request, corsHeaders) {
 
   console.log('[Stream] url=', targetUrl.substring(0, 120));
 
+  // استخراج النطاق الأصلي للسيرفر لاستخدامه ديناميكياً وتفادي خطأ 403 Forbidden
+  let refererVal = 'http://barqtv.website/';
+  try {
+    const parsedTarget = new URL(targetUrl);
+    refererVal = `${parsedTarget.protocol}//${parsedTarget.host}/`;
+  } catch (e) {}
+
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0',
+    'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0',
     'Accept': '*/*',
-    'Referer': 'http://barqtv.website/'
+    'Accept-Language': 'ar,en;q=0.9',
+    'Referer': refererVal,
+    'Origin': refererVal.slice(0, -1)
   };
 
   const rangeHeader = request.headers.get('Range');
@@ -161,10 +169,11 @@ async function handleStream(url, request, corsHeaders) {
 
     const responseHeaders = {
       ...corsHeaders,
-      'Content-Type': contentType || 'application/octet-stream'
+      'Content-Type': contentType || 'application/octet-stream',
+      'Accept-Ranges': 'bytes'
     };
 
-    const passHeaders = ['Content-Length', 'Content-Range', 'Accept-Ranges', 'Last-Modified', 'ETag'];
+    const passHeaders = ['Content-Length', 'Content-Range', 'Last-Modified', 'ETag'];
     for (const h of passHeaders) {
       const val = resp.headers.get(h);
       if (val) responseHeaders[h] = val;
