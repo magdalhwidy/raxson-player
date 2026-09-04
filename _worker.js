@@ -713,15 +713,14 @@ async function followRedirects(
      */
 
     if (
-      nextUrl.hostname ===
-      "37.49.230.120"
+      nextUrl.hostname === "37.49.230.120" ||
+      nextUrl.hostname === "37.49.230.121"
     ) {
       console.log(
         "[REDIRECT REWRITE]",
         {
           from: nextUrl.href,
-          toHost:
-            "origin.raxson.online",
+          toHost: "origin.raxson.online",
         }
       );
 
