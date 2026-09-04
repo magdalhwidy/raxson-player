@@ -285,7 +285,7 @@ async function handleStream(request, url, cors) {
   headers: {
     ...headers,
   },
-  redirect: "manual",
+  redirect: "follow",
   cache: "no-store",
 });
 
