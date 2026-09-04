@@ -536,29 +536,28 @@ console.log(
 // ============================================================
 
 function buildStreamHeaders(parsed) {
-  /*
-   * Use the source origin as Referer rather than a hard-coded
-   * unrelated domain.
-   */
-
-  const origin =
-    `${parsed.protocol}//${parsed.host}`;
 
   return {
     "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/151.0.0.0 Mobile Safari/537.36",
 
     "Accept":
-      "*/*",
+      "application/vnd.apple.mpegurl,application/x-mpegURL,*/*",
 
     "Accept-Language":
-      "en-US,en;q=0.9",
+      "ar,en-US;q=0.9,en;q=0.8",
 
     "Referer":
-      origin + "/",
+      "https://barqtv.website/",
 
     "Origin":
-      origin,
+      "https://barqtv.website",
+
+    "Connection":
+      "keep-alive",
+
+    "Cache-Control":
+      "no-cache",
   };
 }
 
