@@ -412,10 +412,15 @@ result = {
         await response.text();
 
       const rewritten =
-        rewriteM3U8(
-          playlist,
-          finalUrl
-        );
+  rewriteM3U8(
+    playlist,
+    finalUrl
+  );
+
+console.log(
+  "[M3U8 OUTPUT]",
+  rewritten.substring(0, 500)
+);
 
       return new Response(
         rewritten,
@@ -1349,6 +1354,7 @@ function json(
         "Cache-Control":
           "no-cache, no-store, must-revalidate",
 
+        
         "Pragma":
           "no-cache",
       },
