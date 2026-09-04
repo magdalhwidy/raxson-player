@@ -341,8 +341,7 @@ result = {
     ) {
       const finalParsed = new URL(finalUrl);
 
-      const bodyPreview =
-        await safeBodyPreview(response);
+      const bodyPreview = "";
 
       if (
         isIpAddress(finalParsed.hostname) &&
