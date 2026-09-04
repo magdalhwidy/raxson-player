@@ -723,18 +723,21 @@ async function followRedirects(
 
     if (
   nextUrl.hostname === "37.49.230.120" ||
-  nextUrl.hostname === "37.49.230.121"
+  nextUrl.hostname === "37.49.230.121" ||
+  nextUrl.hostname === "37.49.230.122"
 ) {
   console.log(
-    "[REDIRECT REWRITE DISABLED - DIRECT IP]",
+    "[REDIRECT REWRITE]",
     {
-      ip: nextUrl.hostname,
+      originalHost: nextUrl.hostname,
+      newHost: "origin.raxson.online"
     }
   );
+
+  nextUrl.hostname = "origin.raxson.online";
 }
 
-    current =
-      nextUrl.href;
+current = nextUrl.href;
   }
 
   throw new Error(
