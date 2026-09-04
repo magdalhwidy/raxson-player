@@ -312,6 +312,9 @@ result = {
     }
 
     let response = result.response;
+    const errorText = await response.clone().text();
+
+    console.log("[403 BODY]", errorText);
     let finalUrl = result.finalUrl;
 
     console.log("[STREAM FINAL]", {
