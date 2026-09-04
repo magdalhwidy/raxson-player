@@ -280,11 +280,35 @@ async function handleStream(request, url, cors) {
         target
       );
 
-      result = await followRedirects(
-        target,
-        method,
-        headers
-      );
+      const directResponse = await fetch(target, {
+  method,
+  headers: {
+    ...headers,
+  },
+  redirect: "manual",
+  cache: "no-store",
+});
+
+const location = directResponse.headers.get("Location");
+
+if (
+  location &&
+  [301, 302, 303, 307, 308].includes(directResponse.status)
+) {
+  return new Response(null, {
+    status: directResponse.status,
+    headers: {
+      ...cors,
+      "Location": location,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+result = {
+  response: directResponse,
+  finalUrl: target,
+};
     }
 
     let response = result.response;
