@@ -581,6 +581,7 @@ function makeHttpsUrl(value) {
 // REDIRECT HANDLING
 // ============================================================
 
+
 async function followRedirects(
   initialUrl,
   method,
@@ -682,18 +683,60 @@ async function followRedirects(
       };
     }
 
-    current =
+    let nextUrl =
       new URL(
         location,
         current
-      ).href;
+      );
+
+    /*
+     * ========================================================
+     * CLOUDFLARE WORKER IP REDIRECT FIX
+     *
+     * The authorized upstream redirects the stream to:
+     *
+     * 37.49.230.120
+     *
+     * Cloudflare Workers cannot fetch a direct IP.
+     *
+     * We created:
+     *
+     * origin.raxson.online
+     *        ↓
+     * 37.49.230.120
+     *
+     * DNS Only.
+     *
+     * Therefore change ONLY the hostname while preserving
+     * the original path, query string and authentication token.
+     * ========================================================
+     */
+
+    if (
+      nextUrl.hostname ===
+      "37.49.230.120"
+    ) {
+      console.log(
+        "[REDIRECT REWRITE]",
+        {
+          from: nextUrl.href,
+          toHost:
+            "origin.raxson.online",
+        }
+      );
+
+      nextUrl.hostname =
+        "origin.raxson.online";
+    }
+
+    current =
+      nextUrl.href;
   }
 
   throw new Error(
     "Too many redirects"
   );
 }
-
 
 // ============================================================
 // REDIRECT CHECK
