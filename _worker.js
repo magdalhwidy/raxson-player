@@ -1,3 +1,9 @@
+import { connect } from "cloudflare:sockets";
+
+// ============================================================
+// CLOUDFLARE WORKER
+// ============================================================
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -6,8 +12,7 @@ export default {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers":
         "Content-Type, Authorization, Range, Accept, Origin, Referer",
-      "Access-Control-Allow-Methods":
-        "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
       "Access-Control-Expose-Headers":
         "Content-Length, Content-Range, Accept-Ranges, Content-Type, ETag, Last-Modified, Content-Disposition",
     };
@@ -40,9 +45,11 @@ export default {
         status: 404,
         headers: cors,
       });
-
     } catch (err) {
-      console.error("[WORKER ERROR]", err);
+      console.error(
+        "[WORKER ERROR]",
+        err?.message || String(err)
+      );
 
       return json(
         {
@@ -56,6 +63,19 @@ export default {
   },
 };
 
+// ============================================================
+// CONFIG
+// ============================================================
+
+const ORIGIN_HOST = "origin.raxson.online";
+
+const ALLOWED_STREAM_HOSTS = new Set([
+  "barqtv.website",
+  "barqtvclg.shop",
+  ORIGIN_HOST,
+]);
+
+const MAX_REDIRECTS = 8;
 
 // ============================================================
 // API
@@ -70,9 +90,7 @@ async function handleApi(url, cors) {
 
   if (!host || !user || !pass || !action) {
     return json(
-      {
-        error: "Missing parameters",
-      },
+      { error: "Missing parameters" },
       400,
       cors
     );
@@ -92,15 +110,9 @@ async function handleApi(url, cors) {
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0",
-
-    "Accept":
-      "application/json, text/plain, */*",
-
-    "Accept-Language":
-      "ar,en;q=0.9",
-
-    "Referer":
-      origin + "/",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "ar,en;q=0.9",
+    "Referer": origin + "/",
   };
 
   try {
@@ -114,7 +126,7 @@ async function handleApi(url, cors) {
     console.log("[API]", {
       action,
       status: response.status,
-      finalUrl: response.url,
+      finalHost: safeHost(response.url),
     });
 
     const body = await response.text();
@@ -123,20 +135,19 @@ async function handleApi(url, cors) {
       status: response.status,
       headers: {
         ...cors,
-
         "Content-Type":
           response.headers.get("Content-Type") ||
           "application/json; charset=utf-8",
-
         "Cache-Control":
           "no-cache, no-store, must-revalidate",
-
         "Pragma": "no-cache",
       },
     });
-
   } catch (err) {
-    console.error("[API ERROR]", err);
+    console.error(
+      "[API ERROR]",
+      err?.message || String(err)
+    );
 
     return json(
       {
@@ -149,19 +160,17 @@ async function handleApi(url, cors) {
   }
 }
 
-
 // ============================================================
 // STREAM
 // ============================================================
 
 async function handleStream(request, url, cors) {
-  const target = url.searchParams.get("url")?.trim();
+  const target =
+    url.searchParams.get("url")?.trim();
 
   if (!target) {
     return json(
-      {
-        error: "Missing url parameter",
-      },
+      { error: "Missing url parameter" },
       400,
       cors
     );
@@ -179,350 +188,203 @@ async function handleStream(request, url, cors) {
       throw new Error("Invalid protocol");
     }
 
-  } catch {
+    const hostname =
+      parsed.hostname.toLowerCase();
+
+    /*
+     * Initial requests normally use one of the
+     * configured upstream hostnames.
+     *
+     * Direct public IPv4 is also allowed because
+     * HLS playlists may contain redirected URLs
+     * pointing directly to the streaming server.
+     */
+    if (
+      !ALLOWED_STREAM_HOSTS.has(hostname) &&
+      !isPublicIpv4Address(hostname)
+    ) {
+      return json(
+        {
+          error: "Host not allowed",
+          host: parsed.hostname,
+        },
+        403,
+        cors
+      );
+    }
+
+    /*
+     * Direct IPv4 is intentionally restricted
+     * to HTTP port 80.
+     */
+    if (
+      isIpv4Address(hostname) &&
+      (
+        parsed.protocol !== "http:" ||
+        parsed.port &&
+        parsed.port !== "80"
+      )
+    ) {
+      return json(
+        {
+          error: "Direct IPv4 requires HTTP port 80",
+          host: parsed.hostname,
+          port: parsed.port || "80",
+        },
+        403,
+        cors
+      );
+    }
+  } catch (err) {
     return json(
       {
         error: "Invalid URL",
+        details:
+          err?.message || String(err),
       },
       400,
       cors
     );
   }
 
-  const method =
-    request.method === "HEAD"
-      ? "HEAD"
-      : "GET";
-
-  const range =
-    request.headers.get("Range");
-
-  const headers = buildStreamHeaders(parsed);
-
-  if (range) {
-    headers["Range"] = range;
-  }
-
-  console.log("[STREAM START]", {
-    target,
-    method,
-    range: range || null,
-  });
+  const requestHeaders =
+    buildUpstreamHeaders(
+      request,
+      target
+    );
 
   try {
-    /*
-     * ========================================================
-     * IMPORTANT:
-     *
-     * If the original URL is HTTP, HTTPS is tested FIRST.
-     *
-     * This is important because the HTTP endpoint may redirect
-     * to a Cloudflare-protected IP.
-     * ========================================================
-     */
-
-    let result;
-
-    if (parsed.protocol === "http:") {
-      const httpsUrl = makeHttpsUrl(target);
-
-      console.log(
-        "[STREAM] Trying HTTPS first:",
-        httpsUrl
+    const result =
+      await followRedirects(
+        parsed.href,
+        request.method,
+        requestHeaders
       );
-
-      try {
-        const httpsResult = await followRedirects(
-          httpsUrl,
-          method,
-          headers
-        );
-
-        console.log("[STREAM HTTPS RESULT]", {
-          status: httpsResult.response.status,
-          finalUrl: httpsResult.finalUrl,
-          redirected:
-            httpsResult.finalUrl !== httpsUrl,
-        });
-
-        /*
-         * Use HTTPS if it gives us a usable response.
-         *
-         * 2xx = definitely usable.
-         *
-         * We also keep a 3xx/4xx result temporarily so that
-         * we can report/fallback correctly.
-         */
-        if (
-          httpsResult.response.status >= 200 &&
-          httpsResult.response.status < 300
-        ) {
-          result = httpsResult;
-        }
-
-      } catch (err) {
-        console.error(
-          "[STREAM HTTPS ERROR]",
-          err?.message || String(err)
-        );
-      }
-    }
-
-    /*
-     * ========================================================
-     * HTTP FALLBACK
-     * ========================================================
-     */
-
-    if (!result) {
-      console.log(
-        "[STREAM] Trying original URL:",
-        target
-      );
-
-      const directResponse = await fetch(target, {
-  method,
-  headers: {
-    ...headers,
-  },
-  redirect: "follow",
-  cache: "no-store",
-});
-
-const location = directResponse.headers.get("Location");
-
-if (
-  location &&
-  [301, 302, 303, 307, 308].includes(directResponse.status)
-) {
-  return new Response(null, {
-    status: directResponse.status,
-    headers: {
-      ...cors,
-      "Location": location,
-      "Cache-Control": "no-store",
-    },
-  });
-}
-
-result = {
-  response: directResponse,
-  finalUrl: target,
-};
-    }
-
-    let response = result.response;
-    const errorText = await response.clone().text();
-
-    console.log("[403 BODY]", errorText);
-    let finalUrl = result.finalUrl;
-
-    console.log("[STREAM FINAL]", {
-      status: response.status,
-      finalUrl,
-      redirected: finalUrl !== target,
-      contentType:
-        response.headers.get("Content-Type"),
-      contentLength:
-        response.headers.get("Content-Length"),
-      contentRange:
-        response.headers.get("Content-Range"),
-      acceptRanges:
-        response.headers.get("Accept-Ranges"),
-      server:
-        response.headers.get("Server"),
-    });
-
-
-    // ========================================================
-    // EXPLICIT CLOUDFLARE 1003 DIAGNOSIS
-    // ========================================================
 
     if (
-      response.status === 403 &&
-      finalUrl
+      !result ||
+      !result.response
     ) {
-      const finalParsed = new URL(finalUrl);
+      return json(
+        {
+          error:
+            "Upstream request failed",
+        },
+        502,
+        cors
+      );
+    }
 
-      const bodyPreview = "";
+    const response =
+      result.response;
+
+    const finalUrl =
+      result.finalUrl ||
+      parsed.href;
+
+    console.log("[STREAM]", {
+      status:
+        response.status,
+      finalHost:
+        safeHost(finalUrl),
+      redirected:
+        result.hops > 0,
+      hops:
+        result.hops,
+    });
+
+    /*
+     * Cloudflare 1003 diagnostic.
+     */
+    if (
+      response.status === 403 &&
+      (
+        response.headers
+          .get("content-type") ||
+        ""
+      )
+        .toLowerCase()
+        .includes("text/plain")
+    ) {
+      const errorText =
+        await response.text();
 
       if (
-        isIpAddress(finalParsed.hostname) &&
-        bodyPreview.includes("1003")
+        errorText.includes(
+          "error code: 1003"
+        ) ||
+        errorText.includes("1003")
       ) {
         return json(
           {
             error:
-              "Upstream redirected to a direct IP and Cloudflare rejected it.",
-
-            code: "CLOUDFLARE_1003",
-
-            originalUrl: target,
-
-            finalUrl,
-
+              "UPSTREAM_DIRECT_IP_1003",
             message:
-              "The upstream server is redirecting the stream to a direct IP address. This cannot be fixed by the Worker unless the upstream provides a valid hostname/stream URL.",
-
-            bodyPreview,
+              "The upstream redirected to a direct IP and the request was rejected.",
+            finalHost:
+              safeHost(finalUrl),
+            bodyPreview:
+              safeBodyPreview(
+                errorText
+              ),
           },
           502,
           cors
         );
       }
 
-      /*
-       * We consumed the body above only for a diagnostic 1003
-       * check. For normal 403 responses do not consume it.
-       *
-       * Therefore the body is only consumed when it actually
-       * looks like Cloudflare 1003.
-       */
-    }
-
-
-    // ========================================================
-    // M3U8 DETECTION
-    // ========================================================
-
-    const contentType =
-      response.headers.get("Content-Type") || "";
-
-    const lowerType =
-      contentType.toLowerCase();
-
-    const lowerUrl =
-      finalUrl.toLowerCase();
-
-    const isM3U8 =
-      lowerType.includes("mpegurl") ||
-      lowerType.includes("m3u8") ||
-      lowerUrl.includes(".m3u8") ||
-      lowerUrl.includes(".m3u");
-
-
-    // ========================================================
-    // M3U8
-    // ========================================================
-
-    if (
-      isM3U8 &&
-      response.status >= 200 &&
-      response.status < 300
-    ) {
-      const playlist =
-        await response.text();
-
-      const rewritten =
-  rewriteM3U8(
-    playlist,
-    finalUrl
-  );
-
-console.log(
-  "[M3U8 OUTPUT]",
-  rewritten.substring(0, 500)
-);
-
       return new Response(
-        rewritten,
+        errorText,
         {
-          status: response.status,
-
+          status:
+            response.status,
           headers: {
             ...cors,
-
             "Content-Type":
-              "application/vnd.apple.mpegurl",
-
-            "Cache-Control":
-              "no-cache, no-store, must-revalidate",
-
-            "Pragma":
-              "no-cache",
+              response.headers.get(
+                "Content-Type"
+              ) ||
+              "text/plain; charset=UTF-8",
           },
         }
       );
     }
 
-
-    // ========================================================
-    // BINARY VIDEO
-    // ========================================================
-
-    const responseHeaders = {
-      ...cors,
-
-      "Content-Type":
-        contentType ||
-        "application/octet-stream",
-
-      "Cache-Control":
-        "no-cache, no-store, must-revalidate",
-
-      "Pragma":
-        "no-cache",
-    };
-
-    const copyHeaders = [
-      "Content-Length",
-      "Content-Range",
-      "Accept-Ranges",
-      "Last-Modified",
-      "ETag",
-      "Content-Disposition",
-      "Expires",
-      "Vary",
-      "Content-Encoding",
-    ];
-
-    for (const name of copyHeaders) {
-      const value =
-        response.headers.get(name);
-
-      if (value) {
-        responseHeaders[name] = value;
-      }
+    if (!response.ok) {
+      return await upstreamErrorResponse(
+        response,
+        cors
+      );
     }
 
     if (
-      response.status === 206 &&
-      !responseHeaders["Accept-Ranges"]
+      isM3u8Response(
+        response,
+        finalUrl
+      )
     ) {
-      responseHeaders["Accept-Ranges"] =
-        "bytes";
+      return await handleM3U8(
+        response,
+        finalUrl,
+        request,
+        cors
+      );
     }
 
-    /*
-     * NEVER convert video to text/arrayBuffer.
-     *
-     * Stream the upstream ReadableStream directly.
-     */
-
-    return new Response(
-      response.body,
-      {
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders,
-      }
+    return buildBinaryResponse(
+      response,
+      cors
     );
-
   } catch (err) {
     console.error(
       "[STREAM ERROR]",
-      {
-        target,
-        error:
-          err?.message ||
-          String(err),
-      }
+      err?.message || String(err)
     );
 
     return json(
       {
-        error: "Stream failed",
-
+        error:
+          "Stream fetch failed",
         details:
           err?.message ||
           String(err),
@@ -533,134 +395,244 @@ console.log(
   }
 }
 
-
 // ============================================================
-// STREAM HEADERS
+// M3U8
 // ============================================================
 
-function buildStreamHeaders(parsed) {
+async function handleM3U8(
+  response,
+  finalUrl,
+  request,
+  cors
+) {
+  const text =
+    await response.text();
 
-  return {
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/151.0.0.0 Mobile Safari/537.36",
+  const base =
+    new URL(finalUrl);
 
-    "Accept":
-      "application/vnd.apple.mpegurl,application/x-mpegURL,*/*",
+  const lines =
+    text.split(/\r?\n/);
 
-    "Accept-Language":
-      "ar,en-US;q=0.9,en;q=0.8",
+  const rewritten =
+    lines.map((line) => {
+      const trimmed =
+        line.trim();
 
-    "Referer":
-      "https://barqtv.website/",
+      if (!trimmed) {
+        return line;
+      }
 
-    "Origin":
-      "https://barqtv.website",
+      /*
+       * HLS tags such as:
+       * #EXT-X-KEY:URI="..."
+       * #EXT-X-MAP:URI="..."
+       * etc.
+       */
+      if (
+        trimmed.startsWith("#")
+      ) {
+        return rewriteHlsTag(
+          line,
+          base.href,
+          request
+        );
+      }
 
-    "Connection":
-      "keep-alive",
+      /*
+       * Normal segment / playlist URL.
+       */
+      try {
+        const absolute =
+          new URL(
+            trimmed,
+            base.href
+          ).href;
 
-    "Cache-Control":
-      "no-cache",
-  };
+        return makeProxyUrl(
+          request,
+          absolute
+        );
+      } catch (_) {
+        return line;
+      }
+    });
+
+  const headers =
+    new Headers(cors);
+
+  headers.set(
+    "Content-Type",
+    "application/vnd.apple.mpegurl"
+  );
+
+  headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate"
+  );
+
+  return new Response(
+    rewritten.join("\n"),
+    {
+      status:
+        response.status,
+      headers,
+    }
+  );
 }
 
-
 // ============================================================
-// HTTPS URL
+// HLS URI REWRITE
 // ============================================================
 
-function makeHttpsUrl(value) {
-  const u = new URL(value);
+function rewriteHlsTag(
+  line,
+  baseUrl,
+  request
+) {
+  return line.replace(
+    /URI="([^"]+)"/gi,
+    (match, uri) => {
+      try {
+        const absolute =
+          new URL(
+            uri,
+            baseUrl
+          ).href;
 
-  u.protocol = "https:";
-
-  /*
-   * HTTP port 80 should not remain when switching to HTTPS.
-   */
-
-  if (u.port === "80") {
-    u.port = "";
-  }
-
-  return u.href;
+        return `URI="${makeProxyUrl(
+          request,
+          absolute
+        )}"`;
+      } catch (_) {
+        return match;
+      }
+    }
+  );
 }
 
+// ============================================================
+// PROXY URL
+// ============================================================
+
+function makeProxyUrl(
+  request,
+  targetUrl
+) {
+  const workerUrl =
+    new URL(request.url);
+
+  workerUrl.pathname =
+    "/stream";
+
+  workerUrl.search = "";
+
+  workerUrl.searchParams.set(
+    "url",
+    targetUrl
+  );
+
+  return workerUrl.href;
+}
 
 // ============================================================
-// REDIRECT HANDLING
+// REDIRECT FOLLOWING
 // ============================================================
-
 
 async function followRedirects(
   initialUrl,
   method,
   headers
 ) {
-  let current = initialUrl;
+  let current =
+    initialUrl;
 
-  const maxRedirects = 5;
+  let hops = 0;
 
-  const hops = [];
-
-  for (
-    let attempt = 0;
-    attempt <= maxRedirects;
-    attempt++
+  while (
+    hops < MAX_REDIRECTS
   ) {
-    console.log(
-      "[UPSTREAM]",
-      {
-        attempt: attempt + 1,
-        url: current,
+    let response;
+
+    /*
+     * If current URL is a direct public
+     * IPv4 address, do NOT use fetch().
+     *
+     * Cloudflare Workers blocks direct IP
+     * subrequests through fetch().
+     *
+     * Instead use an outbound TCP socket.
+     */
+    try {
+      const currentUrl =
+        new URL(current);
+
+      if (
+        isIpv4Address(
+          currentUrl.hostname
+        )
+      ) {
+        response =
+          await fetchIpv4Http(
+            currentUrl,
+            method,
+            headers
+          );
+      } else {
+        response =
+          await fetch(
+            current,
+            {
+              method,
+              headers,
+              redirect:
+                "manual",
+              cache:
+                "no-store",
+            }
+          );
       }
-    );
-
-    const response =
-      await fetch(
-        current,
-        {
-          method,
-
-          headers: {
-            ...headers,
-          },
-
-          redirect: "manual",
-
-          cache: "no-store",
-        }
+    } catch (error) {
+      throw new Error(
+        `Upstream connection failed: ${
+          error?.message ||
+          String(error)
+        }`
       );
+    }
 
     const location =
-      response.headers.get("Location");
+      response.headers.get(
+        "Location"
+      );
 
-    hops.push({
-      attempt: attempt + 1,
+    const redirect =
+      response.status >= 300 &&
+      response.status < 400 &&
+      !!location;
 
-      url: current,
-
-      status:
-        response.status,
-
-      statusText:
-        response.statusText,
-
-      location:
-        location || null,
-
-      server:
-        response.headers.get("Server") ||
-        null,
-
-      contentType:
-        response.headers.get("Content-Type") ||
-        null,
-    });
-
-    if (!isRedirect(response.status)) {
+    if (!redirect) {
       return {
         response,
-        finalUrl: current,
+        finalUrl:
+          current,
+        hops,
+      };
+    }
+
+    let nextUrl;
+
+    try {
+      nextUrl =
+        new URL(
+          location,
+          current
+        );
+    } catch (_) {
+      return {
+        response,
+        finalUrl:
+          current,
         hops,
       };
     }
@@ -668,231 +640,1260 @@ async function followRedirects(
     console.log(
       "[REDIRECT]",
       {
-        status: response.status,
-        from: current,
-        location,
+        status:
+          response.status,
+        from:
+          safeHost(current),
+        to:
+          safeHost(
+            nextUrl.href
+          ),
       }
     );
 
-    if (!location) {
-      return {
-        response,
-        finalUrl: current,
-        hops,
-      };
-    }
-
     if (
-      attempt >= maxRedirects
+      nextUrl.protocol !==
+        "http:" &&
+      nextUrl.protocol !==
+        "https:"
     ) {
+      console.error(
+        "[REDIRECT BLOCKED PROTOCOL]",
+        nextUrl.protocol
+      );
+
+      await cancelResponseBody(
+        response
+      );
+
       return {
         response,
-        finalUrl: current,
+        finalUrl:
+          current,
         hops,
       };
     }
 
-    let nextUrl =
-      new URL(
-        location,
-        current
+    const nextHost =
+      nextUrl.hostname
+        .toLowerCase();
+
+    /*
+     * DIRECT IPv4 REDIRECT
+     *
+     * Example:
+     *
+     * 302
+     * Location:
+     * http://37.49.230.24:80/auth/TOKEN
+     *
+     * We keep the exact path and query.
+     */
+    if (
+      isIpv4Address(
+        nextHost
+      )
+    ) {
+      if (
+        !isPublicIpv4Address(
+          nextHost
+        )
+      ) {
+        console.error(
+          "[REDIRECT BLOCKED PRIVATE IP]",
+          nextHost
+        );
+
+        await cancelResponseBody(
+          response
+        );
+
+        return {
+          response,
+          finalUrl:
+            current,
+          hops,
+        };
+      }
+
+      /*
+       * The current solution uses raw HTTP
+       * over TCP for direct IPv4.
+       */
+      if (
+        nextUrl.protocol !==
+          "http:" ||
+        (
+          nextUrl.port &&
+          nextUrl.port !==
+            "80"
+        )
+      ) {
+        console.error(
+          "[REDIRECT BLOCKED DIRECT IP PORT]",
+          nextUrl.href
+        );
+
+        await cancelResponseBody(
+          response
+        );
+
+        return {
+          response,
+          finalUrl:
+            current,
+          hops,
+        };
+      }
+
+      console.log(
+        "[REDIRECT IP TCP]",
+        {
+          ip:
+            nextHost,
+          path:
+            nextUrl.pathname,
+          hasQuery:
+            !!nextUrl.search,
+        }
+      );
+
+      await cancelResponseBody(
+        response
+      );
+
+      current =
+        nextUrl.href;
+
+      hops++;
+
+      continue;
+    }
+
+    /*
+     * Normal hostname redirect.
+     */
+    if (
+      !ALLOWED_STREAM_HOSTS.has(
+        nextHost
+      )
+    ) {
+      console.error(
+        "[REDIRECT BLOCKED HOST]",
+        nextHost
+      );
+
+      await cancelResponseBody(
+        response
+      );
+
+      return {
+        response,
+        finalUrl:
+          current,
+        hops,
+      };
+    }
+
+    await cancelResponseBody(
+      response
+    );
+
+    current =
+      nextUrl.href;
+
+    hops++;
+  }
+
+  return {
+    response:
+      new Response(
+        "Too many redirects",
+        {
+          status: 508,
+        }
+      ),
+    finalUrl:
+      current,
+    hops,
+  };
+}
+
+// ============================================================
+// DIRECT IPv4 HTTP THROUGH TCP SOCKET
+// ============================================================
+
+async function fetchIpv4Http(
+  url,
+  method,
+  headers
+) {
+  if (
+    url.protocol !==
+    "http:"
+  ) {
+    throw new Error(
+      "Direct IPv4 HTTPS is not supported by this TCP HTTP fallback."
+    );
+  }
+
+  if (
+    !isIpv4Address(
+      url.hostname
+    )
+  ) {
+    throw new Error(
+      "Invalid IPv4 address."
+    );
+  }
+
+  if (
+    !isPublicIpv4Address(
+      url.hostname
+    )
+  ) {
+    throw new Error(
+      "Private or reserved IPv4 address is not allowed."
+    );
+  }
+
+  const port =
+    url.port
+      ? Number(url.port)
+      : 80;
+
+  if (
+    port !== 80
+  ) {
+    throw new Error(
+      "Direct IPv4 HTTP is restricted to port 80."
+    );
+  }
+
+  const socket =
+    connect({
+      hostname:
+        url.hostname,
+      port,
+    });
+
+  const writer =
+    socket.writable.getWriter();
+
+  const requestHeaders =
+    new Headers(headers);
+
+  /*
+   * The upstream virtual host may need the
+   * original IP as Host, because the redirect
+   * explicitly points to the IP.
+   */
+  if (
+    !requestHeaders.has(
+      "Host"
+    )
+  ) {
+    requestHeaders.set(
+      "Host",
+      url.hostname
+    );
+  }
+
+  /*
+   * Do not send hop-by-hop headers.
+   */
+  requestHeaders.delete(
+    "Connection"
+  );
+
+  requestHeaders.delete(
+    "Proxy-Connection"
+  );
+
+  requestHeaders.delete(
+    "Transfer-Encoding"
+  );
+
+  requestHeaders.delete(
+    "Content-Length"
+  );
+
+  requestHeaders.set(
+    "Connection",
+    "close"
+  );
+
+  let requestText =
+    `${method} ${
+      url.pathname ||
+      "/"
+    }${
+      url.search || ""
+    } HTTP/1.1\r\n`;
+
+  for (
+    const [name, value]
+      of requestHeaders
+  ) {
+    requestText +=
+      `${name}: ${value}\r\n`;
+  }
+
+  requestText +=
+    "\r\n";
+
+  try {
+    await writer.write(
+      new TextEncoder().encode(
+        requestText
+      )
+    );
+  } finally {
+    writer.releaseLock();
+  }
+
+  const reader =
+    socket.readable.getReader();
+
+  try {
+    const head =
+      await readHttpHead(
+        reader
+      );
+
+    const statusLine =
+      head.statusLine;
+
+    const statusMatch =
+      statusLine.match(
+        /^HTTP\/\d(?:\.\d)?\s+(\d{3})(?:\s+(.*))?$/i
+      );
+
+    if (!statusMatch) {
+      throw new Error(
+        `Invalid upstream HTTP status: ${statusLine}`
+      );
+    }
+
+    const status =
+      Number(
+        statusMatch[1]
+      );
+
+    const statusText =
+      statusMatch[2] ||
+      "";
+
+    const responseHeaders =
+      new Headers();
+
+    for (
+      const [name, value]
+        of head.headers
+    ) {
+      /*
+       * Hop-by-hop response headers
+       * should not be forwarded.
+       */
+      if (
+        isHopByHopHeader(
+          name
+        )
+      ) {
+        continue;
+      }
+
+      responseHeaders.append(
+        name,
+        value
+      );
+    }
+
+    const transferEncoding =
+      (
+        responseHeaders.get(
+          "Transfer-Encoding"
+        ) || ""
+      ).toLowerCase();
+
+    const contentLength =
+      responseHeaders.get(
+        "Content-Length"
       );
 
     /*
-     * ========================================================
-     * CLOUDFLARE WORKER IP REDIRECT FIX
-     *
-     * The authorized upstream redirects the stream to:
-     *
-     * 37.49.230.120
-     *
-     * Cloudflare Workers cannot fetch a direct IP.
-     *
-     * We created:
-     *
-     * origin.raxson.online
-     *        ↓
-     * 37.49.230.120
-     *
-     * DNS Only.
-     *
-     * Therefore change ONLY the hostname while preserving
-     * the original path, query string and authentication token.
-     * ========================================================
+     * Remove Transfer-Encoding because
+     * the Worker stream exposes decoded body.
      */
+    responseHeaders.delete(
+      "Transfer-Encoding"
+    );
+
+    let body;
 
     if (
-  nextUrl.hostname === "37.49.230.120" ||
-  nextUrl.hostname === "37.49.230.121" ||
-  nextUrl.hostname === "37.49.230.122"
-) {
-  console.log(
-    "[REDIRECT REWRITE]",
-    {
-      originalHost: nextUrl.hostname,
-      newHost: "origin.raxson.online"
+      method === "HEAD" ||
+      status === 204 ||
+      status === 304
+    ) {
+      body =
+        createSocketBodyStream(
+          reader,
+          socket,
+          "none"
+        );
+    } else if (
+      transferEncoding.includes(
+        "chunked"
+      )
+    ) {
+      body =
+        createSocketBodyStream(
+          reader,
+          socket,
+          "chunked"
+        );
+    } else if (
+      contentLength !==
+        null &&
+      /^\d+$/.test(
+        contentLength.trim()
+      )
+    ) {
+      body =
+        createSocketBodyStream(
+          reader,
+          socket,
+          "length",
+          Number(
+            contentLength.trim()
+          )
+        );
+    } else {
+      /*
+       * No Content-Length means the body
+       * ends when the server closes the socket.
+       */
+      body =
+        createSocketBodyStream(
+          reader,
+          socket,
+          "close"
+        );
     }
-  );
 
-  nextUrl.hostname = "origin.raxson.online";
+    return new Response(
+      body,
+      {
+        status,
+        statusText,
+        headers:
+          responseHeaders,
+      }
+    );
+  } catch (error) {
+    try {
+      reader.releaseLock();
+    } catch (_) {}
+
+    try {
+      socket.close();
+    } catch (_) {}
+
+    throw error;
+  }
 }
 
-current = nextUrl.href;
+// ============================================================
+// HTTP RESPONSE HEADER READER
+// ============================================================
+
+async function readHttpHead(
+  reader
+) {
+  let buffer =
+    new Uint8Array(0);
+
+  const delimiter =
+    new TextEncoder().encode(
+      "\r\n\r\n"
+    );
+
+  while (
+    buffer.length <
+    128 * 1024
+  ) {
+    const result =
+      await reader.read();
+
+    if (
+      result.done
+    ) {
+      throw new Error(
+        "Upstream closed connection before HTTP headers were received."
+      );
+    }
+
+    if (
+      result.value &&
+      result.value.length
+    ) {
+      buffer =
+        concatBytes(
+          buffer,
+          result.value
+        );
+    }
+
+    const index =
+      indexOfBytes(
+        buffer,
+        delimiter
+      );
+
+    if (
+      index !== -1
+    ) {
+      const headBytes =
+        buffer.slice(
+          0,
+          index
+        );
+
+      const remaining =
+        buffer.slice(
+          index +
+            delimiter.length
+        );
+
+      const text =
+        new TextDecoder().decode(
+          headBytes
+        );
+
+      const lines =
+        text.split(
+          "\r\n"
+        );
+
+      const statusLine =
+        lines.shift() ||
+        "";
+
+      const headers =
+        [];
+
+      for (
+        const line
+          of lines
+      ) {
+        const separator =
+          line.indexOf(
+            ":"
+          );
+
+        if (
+          separator <= 0
+        ) {
+          continue;
+        }
+
+        const name =
+          line.slice(
+            0,
+            separator
+          ).trim();
+
+        const value =
+          line.slice(
+            separator + 1
+          ).trim();
+
+        headers.push([
+          name,
+          value,
+        ]);
+      }
+
+      return {
+        statusLine,
+        headers,
+        initialBody:
+          remaining,
+      };
+    }
   }
 
   throw new Error(
-    "Too many redirects"
+    "Upstream HTTP headers are too large."
   );
 }
 
 // ============================================================
-// REDIRECT CHECK
+// SOCKET BODY STREAM
 // ============================================================
 
-function isRedirect(status) {
-  return (
-    status === 301 ||
-    status === 302 ||
-    status === 303 ||
-    status === 307 ||
-    status === 308
-  );
-}
-
-
-// ============================================================
-// M3U8 REWRITE
-// ============================================================
-
-function rewriteM3U8(
-  text,
-  baseUrl
+function createSocketBodyStream(
+  reader,
+  socket,
+  mode,
+  length = 0
 ) {
-  const lines =
-    text.split(/\r?\n/);
+  let buffer =
+    new Uint8Array(0);
 
-  const output = [];
+  let remaining =
+    length;
 
-  for (const originalLine of lines) {
-    let line =
-      originalLine;
+  let state =
+    mode === "chunked"
+      ? "size"
+      : mode === "length"
+        ? "length"
+        : mode === "none"
+          ? "none"
+          : "close";
 
-    /*
-     * HLS tags may contain URI="..."
-     */
+  let closed =
+    false;
+
+  async function closeSocket() {
+    if (closed) {
+      return;
+    }
+
+    closed = true;
+
+    try {
+      reader.releaseLock();
+    } catch (_) {}
+
+    try {
+      socket.close();
+    } catch (_) {}
+  }
+
+  async function readMore() {
+    const result =
+      await reader.read();
 
     if (
-      line.startsWith("#")
+      result.done
     ) {
-      line =
-        rewriteTagUri(
-          line,
-          baseUrl
+      return false;
+    }
+
+    if (
+      result.value &&
+      result.value.length
+    ) {
+      buffer =
+        concatBytes(
+          buffer,
+          result.value
+        );
+    }
+
+    return true;
+  }
+
+  async function readLine() {
+    const delimiter =
+      new Uint8Array([
+        13,
+        10,
+      ]);
+
+    while (true) {
+      const index =
+        indexOfBytes(
+          buffer,
+          delimiter
         );
 
-      output.push(line);
-      continue;
+      if (
+        index !== -1
+      ) {
+        const lineBytes =
+          buffer.slice(
+            0,
+            index
+          );
+
+        buffer =
+          buffer.slice(
+            index +
+              2
+          );
+
+        return new TextDecoder()
+          .decode(
+            lineBytes
+          );
+      }
+
+      const more =
+        await readMore();
+
+      if (!more) {
+        throw new Error(
+          "Unexpected end of HTTP body."
+        );
+      }
+    }
+  }
+
+  async function readExactly(
+    count
+  ) {
+    while (
+      buffer.length <
+      count
+    ) {
+      const more =
+        await readMore();
+
+      if (!more) {
+        throw new Error(
+          "Unexpected end of HTTP body."
+        );
+      }
     }
 
-    const value =
-      line.trim();
-
-    if (!value) {
-      output.push(line);
-      continue;
-    }
-
-    /*
-     * Every media/playlist URL is resolved against the
-     * final upstream URL and then proxied.
-     */
-
-    const resolved =
-      resolveUrl(
-        value,
-        baseUrl
+    const output =
+      buffer.slice(
+        0,
+        count
       );
 
-    output.push(
-      toProxyUrl(resolved)
+    buffer =
+      buffer.slice(
+        count
+      );
+
+    return output;
+  }
+
+  const stream =
+    new ReadableStream({
+      async pull(controller) {
+        try {
+          /*
+           * No body.
+           */
+          if (
+            state === "none"
+          ) {
+            controller.close();
+            await closeSocket();
+            return;
+          }
+
+          /*
+           * Content-Length body.
+           */
+          if (
+            state === "length"
+          ) {
+            if (
+              remaining <= 0
+            ) {
+              controller.close();
+              await closeSocket();
+              return;
+            }
+
+            if (
+              buffer.length === 0
+            ) {
+              const more =
+                await readMore();
+
+              if (!more) {
+                controller.close();
+                await closeSocket();
+                return;
+              }
+            }
+
+            const count =
+              Math.min(
+                remaining,
+                buffer.length
+              );
+
+            const chunk =
+              buffer.slice(
+                0,
+                count
+              );
+
+            buffer =
+              buffer.slice(
+                count
+              );
+
+            remaining -=
+              count;
+
+            controller.enqueue(
+              chunk
+            );
+
+            if (
+              remaining <= 0
+            ) {
+              controller.close();
+              await closeSocket();
+            }
+
+            return;
+          }
+
+          /*
+           * Chunked Transfer-Encoding.
+           */
+          if (
+            state ===
+            "chunked"
+          ) {
+            while (true) {
+              /*
+               * Read chunk size.
+               */
+              if (
+                state ===
+                "size"
+              ) {
+                const line =
+                  await readLine();
+
+                const sizeText =
+                  line
+                    .split(";")[0]
+                    .trim();
+
+                const size =
+                  parseInt(
+                    sizeText,
+                    16
+                  );
+
+                if (
+                  !Number.isFinite(
+                    size
+                  ) ||
+                  size < 0
+                ) {
+                  throw new Error(
+                    "Invalid chunk size."
+                  );
+                }
+
+                if (
+                  size === 0
+                ) {
+                  /*
+                   * Consume trailers until
+                   * the empty line.
+                   */
+                  while (true) {
+                    const trailer =
+                      await readLine();
+
+                    if (
+                      trailer === ""
+                    ) {
+                      break;
+                    }
+                  }
+
+                  controller.close();
+                  await closeSocket();
+                  return;
+                }
+
+                remaining =
+                  size;
+
+                state =
+                  "chunk-data";
+              }
+
+              /*
+               * Read chunk data.
+               */
+              if (
+                state ===
+                "chunk-data"
+              ) {
+                const chunk =
+                  await readExactly(
+                    remaining
+                  );
+
+                remaining = 0;
+
+                state =
+                  "chunk-crlf";
+
+                controller.enqueue(
+                  chunk
+                );
+
+                return;
+              }
+
+              /*
+               * Consume CRLF after chunk.
+               */
+              if (
+                state ===
+                "chunk-crlf"
+              ) {
+                const crlf =
+                  await readExactly(
+                    2
+                  );
+
+                if (
+                  crlf[0] !==
+                    13 ||
+                  crlf[1] !==
+                    10
+                ) {
+                  throw new Error(
+                    "Invalid chunk terminator."
+                  );
+                }
+
+                state =
+                  "size";
+
+                continue;
+              }
+            }
+          }
+
+          /*
+           * Connection-close body.
+           */
+          if (
+            state === "close"
+          ) {
+            if (
+              buffer.length
+            ) {
+              const chunk =
+                buffer;
+
+              buffer =
+                new Uint8Array(0);
+
+              controller.enqueue(
+                chunk
+              );
+
+              return;
+            }
+
+            const result =
+              await reader.read();
+
+            if (
+              result.done
+            ) {
+              controller.close();
+              await closeSocket();
+              return;
+            }
+
+            if (
+              result.value &&
+              result.value.length
+            ) {
+              controller.enqueue(
+                result.value
+              );
+            }
+
+            return;
+          }
+        } catch (error) {
+          console.error(
+            "[TCP BODY ERROR]",
+            error?.message ||
+              String(error)
+          );
+
+          controller.error(
+            error
+          );
+
+          await closeSocket();
+        }
+      },
+
+      async cancel() {
+        await closeSocket();
+      },
+    });
+
+  return stream;
+}
+
+// ============================================================
+// HTTP HEADER HELPERS
+// ============================================================
+
+function isHopByHopHeader(
+  name
+) {
+  const value =
+    name.toLowerCase();
+
+  return (
+    value ===
+      "connection" ||
+    value ===
+      "keep-alive" ||
+    value ===
+      "proxy-authenticate" ||
+    value ===
+      "proxy-authorization" ||
+    value ===
+      "te" ||
+    value ===
+      "trailer" ||
+    value ===
+      "transfer-encoding" ||
+    value ===
+      "upgrade" ||
+    value ===
+      "proxy-connection"
+  );
+}
+
+// ============================================================
+// UPSTREAM HEADERS
+// ============================================================
+
+function buildUpstreamHeaders(
+  request,
+  targetUrl
+) {
+  const headers =
+    new Headers();
+
+  headers.set(
+    "User-Agent",
+    request.headers.get(
+      "User-Agent"
+    ) ||
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0"
+  );
+
+  headers.set(
+    "Accept",
+    request.headers.get(
+      "Accept"
+    ) ||
+      "*/*"
+  );
+
+  headers.set(
+    "Accept-Language",
+    request.headers.get(
+      "Accept-Language"
+    ) ||
+      "ar,en;q=0.9"
+  );
+
+  headers.set(
+    "Referer",
+    getOrigin(
+      targetUrl
+    ) + "/"
+  );
+
+  const range =
+    request.headers.get(
+      "Range"
+    );
+
+  if (range) {
+    headers.set(
+      "Range",
+      range
     );
   }
 
-  return output.join("\n");
+  /*
+   * Preserve authorization if the
+   * player sends one.
+   */
+  const authorization =
+    request.headers.get(
+      "Authorization"
+    );
+
+  if (authorization) {
+    headers.set(
+      "Authorization",
+      authorization
+    );
+  }
+
+  return headers;
 }
 
-
 // ============================================================
-// HLS TAG URI
+// M3U8 DETECTION
 // ============================================================
 
-function rewriteTagUri(
-  line,
-  baseUrl
+function isM3u8Response(
+  response,
+  finalUrl
 ) {
-  return line.replace(
-    /URI="([^"]+)"/g,
-    (match, uri) => {
+  const type =
+    (
+      response.headers.get(
+        "Content-Type"
+      ) || ""
+    ).toLowerCase();
 
-      if (
-        uri.startsWith("data:") ||
-        uri.startsWith("skd:")
-      ) {
-        return match;
-      }
+  return (
+    type.includes(
+      "mpegurl"
+    ) ||
+    type.includes(
+      "vnd.apple.mpegurl"
+    ) ||
+    /\.m3u8(?:$|\?)/i.test(
+      finalUrl
+    )
+  );
+}
 
-      const resolved =
-        resolveUrl(
-          uri,
-          baseUrl
-        );
+// ============================================================
+// BINARY RESPONSE
+// ============================================================
 
-      return (
-        `URI="${toProxyUrl(resolved)}"`
-      );
+function buildBinaryResponse(
+  response,
+  cors
+) {
+  const headers =
+    copyResponseHeaders(
+      response,
+      cors
+    );
+
+  headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate"
+  );
+
+  return new Response(
+    response.body,
+    {
+      status:
+        response.status,
+      statusText:
+        response.statusText,
+      headers,
     }
   );
 }
 
-
 // ============================================================
-// URL RESOLUTION
+// RESPONSE HEADERS
 // ============================================================
 
-function resolveUrl(
-  value,
-  base
+function copyResponseHeaders(
+  source,
+  cors
 ) {
-  if (
-    value.startsWith("http://") ||
-    value.startsWith("https://")
+  const headers =
+    new Headers(cors);
+
+  const names = [
+    "Content-Type",
+    "Content-Length",
+    "Content-Range",
+    "Accept-Ranges",
+    "ETag",
+    "Last-Modified",
+    "Content-Disposition",
+  ];
+
+  for (
+    const name of names
   ) {
-    return value;
+    const value =
+      source.headers.get(
+        name
+      );
+
+    if (
+      value !== null
+    ) {
+      headers.set(
+        name,
+        value
+      );
+    }
   }
+
+  /*
+   * Never cache live stream data.
+   */
+  headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate"
+  );
+
+  return headers;
+}
+
+// ============================================================
+// UPSTREAM ERROR
+// ============================================================
+
+async function upstreamErrorResponse(
+  response,
+  cors
+) {
+  let body = "";
 
   try {
-    return new URL(
-      value,
-      base
-    ).href;
-
-  } catch {
-    return value;
+    body =
+      await response.text();
+  } catch (_) {
+    body = "";
   }
-}
 
-
-// ============================================================
-// PROXY URL
-// ============================================================
-
-function toProxyUrl(url) {
-  return (
-    "/stream?url=" +
-    encodeURIComponent(url)
+  return new Response(
+    body ||
+      `Upstream HTTP ${response.status}`,
+    {
+      status:
+        response.status,
+      statusText:
+        response.statusText,
+      headers: {
+        ...cors,
+        "Content-Type":
+          response.headers.get(
+            "Content-Type"
+          ) ||
+          "text/plain; charset=UTF-8",
+        "Cache-Control":
+          "no-store",
+      },
+    }
   );
 }
-
 
 // ============================================================
 // DEBUG
@@ -904,7 +1905,9 @@ async function handleDebug(
   cors
 ) {
   const target =
-    url.searchParams.get("url")?.trim();
+    url.searchParams.get(
+      "url"
+    )?.trim();
 
   if (!target) {
     return json(
@@ -924,116 +1927,125 @@ async function handleDebug(
       new URL(target);
 
     if (
-      parsed.protocol !== "http:" &&
-      parsed.protocol !== "https:"
+      parsed.protocol !==
+        "http:" &&
+      parsed.protocol !==
+        "https:"
     ) {
       throw new Error(
         "Invalid protocol"
       );
     }
 
-  } catch {
+    const hostname =
+      parsed.hostname
+        .toLowerCase();
+
+    if (
+      !ALLOWED_STREAM_HOSTS.has(
+        hostname
+      ) &&
+      !isPublicIpv4Address(
+        hostname
+      )
+    ) {
+      return json(
+        {
+          error:
+            "Host not allowed",
+          host:
+            parsed.hostname,
+        },
+        403,
+        cors
+      );
+    }
+  } catch (error) {
     return json(
       {
         error:
           "Invalid URL",
+        details:
+          error?.message ||
+          String(error),
       },
       400,
       cors
     );
   }
 
-  const range =
-    request.headers.get("Range");
-
   const headers =
-    buildStreamHeaders(parsed);
+    new Headers();
+
+  headers.set(
+    "User-Agent",
+    request.headers.get(
+      "User-Agent"
+    ) ||
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0"
+  );
+
+  headers.set(
+    "Accept",
+    "*/*"
+  );
+
+  headers.set(
+    "Referer",
+    getOrigin(target) +
+      "/"
+  );
+
+  const range =
+    request.headers.get(
+      "Range"
+    );
 
   if (range) {
-    headers["Range"] = range;
+    headers.set(
+      "Range",
+      range
+    );
   }
 
-  /*
-   * ========================================================
-   * DEBUG BOTH PROTOCOLS
-   *
-   * This is the important change.
-   *
-   * If the supplied URL is HTTP, we test:
-   *
-   * 1. HTTPS
-   * 2. HTTP
-   *
-   * If supplied URL is HTTPS, we test HTTPS only.
-   * ========================================================
-   */
+  try {
+    const result =
+      await followRedirects(
+        parsed.href,
+        "GET",
+        headers
+      );
 
-  const tests = [];
+    const response =
+      result.response;
 
-  if (parsed.protocol === "http:") {
-    tests.push({
-      name: "HTTPS",
-      url: makeHttpsUrl(target),
-    });
+    let bodyPreview =
+      "";
 
-    tests.push({
-      name: "HTTP",
-      url: target,
-    });
+    const contentType =
+      response.headers.get(
+        "Content-Type"
+      ) || "";
 
-  } else {
-    tests.push({
-      name: "HTTPS",
-      url: target,
-    });
-  }
-
-  const results = [];
-
-  for (const test of tests) {
-    try {
-      const result =
-        await followRedirects(
-          test.url,
-          "GET",
-          headers
-        );
-
-      const response =
-        result.response;
-
-      const preview =
-        await safeBodyPreview(
-          response
-        );
-
-      let finalHost = null;
-      let finalProtocol = null;
-      let redirectedToIp = false;
-
+    if (
+      !response.ok &&
+      contentType
+        .toLowerCase()
+        .includes("text")
+    ) {
       try {
-        const finalParsed =
-          new URL(result.finalUrl);
+        const text =
+          await response.text();
 
-        finalHost =
-          finalParsed.hostname;
-
-        finalProtocol =
-          finalParsed.protocol;
-
-        redirectedToIp =
-          isIpAddress(
-            finalParsed.hostname
+        bodyPreview =
+          safeBodyPreview(
+            text
           );
+      } catch (_) {}
+    }
 
-      } catch {}
-
-      results.push({
-        name: test.name,
-
-        requestUrl:
-          test.url,
-
+    return json(
+      {
         status:
           response.status,
 
@@ -1041,40 +2053,31 @@ async function handleDebug(
           response.statusText,
 
         finalUrl:
-          result.finalUrl,
+          redactUrl(
+            result.finalUrl
+          ),
 
-        finalHost,
+        finalHost:
+          safeHost(
+            result.finalUrl
+          ),
 
-        finalProtocol,
+        finalProtocol:
+          getProtocol(
+            result.finalUrl
+          ),
 
         redirected:
-          result.finalUrl !== test.url,
+          result.hops > 0,
 
-        redirectedToIp,
+        hops:
+          result.hops,
 
-        contentType:
-          response.headers.get(
-            "Content-Type"
-          ),
+        contentType,
 
         contentLength:
           response.headers.get(
             "Content-Length"
-          ),
-
-        contentRange:
-          response.headers.get(
-            "Content-Range"
-          ),
-
-        acceptRanges:
-          response.headers.get(
-            "Accept-Ranges"
-          ),
-
-        location:
-          response.headers.get(
-            "Location"
           ),
 
         server:
@@ -1082,253 +2085,43 @@ async function handleDebug(
             "Server"
           ),
 
-        cfRay:
-          response.headers.get(
-            "CF-Ray"
-          ),
-
-        bodyPreview:
-          preview,
-
-        hops:
-          result.hops,
-      });
-
-    } catch (err) {
-      results.push({
-        name: test.name,
-
-        requestUrl:
-          test.url,
-
-        error:
-          err?.message ||
-          String(err),
-      });
-    }
-  }
-
-  /*
-   * ========================================================
-   * DIAGNOSIS
-   * ========================================================
-   */
-
-  const working =
-    results.find(
-      r =>
-        r.status >= 200 &&
-        r.status < 300 &&
-        !r.error
-    );
-
-  const cloudflare1003 =
-    results.filter(
-      r =>
-        r.status === 403 &&
-        r.redirectedToIp &&
-        String(
-          r.bodyPreview || ""
-        ).includes("1003")
-    );
-
-  let diagnosis;
-
-  if (working) {
-    diagnosis = {
-      status: "WORKING_PATH_FOUND",
-
-      message:
-        `${working.name} returned a successful upstream response.`,
-
-      workingUrl:
-        working.requestUrl,
-
-      finalUrl:
-        working.finalUrl,
-
-      contentType:
-        working.contentType,
-    };
-
-  } else if (
-    cloudflare1003.length ===
-    results.length
-  ) {
-    diagnosis = {
-      status:
-        "UPSTREAM_DIRECT_IP_1003",
-
-      message:
-        "Both tested paths redirect to a direct IP and Cloudflare returns error 1003.",
-
-      explanation:
-        "The upstream stream URL needs to be corrected by the source/provider. A Worker cannot legitimately turn the Cloudflare direct-IP rejection into a working hostname.",
-    };
-
-  } else {
-    diagnosis = {
-      status:
-        "NO_WORKING_PATH",
-
-      message:
-        "Neither tested protocol returned a successful stream response.",
-
-      explanation:
-        "Check the individual HTTP/HTTPS results above.",
-    };
-  }
-
-  return json(
-    {
-      test:
-        "http-and-https-stream-diagnostic",
-
-      request: {
-        url: target,
-
-        protocol:
-          parsed.protocol,
-
-        range:
-          range || null,
+        bodyPreview,
       },
+      200,
+      cors
+    );
+  } catch (error) {
+    return json(
+      {
+        error:
+          "Debug failed",
 
-      results,
-
-      diagnosis,
-    },
-    200,
-    cors
-  );
+        details:
+          error?.message ||
+          String(error),
+      },
+      502,
+      cors
+    );
+  }
 }
 
-
 // ============================================================
-// BODY PREVIEW
+// CANCEL RESPONSE BODY
 // ============================================================
 
-async function safeBodyPreview(
+async function cancelResponseBody(
   response
 ) {
-  /*
-   * Only use this for small diagnostic/error bodies.
-   *
-   * Never call this on successful video streams.
-   */
-
-  const contentType =
-    response.headers.get(
-      "Content-Type"
-    ) || "";
-
-  const contentLength =
-    Number(
-      response.headers.get(
-        "Content-Length"
-      ) || "0"
-    );
-
-  /*
-   * Only inspect likely text/error responses.
-   */
-
-  const looksText =
-    contentType.includes("text") ||
-    contentType.includes("json") ||
-    contentType.includes("plain");
-
-  if (
-    !looksText &&
-    contentLength > 4096
-  ) {
-    return "";
-  }
-
-  if (!response.body) {
-    return "";
-  }
-
   try {
-    const reader =
-      response.body.getReader();
-
-    const decoder =
-      new TextDecoder();
-
-    const { value } =
-      await reader.read();
-
-    try {
-      await reader.cancel();
-    } catch {}
-
-    if (!value) {
-      return "";
+    if (
+      response &&
+      response.body
+    ) {
+      await response.body.cancel();
     }
-
-    return decoder
-      .decode(value)
-      .slice(0, 4096);
-
-  } catch {
-    return "";
-  }
+  } catch (_) {}
 }
-
-
-// ============================================================
-// IP CHECK
-// ============================================================
-
-function isIpAddress(hostname) {
-  /*
-   * IPv4
-   */
-
-  if (
-    /^\d{1,3}(\.\d{1,3}){3}$/.test(
-      hostname
-    )
-  ) {
-    return true;
-  }
-
-  /*
-   * IPv6
-   */
-
-  if (
-    hostname.includes(":")
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-
-// ============================================================
-// ORIGIN
-// ============================================================
-
-function getOrigin(host) {
-  try {
-    const u =
-      new URL(host);
-
-    return (
-      `${u.protocol}//${u.host}`
-    );
-
-  } catch {
-    return host.replace(
-      /\/+$/,
-      ""
-    );
-  }
-}
-
 
 // ============================================================
 // JSON
@@ -1336,8 +2129,8 @@ function getOrigin(host) {
 
 function json(
   data,
-  status,
-  cors
+  status = 200,
+  cors = {}
 ) {
   return new Response(
     JSON.stringify(
@@ -1347,20 +2140,456 @@ function json(
     ),
     {
       status,
-
       headers: {
         ...cors,
-
         "Content-Type":
           "application/json; charset=utf-8",
-
         "Cache-Control":
-          "no-cache, no-store, must-revalidate",
-
-        
-        "Pragma":
-          "no-cache",
+          "no-store, no-cache, must-revalidate",
       },
     }
   );
 }
+
+// ============================================================
+// URL HELPERS
+// ============================================================
+
+function getOrigin(
+  value
+) {
+  try {
+    const u =
+      new URL(value);
+
+    return `${u.protocol}//${u.host}`;
+  } catch (_) {
+    return "";
+  }
+}
+
+function safeHost(
+  value
+) {
+  try {
+    return new URL(
+      value
+    ).host;
+  } catch (_) {
+    return "";
+  }
+}
+
+function getProtocol(
+  value
+) {
+  try {
+    return new URL(
+      value
+    ).protocol;
+  } catch (_) {
+    return "";
+  }
+}
+
+// ============================================================
+// IPv4 VALIDATION
+// ============================================================
+
+function isIpv4Address(
+  hostname
+) {
+  if (!hostname) {
+    return false;
+  }
+
+  const parts =
+    String(
+      hostname
+    ).split(".");
+
+  if (
+    parts.length !== 4
+  ) {
+    return false;
+  }
+
+  return parts.every(
+    (part) => {
+      if (
+        part === "" ||
+        !/^\d+$/.test(
+          part
+        )
+      ) {
+        return false;
+      }
+
+      const number =
+        Number(part);
+
+      return (
+        number >= 0 &&
+        number <= 255
+      );
+    }
+  );
+}
+
+// ============================================================
+// PUBLIC IPv4 VALIDATION
+// ============================================================
+
+function isPublicIpv4Address(
+  hostname
+) {
+  if (
+    !isIpv4Address(
+      hostname
+    )
+  ) {
+    return false;
+  }
+
+  const [
+    a,
+    b,
+    c,
+    d,
+  ] =
+    hostname
+      .split(".")
+      .map(Number);
+
+  /*
+   * 0.0.0.0/8
+   */
+  if (
+    a === 0
+  ) {
+    return false;
+  }
+
+  /*
+   * 10.0.0.0/8
+   */
+  if (
+    a === 10
+  ) {
+    return false;
+  }
+
+  /*
+   * 100.64.0.0/10
+   */
+  if (
+    a === 100 &&
+    b >= 64 &&
+    b <= 127
+  ) {
+    return false;
+  }
+
+  /*
+   * 127.0.0.0/8
+   */
+  if (
+    a === 127
+  ) {
+    return false;
+  }
+
+  /*
+   * 169.254.0.0/16
+   */
+  if (
+    a === 169 &&
+    b === 254
+  ) {
+    return false;
+  }
+
+  /*
+   * 172.16.0.0/12
+   */
+  if (
+    a === 172 &&
+    b >= 16 &&
+    b <= 31
+  ) {
+    return false;
+  }
+
+  /*
+   * 192.0.0.0/24
+   */
+  if (
+    a === 192 &&
+    b === 0 &&
+    c === 0
+  ) {
+    return false;
+  }
+
+  /*
+   * 192.0.2.0/24 TEST-NET
+   */
+  if (
+    a === 192 &&
+    b === 0 &&
+    c === 2
+  ) {
+    return false;
+  }
+
+  /*
+   * 192.168.0.0/16
+   */
+  if (
+    a === 192 &&
+    b === 168
+  ) {
+    return false;
+  }
+
+  /*
+   * 192.88.99.0/24
+   */
+  if (
+    a === 192 &&
+    b === 88 &&
+    c === 99
+  ) {
+    return false;
+  }
+
+  /*
+   * 198.18.0.0/15
+   */
+  if (
+    a === 198 &&
+    (b === 18 ||
+      b === 19)
+  ) {
+    return false;
+  }
+
+  /*
+   * 198.51.100.0/24 TEST-NET
+   */
+  if (
+    a === 198 &&
+    b === 51 &&
+    c === 100
+  ) {
+    return false;
+  }
+
+  /*
+   * 203.0.113.0/24 TEST-NET
+   */
+  if (
+    a === 203 &&
+    b === 0 &&
+    c === 113
+  ) {
+    return false;
+  }
+
+  /*
+   * Multicast / reserved:
+   * 224.0.0.0/4 and above.
+   */
+  if (
+    a >= 224
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// ============================================================
+// URL REDACTION
+// ============================================================
+
+function redactUrl(
+  value
+) {
+  try {
+    const u =
+      new URL(value);
+
+    const sensitiveNames = [
+      "username",
+      "user",
+      "password",
+      "pass",
+      "token",
+      "auth",
+      "key",
+      "api_key",
+      "apikey",
+    ];
+
+    for (
+      const name
+        of sensitiveNames
+    ) {
+      if (
+        u.searchParams.has(
+          name
+        )
+      ) {
+        u.searchParams.set(
+          name,
+          "***"
+        );
+      }
+    }
+
+    /*
+     * Hide unusually long path
+     * components, which commonly
+     * contain temporary auth tokens.
+     */
+    const pathParts =
+      u.pathname.split(
+        "/"
+      );
+
+    u.pathname =
+      pathParts
+        .map(
+          (part) => {
+            if (
+              part.length >
+              80
+            ) {
+              return (
+                part.slice(
+                  0,
+                  12
+                ) +
+                "...REDACTED..."
+              );
+            }
+
+            return part;
+          }
+        )
+        .join("/");
+
+    return u.href;
+  } catch (_) {
+    return "";
+  }
+}
+
+// ============================================================
+// BODY PREVIEW
+// ============================================================
+
+function safeBodyPreview(
+  value,
+  maxLength = 500
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  let text =
+    String(value)
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
+  if (
+    text.length >
+    maxLength
+  ) {
+    text =
+      text.slice(
+        0,
+        maxLength
+      ) + "...";
+  }
+
+  return text;
+}
+
+// ============================================================
+// BYTE HELPERS
+// ============================================================
+
+function concatBytes(
+  a,
+  b
+) {
+  const output =
+    new Uint8Array(
+      a.length +
+        b.length
+    );
+
+  output.set(a, 0);
+  output.set(
+    b,
+    a.length
+  );
+
+  return output;
+}
+
+function indexOfBytes(
+  source,
+  target
+) {
+  if (
+    target.length === 0
+  ) {
+    return 0;
+  }
+
+  if (
+    source.length <
+    target.length
+  ) {
+    return -1;
+  }
+
+  outer:
+  for (
+    let i = 0;
+    i <=
+      source.length -
+        target.length;
+    i++
+  ) {
+    for (
+      let j = 0;
+      j < target.length;
+      j++
+    ) {
+      if (
+        source[i + j] !==
+        target[j]
+      ) {
+        continue outer;
+      }
+    }
+
+    return i;
+  }
+
+  return -1;
+}
+
+// ============================================================
+// END
+// ============================================================
