@@ -460,25 +460,43 @@ async function followRedirects(
 
   while (hops < maxHops) {
     const parsed = new URL(current);
+
     let response;
 
     if (isIpv4Address(parsed.hostname)) {
-      response = await fetchIpv4Http(
-        parsed,
-        method,
-        headers
-      );
-    } else {
-      response = await fetch(current, {
-        method,
-        headers,
-        redirect: "manual",
-        cache: "no-store",
+      if (!isPublicIpv4Address(parsed.hostname)) {
+        return {
+          response: new Response("Blocked private IP", {
+            status: 403,
+          }),
+          finalUrl: current,
+          hops,
+        };
+      }
+
+      // إعادة الـIP إلى hostname الخاص بنا
+      // بدل استخدام TCP socket المباشر
+      const rewrittenUrl = new URL(current);
+      rewrittenUrl.hostname = "origin.raxson.online";
+
+      console.log("[REDIRECT REWRITE]", {
+        originalIP: parsed.hostname,
+        newHost: rewrittenUrl.hostname,
       });
+
+      current = rewrittenUrl.href;
+      hops++;
+      continue;
     }
 
-    const location =
-      response.headers.get("Location");
+    response = await fetch(current, {
+      method,
+      headers,
+      redirect: "manual",
+      cache: "no-store",
+    });
+
+    const location = response.headers.get("Location");
 
     const isRedirect =
       response.status >= 300 &&
@@ -496,10 +514,7 @@ async function followRedirects(
     let nextUrl;
 
     try {
-      nextUrl = new URL(
-        location,
-        current
-      );
+      nextUrl = new URL(location, current);
     } catch (_) {
       return {
         response,
@@ -522,11 +537,6 @@ async function followRedirects(
       nextUrl.protocol !== "http:" &&
       nextUrl.protocol !== "https:"
     ) {
-      console.error(
-        "[REDIRECT BLOCKED PROTOCOL]",
-        nextUrl.protocol
-      );
-
       return {
         response,
         finalUrl: current,
@@ -534,13 +544,11 @@ async function followRedirects(
       };
     }
 
-    if (isIpv4Address(nextUrl.hostname)) {
-      if (!isPublicIpv4Address(nextUrl.hostname)) {
-        console.error(
-          "[REDIRECT BLOCKED IP]",
-          nextUrl.hostname
-        );
+    const nextHost =
+      nextUrl.hostname.toLowerCase();
 
+    if (isIpv4Address(nextHost)) {
+      if (!isPublicIpv4Address(nextHost)) {
         return {
           response,
           finalUrl: current,
@@ -548,37 +556,20 @@ async function followRedirects(
         };
       }
 
-      if (
-        nextUrl.port &&
-        nextUrl.port !== "80" &&
-        nextUrl.port !== "443"
-      ) {
-        console.error(
-          "[REDIRECT BLOCKED PORT]",
-          nextUrl.port
-        );
+      const rewrittenUrl = new URL(nextUrl.href);
+      rewrittenUrl.hostname = "origin.raxson.online";
 
-        return {
-          response,
-          finalUrl: current,
-          hops,
-        };
-      }
+      console.log("[REDIRECT REWRITE]", {
+        originalIP: nextHost,
+        newHost: rewrittenUrl.hostname,
+      });
 
-      current = nextUrl.href;
+      current = rewrittenUrl.href;
       hops++;
       continue;
     }
 
-    const nextHost =
-      nextUrl.hostname.toLowerCase();
-
     if (!allowedHosts.has(nextHost)) {
-      console.error(
-        "[REDIRECT BLOCKED]",
-        nextHost
-      );
-
       return {
         response,
         finalUrl: current,
