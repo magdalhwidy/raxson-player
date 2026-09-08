@@ -19,16 +19,23 @@ export default {
     }
 
     try {
+      console.log("[ROUTER]", { pathname: url.pathname, search: url.search });
+
       if (url.pathname === "/api") {
         return await handleApi(url, cors);
       }
 
       if (url.pathname === "/stream") {
+        console.log("[STREAM ROUTE MATCHED]");
         return await handleStream(request, url, cors, env);
       }
 
       if (url.pathname === "/debug") {
         return await handleDebug(request, url, cors, env);
+      }
+
+      if (url.pathname === "/test") {
+        return new Response("Worker OK", { status: 200, headers: cors });
       }
 
       if (env.ASSETS) {
@@ -143,10 +150,12 @@ async function handleApi(url, cors) {
 // ============================================================
 
 async function handleStream(request, url, cors, env) {
+  console.log("[HANDLE_STREAM START]", { url: url.href });
   const target = url.searchParams.get("url")?.trim();
   const forcedHost = url.searchParams.get("host")?.trim();
 
   if (!target) {
+    console.log("[HANDLE_STREAM] Missing url param");
     return json({ error: "Missing url parameter" }, 400, cors);
   }
 
@@ -462,12 +471,14 @@ async function followRedirects(
   forcedHost,
   allowedHosts = ALLOWED_STREAM_HOSTS
 ) {
+  console.log("[FOLLOW_REDIRECTS START]", { initialUrl, forcedHost });
   let current = initialUrl;
   let hops = 0;
   const maxHops = 8;
 
   const initialParsed = new URL(initialUrl);
   let sniHostname = forcedHost?.toLowerCase() || initialParsed.hostname.toLowerCase();
+  console.log("[FOLLOW_REDICTS] initial sniHostname:", sniHostname);
 
   while (hops < maxHops) {
     const parsed = new URL(current);
