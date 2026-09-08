@@ -60,12 +60,9 @@ export default {
 // CONFIG
 // ============================================================
 
-const ORIGIN_HOST = "origin.raxson.online";
-
 const ALLOWED_STREAM_HOSTS = new Set([
   "barqtv.website",
   "barqtvclg.shop",
-  ORIGIN_HOST,
 ]);
 
 // ============================================================
@@ -444,105 +441,6 @@ function buildStreamProxyUrl(
 }
 
 // ============================================================
-// DNS AUTO UPDATE
-// ============================================================
-
-async function updateOriginDns(ip, env) {
-  if (!env?.CF_API_TOKEN || !env?.CF_ZONE_ID) {
-    throw new Error("Missing CF_API_TOKEN or CF_ZONE_ID");
-  }
-
-  if (!isPublicIpv4Address(ip)) {
-    throw new Error("Invalid public IPv4: " + ip);
-  }
-
-  const apiBase =
-    `https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/dns_records`;
-
-  const authHeaders = {
-    "Authorization": `Bearer ${env.CF_API_TOKEN}`,
-    "Content-Type": "application/json",
-  };
-
-  const lookupUrl =
-    `${apiBase}?type=A&name=origin.raxson.online`;
-
-  const lookupResponse = await fetch(lookupUrl, {
-    method: "GET",
-    headers: authHeaders,
-    cache: "no-store",
-  });
-
-  const lookupData = await lookupResponse.json();
-
-  if (!lookupData.success) {
-    throw new Error(
-      "Cloudflare DNS lookup failed: " +
-      JSON.stringify(lookupData.errors)
-    );
-  }
-
-  const record = lookupData.result?.[0];
-
-  const body = {
-    type: "A",
-    name: "origin.raxson.online",
-    content: ip,
-    ttl: 60,
-    proxied: false,
-  };
-
-  if (record?.id) {
-    const updateUrl = `${apiBase}/${record.id}`;
-
-    const updateResponse = await fetch(updateUrl, {
-      method: "PUT",
-      headers: authHeaders,
-      body: JSON.stringify(body),
-    });
-
-    const updateData = await updateResponse.json();
-
-    if (!updateData.success) {
-      throw new Error(
-        "Cloudflare DNS update failed: " +
-        JSON.stringify(updateData.errors)
-      );
-    }
-
-    console.log("[DNS UPDATED]", {
-      hostname: ORIGIN_HOST,
-      ip,
-      recordId: record.id,
-    });
-
-    return updateData;
-  }
-
-  const createResponse = await fetch(apiBase, {
-    method: "POST",
-    headers: authHeaders,
-    body: JSON.stringify(body),
-  });
-
-  const createData = await createResponse.json();
-
-  if (!createData.success) {
-    throw new Error(
-      "Cloudflare DNS create failed: " +
-      JSON.stringify(createData.errors)
-    );
-  }
-
-  console.log("[DNS CREATED]", {
-    hostname: ORIGIN_HOST,
-    ip,
-    recordId: createData.result?.id,
-  });
-
-  return createData;
-}
-// ============================================================
 // REDIRECT FOLLOWING
 // ============================================================
 
@@ -557,13 +455,13 @@ async function followRedirects(
   let hops = 0;
   const maxHops = 8;
 
+  const initialParsed = new URL(initialUrl);
+  let sniHostname = initialParsed.hostname.toLowerCase();
+
   while (hops < maxHops) {
     const parsed = new URL(current);
     const hostname = parsed.hostname.toLowerCase();
 
-    // Upstream may redirect to a literal public IPv4.
-    // Point our DNS-only origin hostname at that IP, then fetch
-    // the same path through the hostname instead of the IP.
     if (isIpv4Address(hostname)) {
       if (!isPublicIpv4Address(hostname)) {
         return {
@@ -575,12 +473,31 @@ async function followRedirects(
         };
       }
 
+      const ipAddress = hostname;
+      const fetchUrl = new URL(current);
+      fetchUrl.hostname = sniHostname;
+
+      console.log("[IP REDIRECT → resolveOverride]", {
+        ip: ipAddress,
+        sniHostname,
+        path: fetchUrl.pathname + fetchUrl.search,
+      });
+
+      let response;
       try {
-        await updateOriginDns(hostname, _env);
+        response = await fetch(fetchUrl.href, {
+          method,
+          headers,
+          redirect: "manual",
+          cache: "no-store",
+          cf: {
+            resolveOverride: ipAddress,
+          },
+        });
       } catch (error) {
         return {
           response: new Response(
-            "Origin DNS update failed: " +
+            "Upstream fetch failed: " +
               (error?.message || String(error)),
             {
               status: 502,
@@ -591,18 +508,70 @@ async function followRedirects(
         };
       }
 
-      const rewrittenUrl = new URL(current);
+      const isRedirect =
+        response.status >= 300 && response.status < 400;
 
-      rewrittenUrl.hostname = ORIGIN_HOST;
+      if (!isRedirect) {
+        return {
+          response,
+          finalUrl: current,
+          hops,
+        };
+      }
 
-      console.log("[IP → ORIGIN]", {
-        ip: hostname,
-        host: ORIGIN_HOST,
-      });
+      const location = response.headers.get("Location");
+      if (!location) {
+        return {
+          response,
+          finalUrl: current,
+          hops,
+        };
+      }
 
-      current = rewrittenUrl.href;
+      let nextUrl;
+      try {
+        nextUrl = new URL(location, current);
+      } catch (_) {
+        return {
+          response: new Response("Invalid upstream redirect", {
+            status: 502,
+          }),
+          finalUrl: current,
+          hops,
+        };
+      }
+
+      if (
+        nextUrl.protocol !== "http:" &&
+        nextUrl.protocol !== "https:"
+      ) {
+        return {
+          response: new Response("Unsupported redirect protocol", {
+            status: 403,
+          }),
+          finalUrl: current,
+          hops,
+        };
+      }
+
+      const nextHost = nextUrl.hostname.toLowerCase();
+
+      if (!isIpv4Address(nextHost) && !allowedHosts.has(nextHost)) {
+        return {
+          response: new Response("Redirect host not allowed", {
+            status: 403,
+          }),
+          finalUrl: current,
+          hops,
+        };
+      }
+
+      if (!isIpv4Address(nextHost)) {
+        sniHostname = nextHost;
+      }
+
+      current = nextUrl.href;
       hops++;
-
       continue;
     }
 
@@ -734,491 +703,6 @@ async function followRedirects(
     finalUrl: current,
     hops,
   };
-}
-
-// ============================================================
-// HTTP HEAD READER
-// ============================================================
-
-async function readHttpHead(
-  reader
-) {
-  const marker =
-    new Uint8Array([
-      13,
-      10,
-      13,
-      10,
-    ]);
-
-  const decoder =
-    new TextDecoder(
-      "latin1"
-    );
-
-  let buffer =
-    new Uint8Array(0);
-
-  const maxHeaderBytes =
-    64 * 1024;
-
-  while (
-    buffer.length <=
-    maxHeaderBytes
-  ) {
-    const markerIndex =
-      indexOfBytes(
-        buffer,
-        marker
-      );
-
-    if (markerIndex !== -1) {
-      return {
-        headerText:
-          decoder.decode(
-            buffer.slice(
-              0,
-              markerIndex
-            )
-          ),
-
-        rest:
-          buffer.slice(
-            markerIndex +
-              marker.length
-          ),
-      };
-    }
-
-    const result =
-      await reader.read();
-
-    if (result.done) {
-      throw new Error(
-        "Upstream closed before HTTP headers were received"
-      );
-    }
-
-    if (
-      result.value?.length
-    ) {
-      buffer =
-        concatBytes(
-          buffer,
-          result.value
-        );
-    }
-  }
-
-  throw new Error(
-    "Upstream HTTP headers are too large"
-  );
-}
-
-// ============================================================
-// HTTP BODY STREAMS
-// ============================================================
-
-function createHttpBodyStream({
-  reader,
-  initialBody,
-  contentLength,
-  chunked,
-  socket,
-}) {
-  if (chunked) {
-    return createChunkedBodyStream(
-      reader,
-      initialBody,
-      socket
-    );
-  }
-
-  if (contentLength !== null) {
-    return createFixedLengthBodyStream(
-      reader,
-      initialBody,
-      contentLength,
-      socket
-    );
-  }
-
-  return createUntilCloseBodyStream(
-    reader,
-    initialBody,
-    socket
-  );
-}
-
-function createFixedLengthBodyStream(
-  reader,
-  initialBody,
-  contentLength,
-  socket
-) {
-  let pending =
-    initialBody ||
-    new Uint8Array(0);
-
-  let remaining =
-    contentLength;
-
-  let closed = false;
-
-  return new ReadableStream({
-    async pull(controller) {
-      if (closed) {
-        return;
-      }
-
-      try {
-        if (remaining <= 0) {
-          closed = true;
-
-          controller.close();
-
-          cleanupSocketReader(
-            reader,
-            socket
-          );
-
-          return;
-        }
-
-        let chunk =
-          pending;
-
-        pending =
-          new Uint8Array(0);
-
-        while (
-          !chunk ||
-          chunk.length === 0
-        ) {
-          const result =
-            await reader.read();
-
-          if (result.done) {
-            throw new Error(
-              "Upstream ended before Content-Length was satisfied"
-            );
-          }
-
-          chunk =
-            result.value;
-        }
-
-        const take =
-          Math.min(
-            chunk.length,
-            remaining
-          );
-
-        const output =
-          take === chunk.length
-            ? chunk
-            : chunk.slice(
-                0,
-                take
-              );
-
-        remaining -= take;
-
-        controller.enqueue(
-          output
-        );
-
-        if (
-          remaining <= 0
-        ) {
-          closed = true;
-
-          controller.close();
-
-          cleanupSocketReader(
-            reader,
-            socket
-          );
-        }
-      } catch (error) {
-        closed = true;
-
-        controller.error(
-          error
-        );
-
-        cleanupSocketReader(
-          reader,
-          socket
-        );
-      }
-    },
-
-    async cancel() {
-      closed = true;
-
-      try {
-        await reader.cancel();
-      } catch (_) {}
-
-      cleanupSocketReader(
-        reader,
-        socket
-      );
-    },
-  });
-}
-
-function createUntilCloseBodyStream(
-  reader,
-  initialBody,
-  socket
-) {
-  let pending =
-    initialBody ||
-    new Uint8Array(0);
-
-  let closed = false;
-
-  return new ReadableStream({
-    async pull(controller) {
-      if (closed) {
-        return;
-      }
-
-      try {
-        if (pending.length) {
-          const chunk =
-            pending;
-
-          pending =
-            new Uint8Array(0);
-
-          controller.enqueue(
-            chunk
-          );
-
-          return;
-        }
-
-        const result =
-          await reader.read();
-
-        if (result.done) {
-          closed = true;
-
-          controller.close();
-
-          cleanupSocketReader(
-            reader,
-            socket
-          );
-
-          return;
-        }
-
-        if (
-          result.value?.length
-        ) {
-          controller.enqueue(
-            result.value
-          );
-        }
-      } catch (error) {
-        closed = true;
-
-        controller.error(
-          error
-        );
-
-        cleanupSocketReader(
-          reader,
-          socket
-        );
-      }
-    },
-
-    async cancel() {
-      closed = true;
-
-      try {
-        await reader.cancel();
-      } catch (_) {}
-
-      cleanupSocketReader(
-        reader,
-        socket
-      );
-    },
-  });
-}
-
-function createChunkedBodyStream(
-  reader,
-  initialBody,
-  socket
-) {
-  let buffer =
-    initialBody ||
-    new Uint8Array(0);
-
-  let remaining = null;
-  let closed = false;
-
-  return new ReadableStream({
-    async pull(controller) {
-      if (closed) {
-        return;
-      }
-
-      try {
-        while (true) {
-          if (
-            remaining === 0
-          ) {
-            const separator =
-              await readExactBytes(
-                reader,
-                buffer,
-                2
-              );
-
-            buffer =
-              separator.rest;
-
-            remaining = null;
-          }
-
-          if (
-            remaining === null
-          ) {
-            const lineResult =
-              await readLineBytes(
-                reader,
-                buffer
-              );
-
-            buffer =
-              lineResult.rest;
-
-            const line =
-              new TextDecoder(
-                "latin1"
-              ).decode(
-                lineResult.line
-              ).trim();
-
-            const semicolon =
-              line.indexOf(";");
-
-            const sizeText =
-              semicolon === -1
-                ? line
-                : line.slice(
-                    0,
-                    semicolon
-                  );
-
-            const size =
-              parseInt(
-                sizeText,
-                16
-              );
-
-            if (
-              !Number.isFinite(size)
-            ) {
-              throw new Error(
-                "Invalid chunk size"
-              );
-            }
-
-            if (size === 0) {
-              closed = true;
-
-              controller.close();
-
-              cleanupSocketReader(
-                reader,
-                socket
-              );
-
-              return;
-            }
-
-            remaining = size;
-          }
-
-          if (
-            buffer.length === 0
-          ) {
-            const result =
-              await reader.read();
-
-            if (result.done) {
-              throw new Error(
-                "Upstream ended during chunked body"
-              );
-            }
-
-            buffer =
-              result.value;
-
-            continue;
-          }
-
-          const take =
-            Math.min(
-              buffer.length,
-              remaining
-            );
-
-          const output =
-            buffer.slice(
-              0,
-              take
-            );
-
-          buffer =
-            buffer.slice(
-              take
-            );
-
-          remaining -= take;
-
-          controller.enqueue(
-            output
-          );
-
-          return;
-        }
-      } catch (error) {
-        closed = true;
-
-        controller.error(
-          error
-        );
-
-        cleanupSocketReader(
-          reader,
-          socket
-        );
-      }
-    },
-
-    async cancel() {
-      closed = true;
-
-      try {
-        await reader.cancel();
-      } catch (_) {}
-
-      cleanupSocketReader(
-        reader,
-        socket
-      );
-    },
-  });
 }
 
 function isPublicIpv4Address(
