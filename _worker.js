@@ -65,9 +65,12 @@ export default {
 // CONFIG
 // ============================================================
 
+const ORIGIN_HOST = "origin.raxson.online";
+
 const ALLOWED_STREAM_HOSTS = new Set([
   "barqtv.website",
   "barqtvclg.shop",
+  ORIGIN_HOST,
 ]);
 
 // ============================================================
@@ -505,16 +508,20 @@ async function followRedirects(
 
       const ipAddress = hostname;
       const fetchUrl = new URL(current);
-      fetchUrl.hostname = sniHostname;
+      fetchUrl.hostname = ORIGIN_HOST;
+
+      const finalUrl = new URL(current);
+      finalUrl.hostname = ORIGIN_HOST;
 
       console.log("[IP REDIRECT → resolveOverride]", {
         ip: ipAddress,
         fetchUrl: fetchUrl.href,
-        sniHostname,
+        finalUrl: finalUrl.href,
+        host: ORIGIN_HOST,
       });
 
       const fetchHeaders = new Headers(headers);
-      fetchHeaders.set("Host", sniHostname);
+      fetchHeaders.set("Host", ORIGIN_HOST);
 
       let response;
       try {
@@ -536,7 +543,7 @@ async function followRedirects(
               status: 502,
             }
           ),
-          finalUrl: current,
+          finalUrl: finalUrl.href,
           hops,
         };
       }
@@ -552,10 +559,10 @@ async function followRedirects(
         location: response.headers.get("Location"),
       });
 
-      if (!isRedirect) {
+if (!isRedirect) {
         return {
           response,
-          finalUrl: current,
+          finalUrl: finalUrl.href,
           hops,
         };
       }
@@ -564,20 +571,20 @@ async function followRedirects(
       if (!location) {
         return {
           response,
-          finalUrl: current,
+          finalUrl: finalUrl.href,
           hops,
         };
       }
 
       let nextUrl;
       try {
-        nextUrl = new URL(location, current);
+        nextUrl = new URL(location, finalUrl.href);
       } catch (_) {
         return {
           response: new Response("Invalid upstream redirect", {
             status: 502,
           }),
-          finalUrl: current,
+          finalUrl: finalUrl.href,
           hops,
         };
       }
@@ -598,7 +605,7 @@ async function followRedirects(
           response: new Response("Unsupported redirect protocol", {
             status: 403,
           }),
-          finalUrl: current,
+          finalUrl: finalUrl.href,
           hops,
         };
       }
@@ -610,12 +617,14 @@ async function followRedirects(
           response: new Response("Redirect host not allowed", {
             status: 403,
           }),
-          finalUrl: current,
+          finalUrl: finalUrl.href,
           hops,
         };
       }
 
-      if (!isIpv4Address(nextHost)) {
+      if (isIpv4Address(nextHost)) {
+        sniHostname = ORIGIN_HOST;
+      } else {
         sniHostname = nextHost;
       }
 
