@@ -511,11 +511,14 @@ async function followRedirects(
         sniHostname,
       });
 
+      const fetchHeaders = new Headers(headers);
+      fetchHeaders.set("Host", sniHostname);
+
       let response;
       try {
         response = await fetch(current, {
           method,
-          headers,
+          headers: fetchHeaders,
           redirect: "manual",
           cache: "no-store",
           cf: {
