@@ -484,6 +484,14 @@ async function followRedirects(
     const parsed = new URL(current);
     const hostname = parsed.hostname.toLowerCase();
 
+    console.log("[FOLLOW] hop", hops, {
+      currentUrl: current,
+      hostname,
+      pathname: parsed.pathname,
+      search: parsed.search,
+      sniHostname,
+    });
+
     if (isIpv4Address(hostname)) {
       if (!isPublicIpv4Address(hostname)) {
         return {
@@ -502,6 +510,7 @@ async function followRedirects(
       console.log("[IP REDIRECT → resolveOverride]", {
         ip: ipAddress,
         sniHostname,
+        fetchUrl: fetchUrl.href,
         path: fetchUrl.pathname + fetchUrl.search,
       });
 
@@ -533,6 +542,14 @@ async function followRedirects(
       const isRedirect =
         response.status >= 300 && response.status < 400;
 
+      console.log("[FOLLOW] response", {
+        status: response.status,
+        statusText: response.statusText,
+        isRedirect,
+        contentType: response.headers.get("Content-Type"),
+        location: response.headers.get("Location"),
+      });
+
       if (!isRedirect) {
         return {
           response,
@@ -562,6 +579,14 @@ async function followRedirects(
           hops,
         };
       }
+
+      console.log("[FOLLOW] redirect", {
+        locationHeader: location,
+        nextUrl: nextUrl.href,
+        nextHostname: nextUrl.hostname,
+        nextPathname: nextUrl.pathname,
+        nextSearch: nextUrl.search,
+      });
 
       if (
         nextUrl.protocol !== "http:" &&
@@ -1636,3 +1661,7 @@ async function serveAssets(
     }
   );
 }
+
+// ============================================================
+// END
+// ============================================================
