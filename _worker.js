@@ -504,19 +504,16 @@ async function followRedirects(
       }
 
       const ipAddress = hostname;
-      const fetchUrl = new URL(current);
-      fetchUrl.hostname = sniHostname;
 
       console.log("[IP REDIRECT → resolveOverride]", {
         ip: ipAddress,
+        originalUrl: current,
         sniHostname,
-        fetchUrl: fetchUrl.href,
-        path: fetchUrl.pathname + fetchUrl.search,
       });
 
       let response;
       try {
-        response = await fetch(fetchUrl.href, {
+        response = await fetch(current, {
           method,
           headers,
           redirect: "manual",
