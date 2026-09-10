@@ -1,3 +1,5 @@
+import { connect } from "cloudflare:sockets";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -19,23 +21,16 @@ export default {
     }
 
     try {
-      console.log("[ROUTER]", { pathname: url.pathname, search: url.search });
-
       if (url.pathname === "/api") {
         return await handleApi(url, cors);
       }
 
       if (url.pathname === "/stream") {
-        console.log("[STREAM ROUTE MATCHED]");
         return await handleStream(request, url, cors, env);
       }
 
       if (url.pathname === "/debug") {
         return await handleDebug(request, url, cors, env);
-      }
-
-      if (url.pathname === "/test") {
-        return new Response("Worker OK", { status: 200, headers: cors });
       }
 
       if (env.ASSETS) {
@@ -150,12 +145,9 @@ async function handleApi(url, cors) {
 // ============================================================
 
 async function handleStream(request, url, cors, env) {
-  console.log("[HANDLE_STREAM START]", { url: url.href });
   const target = url.searchParams.get("url")?.trim();
-  const forcedHost = url.searchParams.get("host")?.trim();
 
   if (!target) {
-    console.log("[HANDLE_STREAM] Missing url param");
     return json({ error: "Missing url parameter" }, 400, cors);
   }
 
@@ -196,8 +188,7 @@ async function handleStream(request, url, cors, env) {
       parsed.href,
       request.method,
       requestHeaders,
-      env,
-      forcedHost
+      env
     );
 
     if (!result?.response) {
@@ -376,8 +367,7 @@ async function handleM3U8(
 
       return buildStreamProxyUrl(
         absolute,
-        request,
-        base.hostname
+        request
       );
     } catch (_) {
       return line;
@@ -421,8 +411,7 @@ function rewriteUriAttribute(
 
         return `URI="${buildStreamProxyUrl(
           absolute,
-          request,
-          base.hostname
+          request
         )}"`;
       } catch (_) {
         return match;
@@ -433,8 +422,7 @@ function rewriteUriAttribute(
 
 function buildStreamProxyUrl(
   absoluteUrl,
-  request,
-  baseHostname
+  request
 ) {
   const workerUrl = new URL(
     request.url
@@ -449,13 +437,6 @@ function buildStreamProxyUrl(
     absoluteUrl
   );
 
-  if (baseHostname) {
-    workerUrl.searchParams.set(
-      "host",
-      baseHostname
-    );
-  }
-
   return workerUrl.href;
 }
 
@@ -468,17 +449,14 @@ async function followRedirects(
   method,
   headers,
   _env,
-  forcedHost,
   allowedHosts = ALLOWED_STREAM_HOSTS
 ) {
-  console.log("[FOLLOW_REDIRECTS START]", { initialUrl, forcedHost });
   let current = initialUrl;
   let hops = 0;
   const maxHops = 8;
 
   const initialParsed = new URL(initialUrl);
-  let sniHostname = forcedHost?.toLowerCase() || initialParsed.hostname.toLowerCase();
-  console.log("[FOLLOW_REDICTS] initial sniHostname:", sniHostname);
+  let sniHostname = initialParsed.hostname.toLowerCase();
 
   while (hops < maxHops) {
     const parsed = new URL(current);
@@ -1034,7 +1012,6 @@ async function handleDebug(
     url.searchParams
       .get("url")
       ?.trim();
-  const forcedHost = url.searchParams.get("host")?.trim();
 
   if (!target) {
     return json(
@@ -1106,8 +1083,7 @@ async function handleDebug(
         parsed.href,
         request.method,
         headers,
-        env,
-        forcedHost
+        env
       );
 
     const response =
@@ -1218,6 +1194,288 @@ async function handleDebug(
       cors
     );
   }
+}
+
+// SOCKET HTTP
+// ============================================================
+
+async function fetchIpv4Http(
+  url,
+  request,
+  cors
+) {
+  const parsed =
+    new URL(url);
+
+  const hostname =
+    parsed.hostname;
+
+  const port =
+    Number(
+      parsed.port ||
+        (
+          parsed.protocol ===
+          "https:"
+            ? 443
+            : 80
+        )
+    );
+
+  if (
+    !isIpv4Address(
+      hostname
+    )
+  ) {
+    throw new Error(
+      "fetchIpv4Http requires an IPv4 address"
+    );
+  }
+
+  if (
+    !isPublicIpv4Address(
+      hostname
+    )
+  ) {
+    throw new Error(
+      "Blocked private IPv4 address"
+    );
+  }
+
+  const socket =
+    connect({
+      hostname,
+      port,
+    });
+
+  const writer =
+    socket.writable.getWriter();
+
+  const reader =
+    socket.readable.getReader();
+
+  try {
+    const requestHeaders =
+      buildUpstreamHeaders(
+        request,
+        url
+      );
+
+    requestHeaders.set(
+      "Host",
+      parsed.host
+    );
+
+    requestHeaders.set(
+      "Connection",
+      "close"
+    );
+
+    let requestText =
+      `${request.method} ${parsed.pathname}${parsed.search} HTTP/1.1\r\n`;
+
+    for (
+      const [
+        name,
+        value,
+      ] of requestHeaders
+    ) {
+      requestText +=
+        `${name}: ${value}\r\n`;
+    }
+
+    requestText +=
+      "\r\n";
+
+    await writer.write(
+      new TextEncoder().encode(
+        requestText
+      )
+    );
+
+    writer.releaseLock();
+
+    const head =
+      await readHttpHead(
+        reader
+      );
+
+    const parsedHead =
+      parseHttpResponseHead(
+        head.headerText
+      );
+
+    const bodyStream =
+      createHttpBodyStream({
+        reader,
+        initialBody:
+          head.rest,
+        contentLength:
+          parsedHead.contentLength,
+        chunked:
+          parsedHead.chunked,
+        socket,
+      });
+
+    const headers =
+      new Headers(cors);
+
+    for (
+      const [
+        name,
+        value,
+      ] of parsedHead.headers
+    ) {
+      if (
+        name.toLowerCase() ===
+          "connection" ||
+        name.toLowerCase() ===
+          "transfer-encoding"
+      ) {
+        continue;
+      }
+
+      headers.set(
+        name,
+        value
+      );
+    }
+
+    return new Response(
+      bodyStream,
+      {
+        status:
+          parsedHead.status,
+        statusText:
+          parsedHead.statusText,
+        headers,
+      }
+    );
+  } catch (error) {
+    try {
+      reader.releaseLock();
+    } catch (_) {}
+
+    try {
+      writer.releaseLock();
+    } catch (_) {}
+
+    try {
+      socket.close();
+    } catch (_) {}
+
+    throw error;
+  }
+}
+
+// ============================================================
+// HTTP RESPONSE HEAD PARSER
+// ============================================================
+
+function parseHttpResponseHead(
+  headerText
+) {
+  const lines =
+    headerText.split(
+      "\r\n"
+    );
+
+  const statusLine =
+    lines.shift() || "";
+
+  const statusMatch =
+    statusLine.match(
+      /^HTTP\/\d(?:\.\d)?\s+(\d{3})(?:\s+(.*))?$/
+    );
+
+  if (!statusMatch) {
+    throw new Error(
+      "Invalid HTTP response"
+    );
+  }
+
+  const status =
+    Number(
+      statusMatch[1]
+    );
+
+  const statusText =
+    statusMatch[2] || "";
+
+  const headers =
+    new Headers();
+
+  for (
+    const line of lines
+  ) {
+    if (!line) {
+      continue;
+    }
+
+    const index =
+      line.indexOf(":");
+
+    if (index <= 0) {
+      continue;
+    }
+
+    const name =
+      line.slice(
+        0,
+        index
+      ).trim();
+
+    const value =
+      line.slice(
+        index + 1
+      ).trim();
+
+    try {
+      headers.append(
+        name,
+        value
+      );
+    } catch (_) {}
+  }
+
+  const contentLengthHeader =
+    headers.get(
+      "Content-Length"
+    );
+
+  let contentLength =
+    null;
+
+  if (
+    contentLengthHeader &&
+    /^\d+$/.test(
+      contentLengthHeader
+    )
+  ) {
+    contentLength =
+      Number(
+        contentLengthHeader
+      );
+  }
+
+  const transferEncoding =
+    (
+      headers.get(
+        "Transfer-Encoding"
+      ) || ""
+    ).toLowerCase();
+
+  const chunked =
+    transferEncoding.includes(
+      "chunked"
+    );
+
+  return {
+    status,
+    statusText,
+    headers,
+    contentLength,
+    chunked,
+  };
 }
 
 // ============================================================
@@ -1365,8 +1623,7 @@ function rewriteM3u8(
     output.push(
       buildStreamProxyUrl(
         absolute,
-        requestUrl,
-        baseUrl.hostname
+        requestUrl
       )
     );
   }
