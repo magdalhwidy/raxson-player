@@ -186,17 +186,24 @@ async function handleStream(request, url, cors, env) {
   const requestHeaders = buildUpstreamHeaders(request, parsed.href);
 
   try {
-    const response = await fetch(parsed.href, {
-      method: request.method,
-      headers: requestHeaders,
-      redirect: "manual",
-      cache: "no-store",
-    });
+    const result = await followRedirects(parsed.href, request.method, requestHeaders);
+
+    if (!result?.response) {
+      return json({ error: "Upstream request failed" }, 502, cors);
+    }
+
+    const response = result.response;
+    const finalUrl = result.finalUrl || parsed.href;
+    const contentType = (
+      response.headers.get("Content-Type") || ""
+    ).toLowerCase();
 
     console.log("[STREAM]", {
       status: response.status,
-      finalHost: safeHost(response.url),
-      contentType: response.headers.get("Content-Type") || "",
+      finalHost: safeHost(finalUrl),
+      redirected: result.hops > 0,
+      hops: result.hops,
+      contentType,
     });
 
     if (!response.ok) {
@@ -217,32 +224,28 @@ async function handleStream(request, url, cors, env) {
       );
     }
 
-    const contentType = (
-      response.headers.get("Content-Type") || ""
-    ).toLowerCase();
-
     const isPlaylist =
       contentType.includes("mpegurl") ||
       contentType.includes("vnd.apple.mpegurl") ||
-      /\.m3u8(?:$|\?)/i.test(parsed.href);
+      /\.m3u8(?:$|\?)/i.test(finalUrl);
 
     if (isPlaylist) {
       return await handleM3U8(
         response,
-        parsed.href,
+        finalUrl,
         request,
         cors
       );
     }
 
     // Movies/series: redirect to final URL
-    if (isSafeFinalMediaUrl(new URL(response.url))) {
+    if (isSafeFinalMediaUrl(new URL(finalUrl))) {
       try {
         await response.body?.cancel();
       } catch (_) {}
 
       const headers = new Headers(cors);
-      headers.set("Location", response.url);
+      headers.set("Location", finalUrl);
       headers.set("Cache-Control", "no-store");
 
       return new Response(null, {
@@ -913,4 +916,88 @@ function isPublicIpv4Address(
   }
 
   return true;
+}
+
+// ============================================================
+// REDIRECT FOLLOWING
+// ============================================================
+
+async function followRedirects(initialUrl, method, headers, allowedHosts = ALLOWED_STREAM_HOSTS) {
+  let current = initialUrl;
+  let hops = 0;
+  const maxHops = 8;
+
+  while (hops < maxHops) {
+    const parsed = new URL(current);
+    const hostname = parsed.hostname.toLowerCase();
+
+    let response;
+
+    try {
+      response = await fetch(current, {
+        method,
+        headers,
+        redirect: "manual",
+        cache: "no-store",
+      });
+    } catch (error) {
+      return {
+        response: new Response(
+          "Upstream fetch failed: " + (error?.message || String(error)),
+          { status: 502 }
+        ),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    const isRedirect = response.status >= 300 && response.status < 400;
+
+    if (!isRedirect) {
+      return { response, finalUrl: current, hops };
+    }
+
+    const location = response.headers.get("Location");
+    if (!location) {
+      return { response, finalUrl: current, hops };
+    }
+
+    let nextUrl;
+    try {
+      nextUrl = new URL(location, current);
+    } catch (_) {
+      return {
+        response: new Response("Invalid upstream redirect", { status: 502 }),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    if (nextUrl.protocol !== "http:" && nextUrl.protocol !== "https:") {
+      return {
+        response: new Response("Unsupported redirect protocol", { status: 403 }),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    const nextHost = nextUrl.hostname.toLowerCase();
+
+    if (!allowedHosts.has(nextHost) && !isIpv4Address(nextHost)) {
+      return {
+        response: new Response("Redirect host not allowed", { status: 403 }),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    current = nextUrl.href;
+    hops++;
+  }
+
+  return {
+    response: new Response("Too many redirects", { status: 508 }),
+    finalUrl: current,
+    hops,
+  };
 }
