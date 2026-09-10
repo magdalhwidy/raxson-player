@@ -905,11 +905,40 @@ function openPlayer(originalUrl, name, live, item) {
  if (E.audioTrackLabel) E.audioTrackLabel.textContent = "--";
 
  // Determine playback mode: Direct or Proxy
- const useDirect = localStorage.getItem('rp_direct') === 'true';
- const isM3U8 = originalUrl.includes('.m3u8');
- const playUrl = useDirect ? originalUrl : ("/stream?url=" + encodeURIComponent(originalUrl));
+ // ===== Playback routing =====
+// MP4 movies/series play DIRECT.
+// Only M3U8/live streams use the Worker proxy.
 
- console.log('[Player] Mode:', useDirect ? 'Direct' : 'Proxy', 'URL:', playUrl.substring(0, 80));
+const useDirect = localStorage.getItem('rp_direct') === 'true';
+
+const isM3U8 = /\.m3u8(?:$|[?#])/i.test(originalUrl);
+const isMovie = /\/movie\//i.test(originalUrl);
+const isSeries = /\/series\//i.test(originalUrl);
+const isLive = /\/live\//i.test(originalUrl);
+
+// Movies and series are always direct.
+// Live/M3U8 uses the Worker proxy unless direct mode is explicitly enabled.
+let playUrl;
+
+if (isMovie || isSeries) {
+    playUrl = originalUrl;
+    console.log('[Player] VOD Mode: Direct');
+} else if (isM3U8 || isLive) {
+    playUrl = useDirect
+        ? originalUrl
+        : ("/stream?url=" + encodeURIComponent(originalUrl));
+
+    console.log(
+        '[Player] Live Mode:',
+        useDirect ? 'Direct' : 'Proxy',
+        'URL:',
+        playUrl.substring(0, 120)
+    );
+} else {
+    // Safe fallback for any unexpected media type.
+    playUrl = originalUrl;
+    console.log('[Player] Unknown media type: Direct');
+}
 
  // Show player UI
  E.playerOverlay.style.display = "flex";
