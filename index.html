@@ -904,41 +904,64 @@ function openPlayer(originalUrl, name, live, item) {
  if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
  if (E.audioTrackLabel) E.audioTrackLabel.textContent = "--";
 
- // Determine playback mode: Direct or Proxy
- // ===== Playback routing =====
-// MP4 movies/series play DIRECT.
-// Only M3U8/live streams use the Worker proxy.
+// ===== Playback routing =====
+// VOD is proxied through the HTTPS Worker.
+// This is required because the upstream MP4 is HTTP.
+// Live remains proxied as well, but is currently disabled by Worker.
 
-const useDirect = localStorage.getItem('rp_direct') === 'true';
+const useDirect =
+    localStorage.getItem('rp_direct') === 'true';
 
-const isM3U8 = /\.m3u8(?:$|[?#])/i.test(originalUrl);
-const isMovie = /\/movie\//i.test(originalUrl);
-const isSeries = /\/series\//i.test(originalUrl);
-const isLive = /\/live\//i.test(originalUrl);
+const isM3U8 =
+    /\.m3u8(?:$|[?#])/i.test(originalUrl);
 
-// Movies and series are always direct.
-// Live/M3U8 uses the Worker proxy unless direct mode is explicitly enabled.
+const isMovie =
+    /\/movie\//i.test(originalUrl);
+
+const isSeries =
+    /\/series\//i.test(originalUrl);
+
+const isLive =
+    /\/live\//i.test(originalUrl);
+
 let playUrl;
 
 if (isMovie || isSeries) {
-    playUrl = originalUrl;
-    console.log('[Player] VOD Mode: Direct');
+
+    // IMPORTANT:
+    // Do NOT send the HTTP MP4 directly to the browser.
+    // Send it through our HTTPS Worker.
+
+    playUrl =
+        "/stream?url=" +
+        encodeURIComponent(originalUrl);
+
+    console.log(
+        '[Player] VOD Mode: HTTPS Proxy'
+    );
+
 } else if (isM3U8 || isLive) {
+
     playUrl = useDirect
         ? originalUrl
-        : ("/stream?url=" + encodeURIComponent(originalUrl));
+        : "/stream?url=" +
+          encodeURIComponent(originalUrl);
 
     console.log(
         '[Player] Live Mode:',
-        useDirect ? 'Direct' : 'Proxy',
-        'URL:',
-        playUrl.substring(0, 120)
+        useDirect
+            ? 'Direct'
+            : 'Proxy'
     );
+
 } else {
-    // Safe fallback for any unexpected media type.
+
     playUrl = originalUrl;
-    console.log('[Player] Unknown media type: Direct');
-}
+
+    console.log(
+        '[Player] Unknown media type: Direct'
+    );
+  }
 
  // Show player UI
  E.playerOverlay.style.display = "flex";
