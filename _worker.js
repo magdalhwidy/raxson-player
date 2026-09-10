@@ -1,17 +1,5 @@
 import { connect } from "cloudflare:sockets";
 
-// ============================================================
-// RAXSON PLAYER - WORKER
-// ------------------------------------------------------------
-// يشغّل: البث المباشر + الأفلام + المسلسلات
-//
-// منطق الـIP (بدون تثبيت أي IP في الكود):
-//   - أي IPv4 عام يظهر في الريدايركت يُعالج تلقائياً
-//   - http://IP  → اتصال مباشر عبر cloudflare:sockets (فوري)
-//   - https://IP → fallback عبر تحديث DNS لـ origin.raxson.online
-//     (يحتاج متغيري البيئة CF_API_TOKEN و CF_ZONE_ID)
-// ============================================================
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -33,23 +21,16 @@ export default {
     }
 
     try {
-      console.log("[ROUTER]", { pathname: url.pathname, search: url.search });
-
       if (url.pathname === "/api") {
         return await handleApi(url, cors);
       }
 
       if (url.pathname === "/stream") {
-        console.log("[STREAM ROUTE MATCHED]");
         return await handleStream(request, url, cors, env);
       }
 
       if (url.pathname === "/debug") {
         return await handleDebug(request, url, cors, env);
-      }
-
-      if (url.pathname === "/test") {
-        return new Response("Worker OK", { status: 200, headers: cors });
       }
 
       if (env.ASSETS) {
@@ -167,30 +148,41 @@ async function handleApi(url, cors) {
 // ============================================================
 
 async function handleStream(request, url, cors, env) {
-  console.log("[HANDLE_STREAM START]", { url: url.href });
-
   const target = url.searchParams.get("url")?.trim();
 
   if (!target) {
-    console.log("[HANDLE_STREAM] Missing url param");
     return json({ error: "Missing url parameter" }, 400, cors);
   }
 
-  const validation = validateStreamTarget(target);
+  let parsed;
 
-  if (validation.error) {
+  try {
+    parsed = new URL(target);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("Invalid protocol");
+    }
+
+    if (!ALLOWED_STREAM_HOSTS.has(parsed.hostname.toLowerCase())) {
+      return json(
+        {
+          error: "Host not allowed",
+          host: parsed.hostname,
+        },
+        403,
+        cors
+      );
+    }
+  } catch (err) {
     return json(
       {
-        error: validation.error,
-        details: validation.details || "",
-        host: validation.host || "",
+        error: "Invalid URL",
+        details: err?.message || String(err),
       },
-      validation.error === "Invalid URL" ? 400 : 403,
+      400,
       cors
     );
   }
-
-  const parsed = validation.parsed;
 
   const requestHeaders = buildUpstreamHeaders(request, parsed.href);
 
@@ -285,8 +277,6 @@ async function handleStream(request, url, cors, env) {
       headers.set("Location", finalUrl);
       headers.set("Cache-Control", "no-store");
 
-      console.log("[STREAM] 302 redirect to final media URL:", finalUrl);
-
       return new Response(null, {
         status: 302,
         headers,
@@ -306,50 +296,6 @@ async function handleStream(request, url, cors, env) {
       cors
     );
   }
-}
-
-// ============================================================
-// TARGET VALIDATION (يسمح بأي IPv4 عام - بدون تثبيت IPs)
-// ============================================================
-
-function validateStreamTarget(target) {
-  let parsed;
-
-  try {
-    parsed = new URL(target);
-
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("Invalid protocol");
-    }
-  } catch (err) {
-    return {
-      error: "Invalid URL",
-      details: err?.message || String(err),
-    };
-  }
-
-  const hostname = parsed.hostname.toLowerCase();
-
-  if (isIpv4Address(hostname)) {
-    if (!isPublicIpv4Address(hostname)) {
-      return {
-        error: "Blocked private IP",
-        host: parsed.hostname,
-      };
-    }
-
-    // أي IP عام مسموح — يُعالج داخل followRedirects تلقائياً
-    return { parsed };
-  }
-
-  if (!ALLOWED_STREAM_HOSTS.has(hostname)) {
-    return {
-      error: "Host not allowed",
-      host: parsed.hostname,
-    };
-  }
-
-  return { parsed };
 }
 
 async function safeReadText(response) {
@@ -498,339 +444,7 @@ function buildStreamProxyUrl(
 }
 
 // ============================================================
-// REDIRECT FOLLOWING (معالجة ديناميكية لأي IPv4 عام)
-// ============================================================
-
-async function followRedirects(
-  initialUrl,
-  method,
-  headers,
-  env,
-  allowedHosts = ALLOWED_STREAM_HOSTS
-) {
-  console.log("[FOLLOW_REDIRECTS START]", { initialUrl });
-
-  let current = initialUrl;
-  let hops = 0;
-  const maxHops = 8;
-
-  while (hops < maxHops) {
-    const parsed = new URL(current);
-    const hostname = parsed.hostname.toLowerCase();
-
-    console.log("[FOLLOW] hop", hops, {
-      currentUrl: current,
-      hostname,
-      pathname: parsed.pathname,
-      search: parsed.search,
-    });
-
-    // ────────────────────────────────────────────────────
-    // أي IPv4 عام → بدون تثبيت IP في الكود
-    // ────────────────────────────────────────────────────
-    if (isIpv4Address(hostname)) {
-      if (!isPublicIpv4Address(hostname)) {
-        return {
-          response: new Response("Blocked private IP", {
-            status: 403,
-          }),
-          finalUrl: current,
-          hops,
-        };
-      }
-
-      // https://IP → لا يمكن TLS عبر socket مباشر
-      // fallback: تحديث DNS لـ origin.raxson.online ثم الجلب بالاسم
-      if (parsed.protocol === "https:") {
-        try {
-          await updateOriginDns(hostname, env);
-        } catch (error) {
-          return {
-            response: new Response(
-              "Origin DNS update failed: " +
-                (error?.message || String(error)),
-              {
-                status: 502,
-              }
-            ),
-            finalUrl: current,
-            hops,
-          };
-        }
-
-        const rewrittenUrl = new URL(current);
-        rewrittenUrl.hostname = ORIGIN_HOST;
-
-        console.log("[IP → ORIGIN via DNS]", {
-          ip: hostname,
-          host: ORIGIN_HOST,
-        });
-
-        current = rewrittenUrl.href;
-        hops++;
-        continue;
-      }
-
-      // http://IP → اتصال مباشر عبر socket (فوري، بدون DNS)
-      let response;
-
-      try {
-        response = await fetchIpv4Http(
-          current,
-          method,
-          hopHeaders(headers, current)
-        );
-      } catch (error) {
-        return {
-          response: new Response(
-            "Upstream socket fetch failed: " +
-              (error?.message || String(error)),
-            {
-              status: 502,
-            }
-          ),
-          finalUrl: current,
-          hops,
-        };
-      }
-
-      const isRedirect =
-        response.status >= 300 && response.status < 400;
-
-      console.log("[FOLLOW] socket response", {
-        status: response.status,
-        statusText: response.statusText,
-        isRedirect,
-        contentType: response.headers.get("Content-Type"),
-        location: response.headers.get("Location"),
-      });
-
-      if (!isRedirect) {
-        return {
-          response,
-          finalUrl: current,
-          hops,
-        };
-      }
-
-      try {
-        await response.body?.cancel();
-      } catch (_) {}
-
-      const location = response.headers.get("Location");
-
-      if (!location) {
-        return {
-          response,
-          finalUrl: current,
-          hops,
-        };
-      }
-
-      let nextUrl;
-
-      try {
-        nextUrl = new URL(location, current);
-      } catch (_) {
-        return {
-          response: new Response("Invalid upstream redirect", {
-            status: 502,
-          }),
-          finalUrl: current,
-          hops,
-        };
-      }
-
-      const nextError = validateRedirectTarget(nextUrl, allowedHosts);
-
-      if (nextError) {
-        return {
-          response: new Response(nextError, { status: 403 }),
-          finalUrl: current,
-          hops,
-        };
-      }
-
-      console.log("[FOLLOW] redirect (socket)", {
-        locationHeader: location,
-        nextUrl: nextUrl.href,
-        nextHostname: nextUrl.hostname,
-      });
-
-      current = nextUrl.href;
-      hops++;
-      continue;
-    }
-
-    // ────────────────────────────────────────────────────
-    // hostname عادي
-    // ────────────────────────────────────────────────────
-    if (!allowedHosts.has(hostname)) {
-      return {
-        response: new Response(
-          "Redirect host not allowed",
-          {
-            status: 403,
-          }
-        ),
-        finalUrl: current,
-        hops,
-      };
-    }
-
-    let response;
-
-    try {
-      response = await fetch(current, {
-        method,
-        headers: hopHeaders(headers, current),
-        redirect: "manual",
-        cache: "no-store",
-      });
-    } catch (error) {
-      return {
-        response: new Response(
-          "Upstream fetch failed: " +
-            (error?.message || String(error)),
-          {
-            status: 502,
-          }
-        ),
-        finalUrl: current,
-        hops,
-      };
-    }
-
-    const isRedirect =
-      response.status >= 300 &&
-      response.status < 400;
-
-    console.log("[FOLLOW] response", {
-      status: response.status,
-      statusText: response.statusText,
-      isRedirect,
-      contentType: response.headers.get("Content-Type"),
-      location: response.headers.get("Location"),
-    });
-
-    if (!isRedirect) {
-      return {
-        response,
-        finalUrl: current,
-        hops,
-      };
-    }
-
-    const location =
-      response.headers.get("Location");
-
-    if (!location) {
-      return {
-        response,
-        finalUrl: current,
-        hops,
-      };
-    }
-
-    let nextUrl;
-
-    try {
-      nextUrl = new URL(
-        location,
-        current
-      );
-    } catch (_) {
-      return {
-        response: new Response(
-          "Invalid upstream redirect",
-          {
-            status: 502,
-          }
-        ),
-        finalUrl: current,
-        hops,
-      };
-    }
-
-    const nextError = validateRedirectTarget(nextUrl, allowedHosts);
-
-    if (nextError) {
-      try {
-        await response.body?.cancel();
-      } catch (_) {}
-
-      return {
-        response: new Response(nextError, {
-          status: 403,
-        }),
-        finalUrl: current,
-        hops,
-      };
-    }
-
-    console.log("[FOLLOW] redirect", {
-      locationHeader: location,
-      nextUrl: nextUrl.href,
-      nextHostname: nextUrl.hostname,
-    });
-
-    current = nextUrl.href;
-    hops++;
-  }
-
-  return {
-    response: new Response(
-      "Too many redirects",
-      {
-        status: 508,
-      }
-    ),
-    finalUrl: current,
-    hops,
-  };
-}
-
-function validateRedirectTarget(nextUrl, allowedHosts) {
-  if (
-    nextUrl.protocol !== "http:" &&
-    nextUrl.protocol !== "https:"
-  ) {
-    return "Unsupported redirect protocol";
-  }
-
-  const nextHost =
-    nextUrl.hostname.toLowerCase();
-
-  // IPv4 → مسموح دائماً، والتحقق من أنه عام
-  // يتم في الدورة التالية داخل فرع isIpv4Address
-  if (isIpv4Address(nextHost)) {
-    if (!isPublicIpv4Address(nextHost)) {
-      return "Blocked private IP";
-    }
-
-    return null;
-  }
-
-  if (!allowedHosts.has(nextHost)) {
-    return "Redirect host not allowed";
-  }
-
-  return null;
-}
-
-// تحديث Referer لكل قفزة حسب الهوست الحالي
-function hopHeaders(baseHeaders, currentUrl) {
-  const h = new Headers(baseHeaders);
-
-  try {
-    h.set("Referer", getOrigin(currentUrl) + "/");
-  } catch (_) {}
-
-  return h;
-}
-
-// ============================================================
-// DNS AUTO UPDATE (fallback لـ https://IP فقط)
+// DNS AUTO UPDATE
 // ============================================================
 
 async function updateOriginDns(ip, env) {
@@ -869,16 +483,6 @@ async function updateOriginDns(ip, env) {
   }
 
   const record = lookupData.result?.[0];
-
-  // نفس الـIP؟ لا داعي للتحديث
-  if (record?.content === ip) {
-    console.log("[DNS UNCHANGED]", {
-      hostname: ORIGIN_HOST,
-      ip,
-    });
-
-    return { result: record };
-  }
 
   const body = {
     type: "A",
@@ -938,194 +542,198 @@ async function updateOriginDns(ip, env) {
 
   return createData;
 }
-
 // ============================================================
-// DIRECT IPv4 HTTP (عبر cloudflare:sockets)
+// REDIRECT FOLLOWING
 // ============================================================
 
-async function fetchIpv4Http(
-  url,
+async function followRedirects(
+  initialUrl,
   method,
-  baseHeaders
+  headers,
+  _env,
+  allowedHosts = ALLOWED_STREAM_HOSTS
 ) {
-  const parsed =
-    new URL(url);
+  let current = initialUrl;
+  let hops = 0;
+  const maxHops = 8;
 
-  const hostname =
-    parsed.hostname;
+  while (hops < maxHops) {
+    const parsed = new URL(current);
+    const hostname = parsed.hostname.toLowerCase();
 
-  const port =
-    Number(
-      parsed.port ||
-        (
-          parsed.protocol ===
-          "https:"
-            ? 443
-            : 80
-        )
-    );
+    // Upstream may redirect to a literal public IPv4.
+    // Point our DNS-only origin hostname at that IP, then fetch
+    // the same path through the hostname instead of the IP.
+    if (isIpv4Address(hostname)) {
+      if (!isPublicIpv4Address(hostname)) {
+        return {
+          response: new Response("Blocked private IP", {
+            status: 403,
+          }),
+          finalUrl: current,
+          hops,
+        };
+      }
 
-  if (
-    !isIpv4Address(
-      hostname
-    )
-  ) {
-    throw new Error(
-      "fetchIpv4Http requires an IPv4 address"
-    );
-  }
+      try {
+        await updateOriginDns(hostname, _env);
+      } catch (error) {
+        return {
+          response: new Response(
+            "Origin DNS update failed: " +
+              (error?.message || String(error)),
+            {
+              status: 502,
+            }
+          ),
+          finalUrl: current,
+          hops,
+        };
+      }
 
-  if (
-    !isPublicIpv4Address(
-      hostname
-    )
-  ) {
-    throw new Error(
-      "Blocked private IPv4 address"
-    );
-  }
+      const rewrittenUrl = new URL(current);
 
-  console.log("[SOCKET FETCH]", {
-    ip: hostname,
-    port,
-    path: parsed.pathname + parsed.search,
-  });
+      rewrittenUrl.hostname = ORIGIN_HOST;
 
-  const socket =
-    connect({
-      hostname,
-      port,
-    });
-
-  const writer =
-    socket.writable.getWriter();
-
-  const reader =
-    socket.readable.getReader();
-
-  try {
-    const requestHeaders =
-      new Headers(
-        baseHeaders
-      );
-
-    requestHeaders.set(
-      "Host",
-      parsed.host
-    );
-
-    requestHeaders.set(
-      "Connection",
-      "close"
-    );
-
-    requestHeaders.set(
-      "Accept-Encoding",
-      "identity"
-    );
-
-    let requestText =
-      `${method} ${parsed.pathname}${parsed.search} HTTP/1.1\r\n`;
-
-    for (
-      const [
-        name,
-        value,
-      ] of requestHeaders
-    ) {
-      requestText +=
-        `${name}: ${value}\r\n`;
-    }
-
-    requestText +=
-      "\r\n";
-
-    await writer.write(
-      new TextEncoder().encode(
-        requestText
-      )
-    );
-
-    writer.releaseLock();
-
-    const head =
-      await readHttpHead(
-        reader
-      );
-
-    const parsedHead =
-      parseHttpResponseHead(
-        head.headerText
-      );
-
-    const bodyStream =
-      createHttpBodyStream({
-        reader,
-        initialBody:
-          head.rest,
-        contentLength:
-          parsedHead.contentLength,
-        chunked:
-          parsedHead.chunked,
-        socket,
+      console.log("[IP → ORIGIN]", {
+        ip: hostname,
+        host: ORIGIN_HOST,
       });
 
-    const headers =
-      new Headers();
+      current = rewrittenUrl.href;
+      hops++;
 
-    for (
-      const [
-        name,
-        value,
-      ] of parsedHead.headers
-    ) {
-      const lower =
-        name.toLowerCase();
-
-      if (
-        lower ===
-          "connection" ||
-        lower ===
-          "transfer-encoding" ||
-        lower ===
-          "content-encoding" ||
-        lower ===
-          "keep-alive"
-      ) {
-        continue;
-      }
-
-      headers.set(
-        name,
-        value
-      );
+      continue;
     }
 
-    return new Response(
-      bodyStream,
-      {
-        status:
-          parsedHead.status,
-        statusText:
-          parsedHead.statusText,
+    if (!allowedHosts.has(hostname)) {
+      return {
+        response: new Response(
+          "Redirect host not allowed",
+          {
+            status: 403,
+          }
+        ),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    let response;
+
+    try {
+      response = await fetch(current, {
+        method,
         headers,
-      }
-    );
-  } catch (error) {
-    try {
-      reader.releaseLock();
-    } catch (_) {}
+        redirect: "manual",
+        cache: "no-store",
+      });
+    } catch (error) {
+      return {
+        response: new Response(
+          "Upstream fetch failed: " +
+            (error?.message || String(error)),
+          {
+            status: 502,
+          }
+        ),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    const isRedirect =
+      response.status >= 300 &&
+      response.status < 400;
+
+    if (!isRedirect) {
+      return {
+        response,
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    const location =
+      response.headers.get("Location");
+
+    if (!location) {
+      return {
+        response,
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    let nextUrl;
 
     try {
-      writer.releaseLock();
-    } catch (_) {}
+      nextUrl = new URL(
+        location,
+        current
+      );
+    } catch (_) {
+      return {
+        response: new Response(
+          "Invalid upstream redirect",
+          {
+            status: 502,
+          }
+        ),
+        finalUrl: current,
+        hops,
+      };
+    }
 
-    try {
-      socket.close();
-    } catch (_) {}
+    if (
+      nextUrl.protocol !== "http:" &&
+      nextUrl.protocol !== "https:"
+    ) {
+      return {
+        response: new Response(
+          "Unsupported redirect protocol",
+          {
+            status: 403,
+          }
+        ),
+        finalUrl: current,
+        hops,
+      };
+    }
 
-    throw error;
+    const nextHost =
+      nextUrl.hostname.toLowerCase();
+
+    if (
+      !isIpv4Address(nextHost) &&
+      !allowedHosts.has(nextHost)
+    ) {
+      return {
+        response: new Response(
+          "Redirect host not allowed",
+          {
+            status: 403,
+          }
+        ),
+        finalUrl: current,
+        hops,
+      };
+    }
+
+    current = nextUrl.href;
+    hops++;
   }
+
+  return {
+    response: new Response(
+      "Too many redirects",
+      {
+        status: 508,
+      }
+    ),
+    finalUrl: current,
+    hops,
+  };
 }
 
 // ============================================================
@@ -1613,346 +1221,6 @@ function createChunkedBodyStream(
   });
 }
 
-// ============================================================
-// BYTE HELPERS
-// ============================================================
-
-function concatBytes(
-  a,
-  b
-) {
-  const out =
-    new Uint8Array(
-      a.length +
-        b.length
-    );
-
-  out.set(
-    a,
-    0
-  );
-
-  out.set(
-    b,
-    a.length
-  );
-
-  return out;
-}
-
-function indexOfBytes(
-  buffer,
-  marker
-) {
-  const limit =
-    buffer.length -
-    marker.length;
-
-  for (
-    let i = 0;
-    i <= limit;
-    i++
-  ) {
-    let match =
-      true;
-
-    for (
-      let j = 0;
-      j < marker.length;
-      j++
-    ) {
-      if (
-        buffer[
-          i + j
-        ] !==
-        marker[j]
-      ) {
-        match =
-          false;
-
-        break;
-      }
-    }
-
-    if (match) {
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-async function readExactBytes(
-  reader,
-  buffer,
-  count
-) {
-  let buf =
-    buffer ||
-    new Uint8Array(0);
-
-  while (
-    buf.length < count
-  ) {
-    const result =
-      await reader.read();
-
-    if (result.done) {
-      throw new Error(
-        "Upstream ended unexpectedly"
-      );
-    }
-
-    if (
-      result.value?.length
-    ) {
-      buf =
-        concatBytes(
-          buf,
-          result.value
-        );
-    }
-  }
-
-  return {
-    bytes:
-      buf.slice(
-        0,
-        count
-      ),
-
-    rest:
-      buf.slice(
-        count
-      ),
-  };
-}
-
-async function readLineBytes(
-  reader,
-  buffer
-) {
-  const marker =
-    new Uint8Array([
-      13,
-      10,
-    ]);
-
-  let buf =
-    buffer ||
-    new Uint8Array(0);
-
-  while (true) {
-    const idx =
-      indexOfBytes(
-        buf,
-        marker
-      );
-
-    if (idx !== -1) {
-      return {
-        line:
-          buf.slice(
-            0,
-            idx
-          ),
-
-        rest:
-          buf.slice(
-            idx +
-              marker.length
-          ),
-      };
-    }
-
-    if (
-      buf.length >
-      64 * 1024
-    ) {
-      throw new Error(
-        "Upstream line too large"
-      );
-    }
-
-    const result =
-      await reader.read();
-
-    if (result.done) {
-      throw new Error(
-        "Upstream ended before line was complete"
-      );
-    }
-
-    if (
-      result.value?.length
-    ) {
-      buf =
-        concatBytes(
-          buf,
-          result.value
-        );
-    }
-  }
-}
-
-function cleanupSocketReader(
-  reader,
-  socket
-) {
-  try {
-    reader?.releaseLock?.();
-  } catch (_) {}
-
-  try {
-    socket?.close?.();
-  } catch (_) {}
-}
-
-// ============================================================
-// HTTP RESPONSE HEAD PARSER
-// ============================================================
-
-function parseHttpResponseHead(
-  headerText
-) {
-  const lines =
-    headerText.split(
-      "\r\n"
-    );
-
-  const statusLine =
-    lines.shift() || "";
-
-  const statusMatch =
-    statusLine.match(
-      /^HTTP\/\d(?:\.\d)?\s+(\d{3})(?:\s+(.*))?$/
-    );
-
-  if (!statusMatch) {
-    throw new Error(
-      "Invalid HTTP response"
-    );
-  }
-
-  const status =
-    Number(
-      statusMatch[1]
-    );
-
-  const statusText =
-    statusMatch[2] || "";
-
-  const headers =
-    new Headers();
-
-  for (
-    const line of lines
-  ) {
-    if (!line) {
-      continue;
-    }
-
-    const index =
-      line.indexOf(":");
-
-    if (index <= 0) {
-      continue;
-    }
-
-    const name =
-      line.slice(
-        0,
-        index
-      ).trim();
-
-    const value =
-      line.slice(
-        index + 1
-      ).trim();
-
-    try {
-      headers.append(
-        name,
-        value
-      );
-    } catch (_) {}
-  }
-
-  const contentLengthHeader =
-    headers.get(
-      "Content-Length"
-    );
-
-  let contentLength =
-    null;
-
-  if (
-    contentLengthHeader &&
-    /^\d+$/.test(
-      contentLengthHeader
-    )
-  ) {
-    contentLength =
-      Number(
-        contentLengthHeader
-      );
-  }
-
-  const transferEncoding =
-    (
-      headers.get(
-        "Transfer-Encoding"
-      ) || ""
-    ).toLowerCase();
-
-  const chunked =
-    transferEncoding.includes(
-      "chunked"
-    );
-
-  return {
-    status,
-    statusText,
-    headers,
-    contentLength,
-    chunked,
-  };
-}
-
-// ============================================================
-// IPV4 VALIDATION
-// ============================================================
-
-function isIpv4Address(
-  value
-) {
-  if (
-    typeof value !==
-      "string" ||
-    !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(
-      value
-    )
-  ) {
-    return false;
-  }
-
-  const parts =
-    value.split(".");
-
-  return parts.every(
-    part => {
-      const n =
-        Number(part);
-
-      return (
-        Number.isInteger(n) &&
-        n >= 0 &&
-        n <= 255
-      );
-    }
-  );
-}
-
 function isPublicIpv4Address(
   ip
 ) {
@@ -2272,35 +1540,52 @@ async function handleDebug(
     );
   }
 
-  const validation =
-    validateStreamTarget(
-      target
-    );
+  let parsed;
 
-  if (validation.error) {
+  try {
+    parsed =
+      new URL(target);
+
+    if (
+      parsed.protocol !==
+        "http:" &&
+      parsed.protocol !==
+        "https:"
+    ) {
+      throw new Error(
+        "Invalid protocol"
+      );
+    }
+
+    if (
+      !ALLOWED_STREAM_HOSTS.has(
+        parsed.hostname.toLowerCase()
+      )
+    ) {
+      return json(
+        {
+          error:
+            "Host not allowed",
+          host:
+            parsed.hostname,
+        },
+        403,
+        cors
+      );
+    }
+  } catch (error) {
     return json(
       {
         error:
-          validation.error,
-
+          "Invalid URL",
         details:
-          validation.details ||
-          "",
-
-        host:
-          validation.host ||
-          "",
+          error?.message ||
+          String(error),
       },
-      validation.error ===
-        "Invalid URL"
-        ? 400
-        : 403,
+      400,
       cors
     );
   }
-
-  const parsed =
-    validation.parsed;
 
   const headers =
     buildUpstreamHeaders(
@@ -2337,9 +1622,13 @@ async function handleDebug(
       ) || "";
 
     const body =
-      await safeReadText(
-        response
-      );
+      response.ok
+        ? await safeReadText(
+            response
+          )
+        : await safeReadText(
+            response
+          );
 
     return json(
       {
@@ -2421,6 +1710,705 @@ async function handleDebug(
       cors
     );
   }
+}
+
+// ============================================================
+// SOCKET HTTP
+// ============================================================
+
+async function fetchIpv4Http(
+  url,
+  request,
+  cors
+) {
+  const parsed =
+    new URL(url);
+
+  const hostname =
+    parsed.hostname;
+
+  const port =
+    Number(
+      parsed.port ||
+        (
+          parsed.protocol ===
+          "https:"
+            ? 443
+            : 80
+        )
+    );
+
+  if (
+    !isIpv4Address(
+      hostname
+    )
+  ) {
+    throw new Error(
+      "fetchIpv4Http requires an IPv4 address"
+    );
+  }
+
+  if (
+    !isPublicIpv4Address(
+      hostname
+    )
+  ) {
+    throw new Error(
+      "Blocked private IPv4 address"
+    );
+  }
+
+  const socket =
+    connect({
+      hostname,
+      port,
+    });
+
+  const writer =
+    socket.writable.getWriter();
+
+  const reader =
+    socket.readable.getReader();
+
+  try {
+    const requestHeaders =
+      buildUpstreamHeaders(
+        request,
+        url
+      );
+
+    requestHeaders.set(
+      "Host",
+      parsed.host
+    );
+
+    requestHeaders.set(
+      "Connection",
+      "close"
+    );
+
+    let requestText =
+      `${request.method} ${parsed.pathname}${parsed.search} HTTP/1.1\r\n`;
+
+    for (
+      const [
+        name,
+        value,
+      ] of requestHeaders
+    ) {
+      requestText +=
+        `${name}: ${value}\r\n`;
+    }
+
+    requestText +=
+      "\r\n";
+
+    await writer.write(
+      new TextEncoder().encode(
+        requestText
+      )
+    );
+
+    writer.releaseLock();
+
+    const head =
+      await readHttpHead(
+        reader
+      );
+
+    const parsedHead =
+      parseHttpResponseHead(
+        head.headerText
+      );
+
+    const bodyStream =
+      createHttpBodyStream({
+        reader,
+        initialBody:
+          head.rest,
+        contentLength:
+          parsedHead.contentLength,
+        chunked:
+          parsedHead.chunked,
+        socket,
+      });
+
+    const headers =
+      new Headers(cors);
+
+    for (
+      const [
+        name,
+        value,
+      ] of parsedHead.headers
+    ) {
+      if (
+        name.toLowerCase() ===
+          "connection" ||
+        name.toLowerCase() ===
+          "transfer-encoding"
+      ) {
+        continue;
+      }
+
+      headers.set(
+        name,
+        value
+      );
+    }
+
+    return new Response(
+      bodyStream,
+      {
+        status:
+          parsedHead.status,
+        statusText:
+          parsedHead.statusText,
+        headers,
+      }
+    );
+  } catch (error) {
+    try {
+      reader.releaseLock();
+    } catch (_) {}
+
+    try {
+      writer.releaseLock();
+    } catch (_) {}
+
+    try {
+      socket.close();
+    } catch (_) {}
+
+    throw error;
+  }
+}
+
+// ============================================================
+// HTTP RESPONSE HEAD PARSER
+// ============================================================
+
+function parseHttpResponseHead(
+  headerText
+) {
+  const lines =
+    headerText.split(
+      "\r\n"
+    );
+
+  const statusLine =
+    lines.shift() || "";
+
+  const statusMatch =
+    statusLine.match(
+      /^HTTP\/\d(?:\.\d)?\s+(\d{3})(?:\s+(.*))?$/
+    );
+
+  if (!statusMatch) {
+    throw new Error(
+      "Invalid HTTP response"
+    );
+  }
+
+  const status =
+    Number(
+      statusMatch[1]
+    );
+
+  const statusText =
+    statusMatch[2] || "";
+
+  const headers =
+    new Headers();
+
+  for (
+    const line of lines
+  ) {
+    if (!line) {
+      continue;
+    }
+
+    const index =
+      line.indexOf(":");
+
+    if (index <= 0) {
+      continue;
+    }
+
+    const name =
+      line.slice(
+        0,
+        index
+      ).trim();
+
+    const value =
+      line.slice(
+        index + 1
+      ).trim();
+
+    try {
+      headers.append(
+        name,
+        value
+      );
+    } catch (_) {}
+  }
+
+  const contentLengthHeader =
+    headers.get(
+      "Content-Length"
+    );
+
+  let contentLength =
+    null;
+
+  if (
+    contentLengthHeader &&
+    /^\d+$/.test(
+      contentLengthHeader
+    )
+  ) {
+    contentLength =
+      Number(
+        contentLengthHeader
+      );
+  }
+
+  const transferEncoding =
+    (
+      headers.get(
+        "Transfer-Encoding"
+      ) || ""
+    ).toLowerCase();
+
+  const chunked =
+    transferEncoding.includes(
+      "chunked"
+    );
+
+  return {
+    status,
+    statusText,
+    headers,
+    contentLength,
+    chunked,
+  };
+}
+
+// ============================================================
+// IPV4 VALIDATION
+// ============================================================
+
+function isIpv4Address(
+  value
+) {
+  if (
+    typeof value !==
+      "string" ||
+    !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(
+      value
+    )
+  ) {
+    return false;
+  }
+
+  const parts =
+    value.split(".");
+
+  return parts.every(
+    part => {
+      const n =
+        Number(part);
+
+      return (
+        Number.isInteger(n) &&
+        n >= 0 &&
+        n <= 255
+      );
+    }
+  );
+}
+
+// ============================================================
+// M3U8 / CONTENT HELPERS
+// ============================================================
+
+function looksLikeM3u8(
+  contentType,
+  text
+) {
+  const type =
+    (
+      contentType || ""
+    ).toLowerCase();
+
+  if (
+    type.includes(
+      "mpegurl"
+    ) ||
+    type.includes(
+      "vnd.apple.mpegurl"
+    )
+  ) {
+    return true;
+  }
+
+  const sample =
+    (
+      text || ""
+    )
+      .trimStart()
+      .slice(
+        0,
+        500
+      );
+
+  return (
+    sample.startsWith(
+      "#EXTM3U"
+    )
+  );
+}
+
+function absoluteUrl(
+  value,
+  base
+) {
+  try {
+    return new URL(
+      value,
+      base
+    ).href;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ============================================================
+// M3U8 URI REWRITE
+// ============================================================
+
+function rewriteM3u8(
+  text,
+  baseUrl,
+  requestUrl
+) {
+  const lines =
+    text.split(/\r?\n/);
+
+  const output = [];
+
+  for (
+    const line of lines
+  ) {
+    const trimmed =
+      line.trim();
+
+    if (
+      !trimmed
+    ) {
+      output.push(line);
+      continue;
+    }
+
+    if (
+      trimmed.startsWith(
+        "#"
+      )
+    ) {
+      output.push(
+        rewriteUriAttribute(
+          line,
+          baseUrl,
+          requestUrl
+        )
+      );
+      continue;
+    }
+
+    const absolute =
+      absoluteUrl(
+        trimmed,
+        baseUrl
+      );
+
+    if (!absolute) {
+      output.push(line);
+      continue;
+    }
+
+    output.push(
+      buildStreamProxyUrl(
+        absolute,
+        requestUrl
+      )
+    );
+  }
+
+  return output.join(
+    "\n"
+  );
+}
+
+// ============================================================
+// CORS
+// ============================================================
+
+function getCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin":
+      "*",
+
+    "Access-Control-Allow-Methods":
+      "GET,HEAD,POST,OPTIONS",
+
+    "Access-Control-Allow-Headers":
+      "*",
+
+    "Access-Control-Expose-Headers":
+      "Content-Length,Content-Range,Accept-Ranges,Content-Type",
+
+    "Access-Control-Max-Age":
+      "86400",
+  };
+}
+
+// ============================================================
+// OPTIONS
+// ============================================================
+
+function handleOptions(
+  cors
+) {
+  return new Response(
+    null,
+    {
+      status: 204,
+      headers: cors,
+    }
+  );
+}
+
+// ============================================================
+// ERROR RESPONSE
+// ============================================================
+
+function errorResponse(
+  message,
+  status,
+  cors
+) {
+  return new Response(
+    JSON.stringify({
+      error: message,
+    }),
+    {
+      status,
+      headers: {
+        ...cors,
+        "Content-Type":
+          "application/json; charset=utf-8",
+        "Cache-Control":
+          "no-store",
+      },
+    }
+  );
+}
+
+// ============================================================
+// GENERIC UPSTREAM FETCH
+// ============================================================
+
+async function fetchUpstream(
+  request,
+  targetUrl,
+  env
+) {
+  const parsed =
+    new URL(targetUrl);
+
+  const hostname =
+    parsed.hostname.toLowerCase();
+
+  if (
+    !ALLOWED_STREAM_HOSTS.has(
+      hostname
+    ) &&
+    !isIpv4Address(
+      hostname
+    )
+  ) {
+    return {
+      response:
+        new Response(
+          "Host not allowed",
+          {
+            status: 403,
+          }
+        ),
+      finalUrl:
+        targetUrl,
+      hops: 0,
+    };
+  }
+
+  const headers =
+    buildUpstreamHeaders(
+      request,
+      targetUrl
+    );
+
+  return await followRedirects(
+    targetUrl,
+    request.method,
+    headers,
+    env
+  );
+}
+
+// ============================================================
+// MAIN STREAM HANDLER
+// ============================================================
+
+
+
+// ============================================================
+// API FALLBACK
+// ============================================================
+
+async function proxyApiRequest(
+  request,
+  url,
+  cors
+) {
+  const target =
+    url.searchParams.get(
+      "target"
+    );
+
+  if (!target) {
+    return errorResponse(
+      "Missing target",
+      400,
+      cors
+    );
+  }
+
+  let parsed;
+
+  try {
+    parsed =
+      new URL(target);
+  } catch (_) {
+    return errorResponse(
+      "Invalid target",
+      400,
+      cors
+    );
+  }
+
+  const hostname =
+    parsed.hostname.toLowerCase();
+
+  if (
+    !ALLOWED_STREAM_HOSTS.has(
+      hostname
+    )
+  ) {
+    return errorResponse(
+      "API host not allowed",
+      403,
+      cors
+    );
+  }
+
+  try {
+    const headers =
+      buildUpstreamHeaders(
+        request,
+        parsed.href
+      );
+
+    const response =
+      await fetch(
+        parsed.href,
+        {
+          method:
+            request.method,
+          headers,
+          redirect:
+            "follow",
+          cache:
+            "no-store",
+        }
+      );
+
+    const body =
+      await response.text();
+
+    const responseHeaders =
+      new Headers(cors);
+
+    responseHeaders.set(
+      "Content-Type",
+      response.headers.get(
+        "Content-Type"
+      ) ||
+        "application/json; charset=utf-8"
+    );
+
+    responseHeaders.set(
+      "Cache-Control",
+      "no-store"
+    );
+
+    return new Response(
+      body,
+      {
+        status:
+          response.status,
+        statusText:
+          response.statusText,
+        headers:
+          responseHeaders,
+      }
+    );
+  } catch (error) {
+    return errorResponse(
+      "API request failed: " +
+        (
+          error?.message ||
+          String(error)
+        ),
+      502,
+      cors
+    );
+  }
+}
+
+// ============================================================
+// FINAL FALLBACK
+// ============================================================
+
+async function serveAssets(
+  request,
+  env
+) {
+  if (
+    env &&
+    env.ASSETS
+  ) {
+    return await env.ASSETS.fetch(
+      request
+    );
+  }
+
+  return new Response(
+    "Not Found",
+    {
+      status: 404,
+    }
+  );
 }
 
 // ============================================================
