@@ -564,12 +564,27 @@ async function handleStream(
 
   // ----------------------------------------------------------
   // Allowed host
+  //
+  // Normal requests must use an allowed provider hostname.
+  // Live HLS segment requests are allowed only when:
+  // 1. hls=1 is present
+  // 2. target is an IP
+  // 3. path starts with /hls/
   // ----------------------------------------------------------
+
+  const isLiveHlsSegment =
+    url.searchParams.get("hls") === "1" &&
+    isIpAddress(hostname) &&
+    /^\/hls(?:\/|$)/i.test(
+      targetUrl.pathname
+    );
+
 
   if (
     !ALLOWED_HOSTS.has(
       hostname
-    )
+    ) &&
+    !isLiveHlsSegment
   ) {
 
     return json(
@@ -595,7 +610,8 @@ async function handleStream(
   // Only /hls/ paths on an IP are allowed here.
   // ----------------------------------------------------------
 
-  if (
+    if (
+    url.searchParams.get("hls") === "1" &&
     isIpAddress(hostname) &&
     /^\/hls(?:\/|$)/i.test(
       targetUrl.pathname
@@ -1076,6 +1092,7 @@ async function handleLiveStream(
       playlist,
       targetUrl,
       targetUrl,
+      new URL(request.url).origin,
       cors
     );
   }
@@ -1212,6 +1229,7 @@ async function handleLiveStream(
         result.bodyText,
         redirectUrl,
         targetUrl,
+        new URL(request.url).origin,
         cors
       );
     }
@@ -1256,6 +1274,7 @@ async function handleLiveStream(
           playlist,
           redirectUrl,
           targetUrl,
+          new URL(request.url).origin,
           cors
         );
       }
@@ -2012,6 +2031,7 @@ function rewriteLivePlaylist(
   playlist,
   playlistBaseUrl,
   originalLiveUrl,
+  workerOrigin,
   cors
 ) {
 
@@ -2062,10 +2082,6 @@ function rewriteLivePlaylist(
   }
 
 
-  const workerOrigin =
-    new URL(
-      originalLiveUrl.toString()
-    ).origin;
 
 
   const lines =
@@ -2138,7 +2154,7 @@ function rewriteLivePlaylist(
 
       const proxiedUrl =
         workerOrigin +
-        "/stream?url=" +
+        "/stream?hls=1&url=" +
         encodeURIComponent(
           mediaUrl.toString()
         );
