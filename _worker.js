@@ -589,7 +589,41 @@ async function handleStream(
 
 
   // ----------------------------------------------------------
-  // LIVE DISABLED
+  // LIVE INTERNAL MEDIA SEGMENTS
+  //
+  // Rewritten /hls/... URLs point to the provider IP.
+  // Only /hls/ paths on an IP are allowed here.
+  // ----------------------------------------------------------
+
+  if (
+    isIpAddress(hostname) &&
+    /^\/hls(?:\/|$)/i.test(
+      targetUrl.pathname
+    )
+  ) {
+
+    console.log(
+      "[LIVE HLS SEGMENT]",
+      {
+        ip:
+          hostname,
+
+        path:
+          targetUrl.pathname,
+      }
+    );
+
+
+    return await proxyIpWithSocket(
+      request,
+      targetUrl,
+      cors
+    );
+  }
+
+
+    // ----------------------------------------------------------
+  // LIVE HLS
   // ----------------------------------------------------------
 
   if (
@@ -599,26 +633,22 @@ async function handleStream(
   ) {
 
     console.log(
-      "[STREAM] Live disabled:",
-      targetUrl.pathname
+      "[LIVE PROXY START]",
+      {
+        host:
+          hostname,
+
+        path:
+          targetUrl.pathname,
+      }
     );
 
-
-    return json(
-      {
-        error:
-          "Live streaming is currently disabled",
-
-        type:
-          "live",
-      },
-
-      403,
-
+    return await handleLiveStream(
+      request,
+      targetUrl,
       cors
     );
   }
-
 
   // ----------------------------------------------------------
   // Only movie / series
@@ -933,6 +963,1265 @@ async function handleStream(
     );
   }
 }
+
+
+
+// ============================================================
+// LIVE HLS PROXY
+// ============================================================
+
+async function handleLiveStream(
+  request,
+  targetUrl,
+  cors
+) {
+
+  // ----------------------------------------------------------
+  // Fetch the original live URL manually.
+  // We must NOT follow the redirect automatically because
+  // the provider redirects to a public IP.
+  // ----------------------------------------------------------
+
+  const upstreamHeaders =
+    buildLiveUpstreamHeaders(
+      request,
+      targetUrl
+    );
+
+
+  let firstResponse;
+
+  try {
+
+    firstResponse =
+      await fetch(
+        targetUrl.toString(),
+        {
+          method:
+            request.method === "HEAD"
+              ? "HEAD"
+              : "GET",
+
+          headers:
+            upstreamHeaders,
+
+          redirect:
+            "manual",
+
+          cache:
+            "no-store",
+        }
+      );
+
+  } catch (error) {
+
+    console.error(
+      "[LIVE FIRST FETCH ERROR]",
+      {
+        message:
+          error?.message ||
+          String(error),
+      }
+    );
+
+    return json(
+      {
+        error:
+          "Live provider request failed",
+
+        details:
+          error?.message ||
+          String(error),
+      },
+
+      502,
+
+      cors
+    );
+  }
+
+
+  console.log(
+    "[LIVE FIRST RESPONSE]",
+    {
+      status:
+        firstResponse.status,
+
+      location:
+        firstResponse.headers.get(
+          "location"
+        ) || "",
+
+      contentType:
+        firstResponse.headers.get(
+          "content-type"
+        ) || "",
+    }
+  );
+
+
+  // ----------------------------------------------------------
+  // Direct M3U8 response
+  // ----------------------------------------------------------
+
+  if (
+    firstResponse.status >= 200 &&
+    firstResponse.status < 300
+  ) {
+
+    const playlist =
+      await firstResponse.text();
+
+    return rewriteLivePlaylist(
+      playlist,
+      targetUrl,
+      targetUrl,
+      cors
+    );
+  }
+
+
+  // ----------------------------------------------------------
+  // Provider redirect
+  // ----------------------------------------------------------
+
+  if (
+    firstResponse.status >= 300 &&
+    firstResponse.status < 400
+  ) {
+
+    const location =
+      firstResponse.headers.get(
+        "location"
+      );
+
+
+    if (!location) {
+
+      return json(
+        {
+          error:
+            "Live redirect without Location",
+        },
+
+        502,
+
+        cors
+      );
+    }
+
+
+    const redirectUrl =
+      new URL(
+        location,
+        targetUrl.toString()
+      );
+
+
+    console.log(
+      "[LIVE REDIRECT]",
+      {
+        to:
+          redirectUrl.toString(),
+      }
+    );
+
+
+    // --------------------------------------------------------
+    // The tested provider redirects to a public IP.
+    // --------------------------------------------------------
+
+    if (
+      isIpAddress(
+        redirectUrl.hostname
+      )
+    ) {
+
+      const result =
+        await fetchLivePlaylistFromSocket(
+          request,
+          redirectUrl
+        );
+
+
+      if (!result) {
+
+        return json(
+          {
+            error:
+              "Could not retrieve live playlist",
+          },
+
+          502,
+
+          cors
+        );
+      }
+
+
+      console.log(
+        "[LIVE M3U8 RESPONSE]",
+        {
+          status:
+            result.status,
+
+          contentType:
+            result.headers.get(
+              "content-type"
+            ) || "",
+
+          contentLength:
+            result.headers.get(
+              "content-length"
+            ) || "",
+        }
+      );
+
+
+      if (
+        result.status < 200 ||
+        result.status >= 300
+      ) {
+
+        return new Response(
+          result.bodyText ||
+            `Live upstream HTTP ${result.status}`,
+
+          {
+            status:
+              result.status,
+
+            headers: {
+              ...cors,
+
+              "Content-Type":
+                result.headers.get(
+                  "content-type"
+                ) ||
+                "text/plain; charset=utf-8",
+
+              "Cache-Control":
+                "no-store",
+            },
+          }
+        );
+      }
+
+
+      return rewriteLivePlaylist(
+        result.bodyText,
+        redirectUrl,
+        targetUrl,
+        cors
+      );
+    }
+
+
+    // --------------------------------------------------------
+    // Hostname redirect
+    // --------------------------------------------------------
+
+    try {
+
+      const response =
+        await fetch(
+          redirectUrl.toString(),
+          {
+            method:
+              request.method === "HEAD"
+                ? "HEAD"
+                : "GET",
+
+            headers:
+              upstreamHeaders,
+
+            redirect:
+              "manual",
+
+            cache:
+              "no-store",
+          }
+        );
+
+
+      if (
+        response.status >= 200 &&
+        response.status < 300
+      ) {
+
+        const playlist =
+          await response.text();
+
+        return rewriteLivePlaylist(
+          playlist,
+          redirectUrl,
+          targetUrl,
+          cors
+        );
+      }
+
+
+      return new Response(
+        await safeReadText(
+          response
+        ),
+
+        {
+          status:
+            response.status,
+
+          headers: {
+            ...cors,
+
+            "Content-Type":
+              response.headers.get(
+                "content-type"
+              ) ||
+              "text/plain; charset=utf-8",
+          },
+        }
+      );
+
+    } catch (error) {
+
+      console.error(
+        "[LIVE HOST REDIRECT ERROR]",
+        {
+          message:
+            error?.message ||
+            String(error),
+        }
+      );
+
+      return json(
+        {
+          error:
+            "Live hostname redirect failed",
+
+          details:
+            error?.message ||
+            String(error),
+        },
+
+        502,
+
+        cors
+      );
+    }
+  }
+
+
+  return new Response(
+    await safeReadText(
+      firstResponse
+    ),
+
+    {
+      status:
+        firstResponse.status,
+
+      headers: {
+        ...cors,
+
+        "Content-Type":
+          firstResponse.headers.get(
+            "content-type"
+          ) ||
+          "text/plain; charset=utf-8",
+      },
+    }
+  );
+}
+
+
+// ============================================================
+// LIVE UPSTREAM HEADERS
+// ============================================================
+
+function buildLiveUpstreamHeaders(
+  request,
+  targetUrl
+) {
+
+  const headers =
+    new Headers();
+
+
+  headers.set(
+    "User-Agent",
+
+    request.headers.get(
+      "User-Agent"
+    ) ||
+
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+  );
+
+
+  headers.set(
+    "Accept",
+
+    "application/vnd.apple.mpegurl,application/x-mpegurl,*/*;q=0.8"
+  );
+
+
+  headers.set(
+    "Accept-Encoding",
+    "identity"
+  );
+
+
+  headers.set(
+    "Accept-Language",
+
+    request.headers.get(
+      "Accept-Language"
+    ) ||
+
+    "ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7"
+  );
+
+
+  headers.set(
+    "Referer",
+
+    getOrigin(
+      targetUrl.toString()
+    ) + "/"
+  );
+
+
+  return headers;
+}
+
+
+// ============================================================
+// FETCH LIVE M3U8 THROUGH TCP SOCKET
+// ============================================================
+
+async function fetchLivePlaylistFromSocket(
+  request,
+  targetUrl
+) {
+
+  const ip =
+    targetUrl.hostname;
+
+
+  const port =
+    Number(
+      targetUrl.port ||
+      80
+    );
+
+
+  if (
+    !isIpAddress(ip)
+  ) {
+
+    throw new Error(
+      "Live socket target is not an IP"
+    );
+  }
+
+
+  if (
+    port !== 80
+  ) {
+
+    throw new Error(
+      "Only HTTP port 80 is supported for Live IP redirect"
+    );
+  }
+
+
+  let socket;
+
+
+  try {
+
+    socket =
+      connect({
+        hostname:
+          ip,
+
+        port:
+          port,
+
+        secureTransport:
+          "off",
+
+        allowHalfOpen:
+          true,
+      });
+
+
+    await socket.opened;
+
+
+    console.log(
+      "[LIVE SOCKET CONNECTED]",
+      {
+        ip,
+        port,
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "[LIVE SOCKET CONNECT ERROR]",
+      {
+        ip,
+        port,
+
+        message:
+          error?.message ||
+          String(error),
+      }
+    );
+
+    return null;
+  }
+
+
+  try {
+
+    const writer =
+      socket.writable.getWriter();
+
+
+    const requestText =
+      buildLiveRawHttpRequest(
+        request,
+        targetUrl
+      );
+
+
+    await writer.write(
+      new TextEncoder().encode(
+        requestText
+      )
+    );
+
+
+    console.log(
+      "[LIVE SOCKET WRITE OK]"
+    );
+
+
+    // Same proven behavior as the working VOD proxy.
+    writer.releaseLock();
+
+
+    const reader =
+      socket.readable.getReader();
+
+
+    const headerResult =
+      await readHttpHeadersWithTimeout(
+        reader,
+        10000
+      );
+
+
+    if (!headerResult) {
+
+      try {
+        reader.releaseLock();
+      } catch (_) {}
+
+
+      try {
+        await socket.close();
+      } catch (_) {}
+
+
+      return null;
+    }
+
+
+    const {
+      status,
+      headers,
+      bodyRemainder,
+    } =
+      headerResult;
+
+
+    const body =
+      await collectHttpBodyForLive(
+        reader,
+        bodyRemainder,
+        headers
+      );
+
+
+    try {
+      reader.releaseLock();
+    } catch (_) {}
+
+
+    try {
+      await socket.close();
+    } catch (_) {}
+
+
+    return {
+      status,
+
+      headers,
+
+      bodyText:
+        new TextDecoder().decode(
+          body
+        ),
+    };
+
+  } catch (error) {
+
+    console.error(
+      "[LIVE SOCKET ERROR]",
+      {
+        message:
+          error?.message ||
+          String(error),
+      }
+    );
+
+
+    try {
+      await socket.close();
+    } catch (_) {}
+
+
+    return null;
+  }
+}
+
+
+// ============================================================
+// LIVE RAW HTTP REQUEST
+// ============================================================
+
+function buildLiveRawHttpRequest(
+  request,
+  targetUrl
+) {
+
+  const lines = [];
+
+
+  lines.push(
+    `GET ${targetUrl.pathname}${targetUrl.search} HTTP/1.1`
+  );
+
+
+  lines.push(
+    `Host: ${targetUrl.hostname}`
+  );
+
+
+  lines.push(
+    "Connection: keep-alive"
+  );
+
+
+  lines.push(
+    "Accept: application/vnd.apple.mpegurl,application/x-mpegurl,*/*;q=0.8"
+  );
+
+
+  lines.push(
+    "Accept-Encoding: identity"
+  );
+
+
+  lines.push(
+    "Accept-Language: ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7"
+  );
+
+
+  lines.push(
+    "User-Agent: " +
+    (
+      request.headers.get(
+        "User-Agent"
+      ) ||
+
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+    )
+  );
+
+
+  lines.push(
+    "Referer: http://barqtv.website/"
+  );
+
+
+  lines.push("");
+  lines.push("");
+
+
+  return lines.join(
+    "\r\n"
+  );
+}
+
+
+// ============================================================
+// COLLECT LIVE HTTP BODY
+// ============================================================
+
+async function collectHttpBodyForLive(
+  reader,
+  initialBytes,
+  headers
+) {
+
+  const parts = [];
+
+
+  if (
+    initialBytes &&
+    initialBytes.length
+  ) {
+
+    parts.push(
+      initialBytes
+    );
+  }
+
+
+  const contentLengthHeader =
+    headers.get(
+      "content-length"
+    );
+
+
+  const contentLength =
+    contentLengthHeader !== null
+      ? Number(
+          contentLengthHeader
+        )
+      : NaN;
+
+
+  if (
+    Number.isFinite(
+      contentLength
+    )
+  ) {
+
+    let total =
+      initialBytes?.length ||
+      0;
+
+
+    while (
+      total <
+      contentLength
+    ) {
+
+      const result =
+        await reader.read();
+
+
+      if (
+        result.done
+      ) {
+
+        break;
+      }
+
+
+      if (
+        result.value &&
+        result.value.length
+      ) {
+
+        const remaining =
+          contentLength -
+          total;
+
+
+        const take =
+          Math.min(
+            remaining,
+            result.value.length
+          );
+
+
+        parts.push(
+          result.value.slice(
+            0,
+            take
+          )
+        );
+
+
+        total +=
+          take;
+      }
+    }
+
+
+    return concatMany(
+      parts
+    );
+  }
+
+
+  // ----------------------------------------------------------
+  // Chunked response
+  // ----------------------------------------------------------
+
+  const transferEncoding =
+    (
+      headers.get(
+        "transfer-encoding"
+      ) || ""
+    ).toLowerCase();
+
+
+  if (
+    transferEncoding.includes(
+      "chunked"
+    )
+  ) {
+
+    return decodeChunkedBytes(
+      reader,
+      initialBytes ||
+        new Uint8Array(0)
+    );
+  }
+
+
+  // ----------------------------------------------------------
+  // No Content-Length.
+  // Read until EOF.
+  // ----------------------------------------------------------
+
+  while (true) {
+
+    const result =
+      await reader.read();
+
+
+    if (
+      result.done
+    ) {
+
+      break;
+    }
+
+
+    if (
+      result.value &&
+      result.value.length
+    ) {
+
+      parts.push(
+        result.value
+      );
+    }
+  }
+
+
+  return concatMany(
+    parts
+  );
+}
+
+
+// ============================================================
+// SIMPLE CHUNKED BYTE DECODER FOR LIVE PLAYLIST
+// ============================================================
+
+async function decodeChunkedBytes(
+  reader,
+  initialBytes
+) {
+
+  let buffer =
+    initialBytes;
+
+
+  const output = [];
+
+
+  while (true) {
+
+    let lineEnd =
+      findCrlf(
+        buffer
+      );
+
+
+    while (
+      lineEnd === -1
+    ) {
+
+      const result =
+        await reader.read();
+
+
+      if (
+        result.done
+      ) {
+
+        break;
+      }
+
+
+      buffer =
+        concatUint8Arrays(
+          buffer,
+          result.value
+        );
+
+
+      lineEnd =
+        findCrlf(
+          buffer
+        );
+    }
+
+
+    if (
+      lineEnd === -1
+    ) {
+
+      break;
+    }
+
+
+    const sizeLine =
+      new TextDecoder()
+        .decode(
+          buffer.slice(
+            0,
+            lineEnd
+          )
+        )
+        .trim();
+
+
+    buffer =
+      buffer.slice(
+        lineEnd + 2
+      );
+
+
+    const semicolon =
+      sizeLine.indexOf(
+        ";"
+      );
+
+
+    const sizeText =
+      semicolon >= 0
+        ? sizeLine.slice(
+            0,
+            semicolon
+          )
+        : sizeLine;
+
+
+    const chunkSize =
+      parseInt(
+        sizeText.trim(),
+        16
+      );
+
+
+    if (
+      !Number.isFinite(
+        chunkSize
+      )
+    ) {
+
+      throw new Error(
+        "Invalid live chunk size"
+      );
+    }
+
+
+    if (
+      chunkSize === 0
+    ) {
+
+      break;
+    }
+
+
+    while (
+      buffer.length <
+      chunkSize + 2
+    ) {
+
+      const result =
+        await reader.read();
+
+
+      if (
+        result.done
+      ) {
+
+        throw new Error(
+          "Unexpected EOF in live chunk"
+        );
+      }
+
+
+      buffer =
+        concatUint8Arrays(
+          buffer,
+          result.value
+        );
+    }
+
+
+    output.push(
+      buffer.slice(
+        0,
+        chunkSize
+      )
+    );
+
+
+    buffer =
+      buffer.slice(
+        chunkSize + 2
+      );
+  }
+
+
+  return concatMany(
+    output
+  );
+}
+
+
+// ============================================================
+// REWRITE LIVE M3U8
+// ============================================================
+
+function rewriteLivePlaylist(
+  playlist,
+  playlistBaseUrl,
+  originalLiveUrl,
+  cors
+) {
+
+  if (
+    typeof playlist !== "string" ||
+    !playlist.includes(
+      "#EXTM3U"
+    )
+  ) {
+
+    console.error(
+      "[LIVE INVALID PLAYLIST]",
+      {
+        length:
+          playlist?.length ||
+          0,
+
+        preview:
+          String(
+            playlist || ""
+          ).substring(
+            0,
+            300
+          ),
+      }
+    );
+
+
+    return new Response(
+      playlist ||
+        "Invalid live playlist",
+
+      {
+        status:
+          502,
+
+        headers: {
+          ...cors,
+
+          "Content-Type":
+            "text/plain; charset=utf-8",
+
+          "Cache-Control":
+            "no-store",
+        },
+      }
+    );
+  }
+
+
+  const workerOrigin =
+    new URL(
+      originalLiveUrl.toString()
+    ).origin;
+
+
+  const lines =
+    playlist.split(
+      /\r?\n/
+    );
+
+
+  const output = [];
+
+
+  for (
+    const line of lines
+  ) {
+
+    const trimmed =
+      line.trim();
+
+
+    // --------------------------------------------------------
+    // Empty line
+    // --------------------------------------------------------
+
+    if (!trimmed) {
+
+      output.push(
+        ""
+      );
+
+      continue;
+    }
+
+
+    // --------------------------------------------------------
+    // HLS comments / tags
+    // --------------------------------------------------------
+
+    if (
+      trimmed.startsWith("#")
+    ) {
+
+      output.push(
+        line
+      );
+
+      continue;
+    }
+
+
+    // --------------------------------------------------------
+    // Segment / child playlist URL
+    // --------------------------------------------------------
+
+    try {
+
+      const mediaUrl =
+        new URL(
+          trimmed,
+          playlistBaseUrl.toString()
+        );
+
+
+      /*
+       * We deliberately route the media request back through
+       * the same /stream endpoint.
+       *
+       * This keeps the browser away from the provider IP and
+       * lets the Worker handle the IP socket connection.
+       */
+
+      const proxiedUrl =
+        workerOrigin +
+        "/stream?url=" +
+        encodeURIComponent(
+          mediaUrl.toString()
+        );
+
+
+      output.push(
+        proxiedUrl
+      );
+
+    } catch (error) {
+
+      console.warn(
+        "[LIVE PLAYLIST URL ERROR]",
+        {
+          line:
+            trimmed.substring(
+              0,
+              200
+            ),
+
+          message:
+            error?.message ||
+            String(error),
+        }
+      );
+
+
+      output.push(
+        line
+      );
+    }
+  }
+
+
+  const body =
+    output.join(
+      "\n"
+    );
+
+
+  console.log(
+    "[LIVE PLAYLIST REWRITTEN]",
+    {
+      originalBytes:
+        playlist.length,
+
+      rewrittenBytes:
+        body.length,
+
+      mediaLines:
+        output.filter(
+          line =>
+            line.startsWith(
+              workerOrigin +
+              "/stream?url="
+            )
+        ).length,
+    }
+  );
+
+
+  return new Response(
+    body,
+    {
+      status:
+        200,
+
+      headers: {
+        ...cors,
+
+        "Content-Type":
+          "application/vnd.apple.mpegurl",
+
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate",
+
+        "Pragma":
+          "no-cache",
+      },
+    }
+  );
+}
+
 
 
 // ============================================================
