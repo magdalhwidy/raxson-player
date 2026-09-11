@@ -6,28 +6,19 @@
 // Series  : /series/.../*.mp4
 // Live    : disabled
 //
-// VOD provider redirects:
-//
+// VOD provider:
 //   barqtv.website/.../movie/...mp4
-//          ->
-//   http://37.49.230.120/vauth/...
+//        ->
+//   http://37.49.230.121/vauth/...
 //
-// Cloudflare fetch() cannot follow that public-IP redirect.
-// Therefore:
+// Cloudflare fetch() cannot follow the public-IP redirect.
+// Therefore the Worker:
 //
-// 1. Fetch original hostname with redirect: "manual"
-// 2. Read Location
-// 3. If Location points to public IP, use cloudflare:sockets
-// 4. Send normal HTTP request over TCP
-// 5. Stream response back to browser
-//
-// IMPORTANT:
-// The IP redirect is intentionally requested with:
-//   Host: <redirect IP>
-//
-// This matches the actual URL that the browser follows:
-//
-//   http://37.49.230.120/vauth/...
+// 1. Fetches the original provider hostname manually.
+// 2. Reads Location.
+// 3. If Location is an IP, opens a TCP socket.
+// 4. Sends a normal HTTP request to that IP.
+// 5. Streams the response back to the browser.
 //
 // Live remains disabled.
 // ============================================================
@@ -41,6 +32,7 @@ import { connect } from "cloudflare:sockets";
 
 export default {
   async fetch(request, env, ctx) {
+
     const url = new URL(request.url);
 
     const cors = {
@@ -56,41 +48,58 @@ export default {
         "Accept-Ranges, Content-Length, Content-Range, Content-Type, ETag, Last-Modified",
     };
 
+
     if (request.method === "OPTIONS") {
+
       return new Response(null, {
         status: 204,
         headers: cors,
       });
     }
 
+
     try {
+
       console.log("[ROUTER]", {
         method: request.method,
         pathname: url.pathname,
         search: url.search,
       });
 
+
       // --------------------------------------------------------
       // API
       // --------------------------------------------------------
 
       if (url.pathname === "/api") {
-        return await handleApi(url, cors);
+
+        return await handleApi(
+          url,
+          cors
+        );
       }
+
 
       // --------------------------------------------------------
       // VOD STREAM
       // --------------------------------------------------------
 
       if (url.pathname === "/stream") {
-        return await handleStream(request, url, cors);
+
+        return await handleStream(
+          request,
+          url,
+          cors
+        );
       }
+
 
       // --------------------------------------------------------
       // TEST
       // --------------------------------------------------------
 
       if (url.pathname === "/test") {
+
         return new Response(
           "Worker OK - Raxson FINAL VOD Proxy",
           {
@@ -106,11 +115,13 @@ export default {
         );
       }
 
+
       // --------------------------------------------------------
       // DEBUG
       // --------------------------------------------------------
 
       if (url.pathname === "/debug") {
+
         return await handleDebug(
           request,
           url,
@@ -118,13 +129,18 @@ export default {
         );
       }
 
+
       // --------------------------------------------------------
       // STATIC ASSETS
       // --------------------------------------------------------
 
       if (env.ASSETS) {
-        return env.ASSETS.fetch(request);
+
+        return env.ASSETS.fetch(
+          request
+        );
       }
+
 
       return new Response(
         "Not Found",
@@ -138,12 +154,21 @@ export default {
 
       console.error(
         "[WORKER ERROR]",
-        error
+        {
+          message:
+            error?.message ||
+            String(error),
+
+          stack:
+            error?.stack || "",
+        }
       );
+
 
       return json(
         {
-          error: "Worker Error",
+          error:
+            "Worker Error",
 
           details:
             error?.message ||
@@ -183,20 +208,24 @@ async function handleApi(
       .get("host")
       ?.trim();
 
+
   const user =
     url.searchParams
       .get("user")
       ?.trim();
+
 
   const pass =
     url.searchParams
       .get("pass")
       ?.trim();
 
+
   const action =
     url.searchParams
       .get("action")
       ?.trim();
+
 
   const extra =
     url.searchParams.get("extra") ||
@@ -224,6 +253,7 @@ async function handleApi(
 
 
   let cleanHost;
+
 
   try {
 
@@ -286,10 +316,12 @@ async function handleApi(
     user
   );
 
+
   apiUrl.searchParams.set(
     "password",
     pass
   );
+
 
   apiUrl.searchParams.set(
     "action",
@@ -483,6 +515,7 @@ async function handleStream(
 
   let targetUrl;
 
+
   try {
 
     targetUrl =
@@ -526,8 +559,7 @@ async function handleStream(
 
 
   const hostname =
-    targetUrl.hostname
-      .toLowerCase();
+    targetUrl.hostname.toLowerCase();
 
 
   // ----------------------------------------------------------
@@ -648,7 +680,7 @@ async function handleStream(
 
 
   // ----------------------------------------------------------
-  // Request headers for original provider
+  // Original provider headers
   // ----------------------------------------------------------
 
   const upstreamHeaders =
@@ -659,11 +691,6 @@ async function handleStream(
 
 
   try {
-
-    // --------------------------------------------------------
-    // DO NOT FOLLOW HERE.
-    // We need Location.
-    // --------------------------------------------------------
 
     const firstResponse =
       await fetch(
@@ -775,7 +802,7 @@ async function handleStream(
 
 
       // ------------------------------------------------------
-      // Normal hostname redirect
+      // Hostname redirect
       // ------------------------------------------------------
 
       if (
@@ -928,7 +955,7 @@ function buildUpstreamHeaders(
       "User-Agent"
     ) ||
 
-    "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
   );
 
 
@@ -950,7 +977,13 @@ function buildUpstreamHeaders(
       "Accept-Language"
     ) ||
 
-    "ar,en;q=0.9"
+    "ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7"
+  );
+
+
+  headers.set(
+    "Accept-Encoding",
+    "identity"
   );
 
 
@@ -962,6 +995,10 @@ function buildUpstreamHeaders(
     ) + "/"
   );
 
+
+  // ----------------------------------------------------------
+  // Range
+  // ----------------------------------------------------------
 
   const range =
     request.headers.get(
@@ -977,6 +1014,10 @@ function buildUpstreamHeaders(
     );
   }
 
+
+  // ----------------------------------------------------------
+  // Conditional headers
+  // ----------------------------------------------------------
 
   copyRequestHeader(
     request,
@@ -1190,7 +1231,7 @@ async function fetchHostnameRedirect(
 
 
 // ============================================================
-// TCP SOCKET PROXY FOR PUBLIC-IP REDIRECT
+// TCP SOCKET PROXY
 // ============================================================
 
 async function proxyIpWithSocket(
@@ -1251,6 +1292,7 @@ async function proxyIpWithSocket(
     {
       ip,
       port,
+
       path:
         targetUrl.pathname +
         targetUrl.search,
@@ -1263,7 +1305,6 @@ async function proxyIpWithSocket(
 
   try {
 
-    // Explicit plaintext TCP.
     socket =
       connect({
         hostname:
@@ -1284,7 +1325,6 @@ async function proxyIpWithSocket(
         port,
       }
     );
-
 
   } catch (error) {
 
@@ -1318,9 +1358,6 @@ async function proxyIpWithSocket(
   }
 
 
-  let reader = null;
-
-
   try {
 
     const writer =
@@ -1338,7 +1375,7 @@ async function proxyIpWithSocket(
       "[SOCKET HTTP REQUEST]",
       {
         host:
-          targetUrl.hostname,
+          ip,
 
         path:
           targetUrl.pathname +
@@ -1357,13 +1394,6 @@ async function proxyIpWithSocket(
     );
 
 
-    // --------------------------------------------------------
-    // Send the complete HTTP request.
-    //
-    // Cloudflare documents writer.close() as the normal way
-    // to finish the outbound request.
-    // --------------------------------------------------------
-
     await writer.write(
       new TextEncoder().encode(
         requestText
@@ -1376,6 +1406,15 @@ async function proxyIpWithSocket(
     );
 
 
+    // --------------------------------------------------------
+    // Important:
+    //
+    // We explicitly close only the writable side.
+    // The TCP socket readable side remains available.
+    //
+    // Cloudflare documents this behavior for TCP sockets.
+    // --------------------------------------------------------
+
     await writer.close();
 
 
@@ -1384,22 +1423,21 @@ async function proxyIpWithSocket(
     );
 
 
-    // --------------------------------------------------------
-    // Read upstream HTTP headers.
-    //
-    // IMPORTANT:
-    // The previous worker could wait indefinitely here.
-    // We now have an explicit timeout and diagnostics.
-    // --------------------------------------------------------
-
-    reader =
+    const reader =
       socket.readable.getReader();
 
+
+    // --------------------------------------------------------
+    // Read headers with a timeout.
+    //
+    // If the upstream does not answer, we now know whether
+    // it is an actual timeout or an immediate EOF.
+    // --------------------------------------------------------
 
     const headerResult =
       await readHttpHeadersWithTimeout(
         reader,
-        15000
+        10000
       );
 
 
@@ -1420,6 +1458,7 @@ async function proxyIpWithSocket(
       try {
         reader.releaseLock();
       } catch (_) {}
+
 
       try {
         await socket.close();
@@ -1453,8 +1492,6 @@ async function proxyIpWithSocket(
       {
         status,
 
-        statusText,
-
         contentType:
           headers.get(
             "content-type"
@@ -1470,19 +1507,14 @@ async function proxyIpWithSocket(
             "content-range"
           ) || "",
 
-        acceptRanges:
-          headers.get(
-            "accept-ranges"
-          ) || "",
-
         transferEncoding:
           headers.get(
             "transfer-encoding"
           ) || "",
 
-        connection:
+        acceptRanges:
           headers.get(
-            "connection"
+            "accept-ranges"
           ) || "",
       }
     );
@@ -1499,8 +1531,6 @@ async function proxyIpWithSocket(
       try {
         reader.releaseLock();
       } catch (_) {}
-
-      reader = null;
 
 
       try {
@@ -1543,13 +1573,6 @@ async function proxyIpWithSocket(
 
 
       try {
-        reader.releaseLock();
-      } catch (_) {}
-
-      reader = null;
-
-
-      try {
         await socket.close();
       } catch (_) {}
 
@@ -1567,8 +1590,8 @@ async function proxyIpWithSocket(
         "[SOCKET UPSTREAM ERROR]",
         {
           status,
-          statusText,
-          body: text,
+          body:
+            text,
         }
       );
 
@@ -1581,6 +1604,7 @@ async function proxyIpWithSocket(
           status,
 
           headers: {
+
             ...cors,
 
             "Content-Type":
@@ -1595,7 +1619,7 @@ async function proxyIpWithSocket(
 
 
     // --------------------------------------------------------
-    // Successful response
+    // Browser headers
     // --------------------------------------------------------
 
     const browserHeaders =
@@ -1605,6 +1629,10 @@ async function proxyIpWithSocket(
       );
 
 
+    // --------------------------------------------------------
+    // Stream body
+    // --------------------------------------------------------
+
     const body =
       createSocketBodyStream(
         reader,
@@ -1612,12 +1640,6 @@ async function proxyIpWithSocket(
         headers,
         socket
       );
-
-
-    // Ownership of reader/socket is transferred to
-    // createSocketBodyStream().
-    reader = null;
-    socket = null;
 
 
     return new Response(
@@ -1642,8 +1664,8 @@ async function proxyIpWithSocket(
           error?.message ||
           String(error),
 
-        name:
-          error?.name ||
+        stack:
+          error?.stack ||
           "",
 
         target:
@@ -1652,22 +1674,9 @@ async function proxyIpWithSocket(
     );
 
 
-    if (reader) {
-
-      try {
-        reader.releaseLock();
-      } catch (_) {}
-
-    }
-
-
-    if (socket) {
-
-      try {
-        await socket.close();
-      } catch (_) {}
-
-    }
+    try {
+      await socket.close();
+    } catch (_) {}
 
 
     return json(
@@ -1701,7 +1710,7 @@ function buildRawHttpRequest(
 
 
   // ----------------------------------------------------------
-  // HTTP/1.1
+  // Use GET.
   // ----------------------------------------------------------
 
   lines.push(
@@ -1712,14 +1721,11 @@ function buildRawHttpRequest(
   // ----------------------------------------------------------
   // IMPORTANT:
   //
-  // The browser itself follows the redirect to:
+  // The browser follows the redirect to:
   //
-  // http://37.49.230.120/vauth/...
+  // http://37.49.230.121/vauth/...
   //
-  // Therefore keep Host equal to the IP.
-  //
-  // Do NOT replace this with barqtv.website unless testing
-  // proves that the provider requires virtual-host routing.
+  // Therefore Host must be the IP, not barqtv.website.
   // ----------------------------------------------------------
 
   lines.push(
@@ -1728,7 +1734,7 @@ function buildRawHttpRequest(
 
 
   // ----------------------------------------------------------
-  // Close after response.
+  // Keep the request simple and close after response.
   // ----------------------------------------------------------
 
   lines.push(
@@ -1736,32 +1742,21 @@ function buildRawHttpRequest(
   );
 
 
-  // ----------------------------------------------------------
-  // MP4
-  // ----------------------------------------------------------
-
   lines.push(
     "Accept: video/mp4,video/*,*/*;q=0.8"
   );
 
 
-  lines.push(
-    "Accept-Language: ar,en;q=0.9"
-  );
-
-
-  // ----------------------------------------------------------
-  // Do not request gzip/br for binary video.
-  // ----------------------------------------------------------
-
+  // Prevent gzip/br transformation.
   lines.push(
     "Accept-Encoding: identity"
   );
 
 
-  // ----------------------------------------------------------
-  // User-Agent
-  // ----------------------------------------------------------
+  lines.push(
+    "Accept-Language: ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7"
+  );
+
 
   lines.push(
     "User-Agent: " +
@@ -1770,13 +1765,13 @@ function buildRawHttpRequest(
         "User-Agent"
       ) ||
 
-      "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
     )
   );
 
 
   // ----------------------------------------------------------
-  // Referer
+  // The original request came from the provider URL.
   // ----------------------------------------------------------
 
   lines.push(
@@ -1849,7 +1844,7 @@ function buildRawHttpRequest(
 
 
   // ----------------------------------------------------------
-  // End HTTP headers
+  // End of HTTP headers
   // ----------------------------------------------------------
 
   lines.push("");
@@ -1863,7 +1858,56 @@ function buildRawHttpRequest(
 
 
 // ============================================================
-// READ HTTP RESPONSE HEADERS FROM SOCKET
+// READ HTTP HEADERS WITH TIMEOUT
+// ============================================================
+
+async function readHttpHeadersWithTimeout(
+  reader,
+  timeoutMs
+) {
+
+  let timer;
+
+
+  try {
+
+    return await Promise.race([
+
+      readHttpHeaders(
+        reader
+      ),
+
+      new Promise(
+        (_, reject) => {
+
+          timer =
+            setTimeout(
+              () => {
+
+                reject(
+                  new Error(
+                    `Timed out waiting for upstream HTTP headers after ${timeoutMs}ms`
+                  )
+                );
+
+              },
+              timeoutMs
+            );
+        }
+      ),
+    ]);
+
+  } finally {
+
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+
+// ============================================================
+// READ HTTP RESPONSE HEADERS
 // ============================================================
 
 async function readHttpHeaders(
@@ -2060,57 +2104,6 @@ async function readHttpHeaders(
 
 
 // ============================================================
-// READ HEADERS WITH TIMEOUT
-// ============================================================
-
-async function readHttpHeadersWithTimeout(
-  reader,
-  timeoutMs
-) {
-
-  let timer = null;
-
-
-  try {
-
-    const timeoutPromise =
-      new Promise(
-        (_, reject) => {
-
-          timer =
-            setTimeout(
-              () => {
-
-                reject(
-                  new Error(
-                    `Timeout waiting for VOD HTTP response headers after ${timeoutMs}ms`
-                  )
-                );
-
-              },
-
-              timeoutMs
-            );
-        }
-      );
-
-
-    return await Promise.race([
-      readHttpHeaders(reader),
-      timeoutPromise,
-    ]);
-
-
-  } finally {
-
-    if (timer) {
-      clearTimeout(timer);
-    }
-  }
-}
-
-
-// ============================================================
 // CREATE STREAM FROM SOCKET
 // ============================================================
 
@@ -2130,7 +2123,7 @@ function createSocketBodyStream(
 
 
   // ----------------------------------------------------------
-  // Normal response
+  // Normal non-chunked response
   // ----------------------------------------------------------
 
   if (
@@ -2184,7 +2177,6 @@ function createSocketBodyStream(
 
           controller.close();
 
-
         } catch (error) {
 
           console.error(
@@ -2207,6 +2199,7 @@ function createSocketBodyStream(
             reader.releaseLock();
           } catch (_) {}
 
+
           try {
             await socket.close();
           } catch (_) {}
@@ -2219,6 +2212,7 @@ function createSocketBodyStream(
         try {
           reader.cancel();
         } catch (_) {}
+
 
         try {
           socket.close();
@@ -2262,10 +2256,6 @@ function createChunkedStream(
 
         while (true) {
 
-          // ------------------------------------------------
-          // Chunk size line
-          // ------------------------------------------------
-
           let lineEnd =
             findCrlf(
               buffer
@@ -2290,17 +2280,11 @@ function createChunkedStream(
             }
 
 
-            if (
-              result.value &&
-              result.value.length
-            ) {
-
-              buffer =
-                concatUint8Arrays(
-                  buffer,
-                  result.value
-                );
-            }
+            buffer =
+              concatUint8Arrays(
+                buffer,
+                result.value
+              );
 
 
             lineEnd =
@@ -2361,18 +2345,13 @@ function createChunkedStream(
           }
 
 
-          // ------------------------------------------------
+          // --------------------------------------------------
           // Last chunk
-          // ------------------------------------------------
+          // --------------------------------------------------
 
           if (
             chunkSize === 0
           ) {
-
-            // Consume optional trailer section.
-            //
-            // For the video response this normally does
-            // not matter because the body is finished.
 
             controller.close();
 
@@ -2380,9 +2359,9 @@ function createChunkedStream(
           }
 
 
-          // ------------------------------------------------
-          // Complete chunk + CRLF
-          // ------------------------------------------------
+          // --------------------------------------------------
+          // Read complete chunk
+          // --------------------------------------------------
 
           while (
             buffer.length <
@@ -2403,17 +2382,11 @@ function createChunkedStream(
             }
 
 
-            if (
-              result.value &&
-              result.value.length
-            ) {
-
-              buffer =
-                concatUint8Arrays(
-                  buffer,
-                  result.value
-                );
-            }
+            buffer =
+              concatUint8Arrays(
+                buffer,
+                result.value
+              );
           }
 
 
@@ -2440,7 +2413,6 @@ function createChunkedStream(
           }
         }
 
-
       } catch (error) {
 
         console.error(
@@ -2463,6 +2435,7 @@ function createChunkedStream(
           reader.releaseLock();
         } catch (_) {}
 
+
         try {
           await socket.close();
         } catch (_) {}
@@ -2475,6 +2448,7 @@ function createChunkedStream(
       try {
         reader.cancel();
       } catch (_) {}
+
 
       try {
         socket.close();
@@ -2836,7 +2810,7 @@ async function handleDebug(
 
 
 // ============================================================
-// HELPERS
+// JSON
 // ============================================================
 
 function json(
