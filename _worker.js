@@ -1,27 +1,4 @@
-// ============================================================
-// RAXSON PLAYER WORKER
-// FINAL VOD PROXY
-//
-// Movies  : /movie/.../*.mp4
-// Series  : /series/.../*.mp4
-// Live    : disabled
-//
-// VOD provider:
-//   barqtv.website/.../movie/...mp4
-//        ->
-//   http://37.49.230.121/vauth/...
-//
-// Cloudflare fetch() cannot follow the public-IP redirect.
-// Therefore the Worker:
-//
-// 1. Fetches the original provider hostname manually.
-// 2. Reads Location.
-// 3. If Location is an IP, opens a TCP socket.
-// 4. Sends a normal HTTP request to that IP.
-// 5. Streams the response back to the browser.
-//
-// Live remains disabled.
-// ============================================================
+
 
 import { connect } from "cloudflare:sockets";
 
