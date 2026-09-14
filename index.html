@@ -392,6 +392,11 @@ let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false,
 let DATA = { live: { cats: [], items: [], ok: false, loading: false, error: null }, vod: { cats: [], items: [], ok: false, loading: false, error: null }, series: { cats: [], items: [], ok: false, loading: false, error: null } };
 let HLS = null, SUB_EXPIRY = "", WATCHED = [];
 let IS_LIVE = false;
+let PLAYER_STATE = 'idle';
+let HLS_RETRY_COUNT = 0;
+const MAX_HLS_RETRIES = 3;
+let HLS_RETRY_TIMER = null;
+let CURRENT_HLS_URL = null;
 
 const $ = id => document.getElementById(id);
 const E = {
@@ -968,172 +973,256 @@ function updateLiveJumpBtn() {
 
 // ===== PLAYER: Clear Direct/Proxy path =====
 function openPlayer(originalUrl, name, live, item) {
- window.CURRENT_ITEM = item || null;
- if (item) addToWatched(item);
+  window.CURRENT_ITEM = item || null;
+  if (item) addToWatched(item);
 
- // Reset settings
- currentFitIndex = 0; currentSpeedIndex = 0;
- if (E.fitLabel) E.fitLabel.textContent = FIT_MODES[0].label;
- if (E.speedLabel) E.speedLabel.textContent = SPEED_LEVELS[0] + "x";
- if (E.qualityBtn) E.qualityBtn.classList.add("hidden");
- if (E.audioTrackBtn) E.audioTrackBtn.classList.add("hidden");
- if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
- if (E.audioTrackLabel) E.audioTrackLabel.textContent = "--";
+  // Reset settings
+  currentFitIndex = 0; currentSpeedIndex = 0;
+  if (E.fitLabel) E.fitLabel.textContent = FIT_MODES[0].label;
+  if (E.speedLabel) E.speedLabel.textContent = SPEED_LEVELS[0] + "x";
+  if (E.qualityBtn) E.qualityBtn.classList.add("hidden");
+  if (E.audioTrackBtn) E.audioTrackBtn.classList.add("hidden");
+  if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
+  if (E.audioTrackLabel) E.audioTrackLabel.textContent = "--";
 
-// ===== Playback routing =====
-// VOD is proxied through the HTTPS Worker.
-// This is required because the upstream MP4 is HTTP.
-// Live remains proxied as well, but is currently disabled by Worker.
+  // ===== Playback routing =====
+  // VOD is proxied through the HTTPS Worker.
+  // This is required because the upstream MP4 is HTTP.
+  // Live remains proxied as well, but is currently disabled by Worker.
 
-const useDirect =
-    localStorage.getItem('rp_direct') === 'true';
+  const useDirect = localStorage.getItem('rp_direct') === 'true';
 
-const isM3U8 =
-    /\.m3u8(?:$|[?#])/i.test(originalUrl);
+  const isM3U8 = /\.m3u8(?:$|[?#])/i.test(originalUrl);
+  const isMovie = /\/movie\//i.test(originalUrl);
+  const isSeries = /\/series\//i.test(originalUrl);
+  const isLive = /\/live\//i.test(originalUrl);
 
-const isMovie =
-    /\/movie\//i.test(originalUrl);
+  let playUrl;
 
-const isSeries =
-    /\/series\//i.test(originalUrl);
-
-const isLive =
-    /\/live\//i.test(originalUrl);
-
-let playUrl;
-
-if (isMovie || isSeries) {
-
-    // IMPORTANT:
-    // Do NOT send the HTTP MP4 directly to the browser.
-    // Send it through our HTTPS Worker.
-
-    playUrl =
-        "/stream?url=" +
-        encodeURIComponent(originalUrl);
-
-    console.log(
-        '[Player] VOD Mode: HTTPS Proxy'
-    );
-
-} else if (isM3U8 || isLive) {
-
-    playUrl = useDirect
-        ? originalUrl
-        : "/stream?url=" +
-          encodeURIComponent(originalUrl);
-
-    console.log(
-        '[Player] Live Mode:',
-        useDirect
-            ? 'Direct'
-            : 'Proxy'
-    );
-
-} else {
-
+  if (isMovie || isSeries) {
+    playUrl = "/stream?url=" + encodeURIComponent(originalUrl);
+    console.log('[Player] VOD Mode: HTTPS Proxy');
+  } else if (isM3U8 || isLive) {
+    playUrl = useDirect ? originalUrl : "/stream?url=" + encodeURIComponent(originalUrl);
+    console.log('[Player] Live Mode:', useDirect ? 'Direct' : 'Proxy');
+  } else {
     playUrl = originalUrl;
-
-    console.log(
-        '[Player] Unknown media type: Direct'
-    );
+    console.log('[Player] Unknown media type: Direct');
   }
 
- // Show player UI
- E.playerOverlay.style.display = "flex";
- requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
- document.body.style.overflow = "hidden";
- E.playerTitle.textContent = name || "...";
- if (E.liveBadge) E.liveBadge.style.display = live ? "flex" : "none";
- if (E.playerLoader) E.playerLoader.classList.remove("hidden");
- if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
+  // Cleanup any previous player state FIRST (before showing UI)
+  cleanupPlayer();
 
- // Cleanup any previous player state
- cleanupPlayer();
+  // Show player UI
+  E.playerOverlay.style.display = "flex";
+  requestAnimationFrame(() => E.playerOverlay.classList.add("visible"));
+  document.body.style.overflow = "hidden";
+  E.playerTitle.textContent = name || "...";
+  if (E.liveBadge) E.liveBadge.style.display = live ? "flex" : "none";
+  if (E.playerLoader) E.playerLoader.classList.remove("hidden");
+  if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
 
- // Track live mode (after cleanup so cleanup can reset it)
- IS_LIVE = !!live;
- if (E.liveJumpBtn) E.liveJumpBtn.style.display = live ? "flex" : "none";
+  // Track live mode
+  IS_LIVE = !!live;
+  if (E.liveJumpBtn) E.liveJumpBtn.style.display = live ? "flex" : "none";
 
- // ===== M3U8 via HLS.js =====
- if (isM3U8 && typeof Hls !== 'undefined' && Hls.isSupported()) {
-  initHls(playUrl);
- } else {
-  // MP4 direct
-  console.log('[Player] Direct video src:', playUrl);
-  E.playerVideo.src = playUrl;
-  E.playerVideo.play().catch((err) => {
-   console.log('[Player] Direct play failed:', err);
-  });
-  E.playerVideo.onerror = () => {
-   console.log('[Player] Video error, code:', E.playerVideo.error?.code);
-  };
-  if (E.playerLoader) E.playerLoader.classList.add("hidden");
-  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
- }
+  // Set initial state
+  setPlayerState('loading');
 
- showControls();
+  // ===== M3U8 via HLS.js =====
+  if (isM3U8 && typeof Hls !== 'undefined' && Hls.isSupported()) {
+    CURRENT_HLS_URL = playUrl;
+    initHls(playUrl);
+  } else {
+    // MP4 direct
+    console.log('[Player] Direct video src:', playUrl);
+    E.playerVideo.src = playUrl;
+    E.playerVideo.play().catch((err) => {
+      console.log('[Player] Direct play failed:', err);
+    });
+    E.playerVideo.onerror = () => {
+      console.log('[Player] Video error, code:', E.playerVideo.error?.code);
+      setPlayerState('error');
+      showPlayerError('فشل تشغيل الفيديو', false);
+    };
+    if (E.playerLoader) E.playerLoader.classList.add("hidden");
+    if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+  }
+
+  showControls();
 }
 
 function initHls(url) {
- console.log('[Player] Loading HLS:', url.substring(0, 80) + '...');
- if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
+  console.log('[Player] Loading HLS:', url.substring(0, 80) + '...');
+  if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
 
- HLS = new Hls({
-  enableWorker: true,
-  maxBufferLength: 30,
-  maxMaxBufferLength: 60,
-  startLevel: -1
- });
+  HLS = new Hls({
+    enableWorker: true,
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+    startLevel: -1,
+    liveSyncDurationCount: 3,
+    liveMaxLatencyDurationCount: 10,
+    liveDurationInfinity: true
+  });
 
- HLS.loadSource(url);
- HLS.attachMedia(E.playerVideo);
+  HLS.loadSource(url);
+  HLS.attachMedia(E.playerVideo);
 
- HLS.on(Hls.Events.MANIFEST_PARSED, () => {
-  if (E.playerLoader) E.playerLoader.classList.add("hidden");
-  if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
-  if (IS_LIVE) seekToLiveEdge();
-  E.playerVideo.play().catch(() => {});
-  if (HLS.levels && HLS.levels.length > 1) {
-   if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
-   if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
-  }
- });
+  setPlayerState('manifest-loading');
 
- HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (e, data) => {
-  if (data.audioTracks && data.audioTracks.length > 1) {
-   if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
-   const track = data.audioTracks[HLS.audioTrack] || data.audioTracks[0];
-   if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (HLS.audioTrack + 1));
-  }
- });
+  HLS.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+    console.log('[Player] Manifest parsed, levels:', data.levels?.length || 0);
+    setPlayerState('buffering');
+    if (IS_LIVE) seekToLiveEdge();
+    E.playerVideo.play().catch(() => {});
+    if (HLS.levels && HLS.levels.length > 1) {
+      if (E.qualityBtn) E.qualityBtn.classList.remove("hidden");
+      if (E.qualityLabel) E.qualityLabel.textContent = "تلقائي";
+    }
+    HLS_RETRY_COUNT = 0;
+  });
 
- HLS.on(Hls.Events.ERROR, (e, d) => {
-  if (!d.fatal) return;
-  console.log('[Player] HLS fatal error:', d.type, d.details);
-  if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
-   HLS.startLoad();
-  } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
-   HLS.recoverMediaError();
-  }
- });
+  HLS.on(Hls.Events.AUDIO_TRACKS_UPDATED, (e, data) => {
+    if (data.audioTracks && data.audioTracks.length > 1) {
+      if (E.audioTrackBtn) E.audioTrackBtn.classList.remove("hidden");
+      const track = data.audioTracks[HLS.audioTrack] || data.audioTracks[0];
+      if (E.audioTrackLabel) E.audioTrackLabel.textContent = track?.name || track?.lang || ('#' + (HLS.audioTrack + 1));
+    }
+  });
+
+  HLS.on(Hls.Events.LEVEL_SWITCHED, (e, data) => {
+    if (E.qualityLabel && HLS.levels && HLS.levels[data.level]) {
+      E.qualityLabel.textContent = HLS.levels[data.level].height + 'p';
+    }
+  });
+
+  HLS.on(Hls.Events.FRAG_LOAD_EMERGENCY_ABORTED, () => {
+    console.log('[Player] FRAG_LOAD_EMERGENCY_ABORTED - stream may be stalled');
+    setPlayerState('buffering');
+  });
+
+  HLS.on(Hls.Events.BUFFER_STALLED_ERROR, () => {
+    console.log('[Player] BUFFER_STALLED_ERROR - attempting recovery');
+    if (HLS) HLS.recoverMediaError();
+  });
+
+  HLS.on(Hls.Events.ERROR, (e, d) => {
+    console.log('[Player] HLS error:', d.type, d.details, d.fatal);
+    if (!d.fatal) return;
+
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      console.log('[Player] Network error, attempt', HLS_RETRY_COUNT + 1, 'of', MAX_HLS_RETRIES);
+      if (HLS_RETRY_COUNT < MAX_HLS_RETRIES) {
+        HLS_RETRY_COUNT++;
+        const delay = Math.min(1000 * Math.pow(2, HLS_RETRY_COUNT - 1), 5000);
+        setPlayerState('buffering');
+        HLS_RETRY_TIMER = setTimeout(() => {
+          if (HLS) HLS.startLoad();
+        }, delay);
+      } else {
+        setPlayerState('error');
+        showPlayerError('انقطع البث المباشر. تعذر إعادة الاتصال.', true);
+      }
+    } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
+      console.log('[Player] Media error, attempting recovery');
+      HLS.recoverMediaError();
+      if (HLS_RETRY_COUNT < MAX_HLS_RETRIES) {
+        HLS_RETRY_COUNT++;
+        const delay = Math.min(1000 * Math.pow(2, HLS_RETRY_COUNT - 1), 5000);
+        HLS_RETRY_TIMER = setTimeout(() => {
+          if (HLS) HLS.startLoad();
+        }, delay);
+      } else {
+        setPlayerState('error');
+        showPlayerError('خطأ في تشغيل البث. يرجى المحاولة مرة أخرى.', true);
+      }
+    } else {
+      setPlayerState('error');
+      showPlayerError('خطأ غير متوقع في البث: ' + d.details, false);
+    }
+  });
 }
 
 function cleanupPlayer() {
- if (HLS) { try { HLS.destroy(); } catch(e) {} HLS = null; }
- IS_LIVE = false;
- if (E.liveJumpBtn) E.liveJumpBtn.style.display = "none";
- E.playerVideo.pause();
- E.playerVideo.removeAttribute('src');
- E.playerVideo.load();
- E.playerVideo.onerror = null;
+  if (HLS_RETRY_TIMER) { clearTimeout(HLS_RETRY_TIMER); HLS_RETRY_TIMER = null; }
+  if (HLS) {
+    try {
+      HLS.off(Hls.Events.MANIFEST_PARSED);
+      HLS.off(Hls.Events.AUDIO_TRACKS_UPDATED);
+      HLS.off(Hls.Events.ERROR);
+      HLS.off(Hls.Events.FRAG_LOAD_EMERGENCY_ABORTED);
+      HLS.off(Hls.Events.BUFFER_STALLED_ERROR);
+      HLS.off(Hls.Events.LEVEL_SWITCHED);
+    } catch(e) {}
+    try { HLS.destroy(); } catch(e) {}
+    HLS = null;
+  }
+  IS_LIVE = false;
+  HLS_RETRY_COUNT = 0;
+  CURRENT_HLS_URL = null;
+  setPlayerState('idle');
+  if (E.liveJumpBtn) E.liveJumpBtn.style.display = "none";
+  E.playerVideo.pause();
+  E.playerVideo.removeAttribute('src');
+  E.playerVideo.load();
+  E.playerVideo.onerror = null;
+  if (E.playerLoader) E.playerLoader.classList.add("hidden");
+  if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
+}
+
+function setPlayerState(state) {
+  PLAYER_STATE = state;
+  console.log('[Player] State:', state);
+  switch (state) {
+    case 'loading':
+      if (E.playerLoader) E.playerLoader.classList.remove("hidden");
+      if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+      break;
+    case 'manifest-loading':
+    case 'buffering':
+      if (E.playerLoader) E.playerLoader.classList.remove("hidden");
+      if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+      break;
+    case 'playing':
+      if (E.playerLoader) E.playerLoader.classList.add("hidden");
+      if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden");
+      break;
+    case 'paused':
+      if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
+      break;
+    case 'waiting':
+      if (E.playerLoader) E.playerLoader.classList.remove("hidden");
+      break;
+    case 'error':
+      if (E.playerLoader) E.playerLoader.classList.add("hidden");
+      if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
+      break;
+    case 'ended':
+      if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden");
+      break;
+  }
+}
+
+function showPlayerError(message, retryable) {
+  const errorEl = document.createElement('div');
+  errorEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(239,68,68,0.95);color:#fff;padding:16px 24px;border-radius:12px;text-align:center;z-index:30;max-width:90%;';
+  errorEl.innerHTML = '<div style="font-size:14px;font-weight:600;margin-bottom:8px;">' + esc(message) + '</div>' + (retryable ? '<button id="retryBtn" class="btn btn-primary" style="margin-top:12px;"><span>إعادة المحاولة</span></button>' : '');
+  E.playerOverlay.appendChild(errorEl);
+  const retryBtn = document.getElementById('retryBtn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      errorEl.remove();
+      if (CURRENT_HLS_URL) { HLS_RETRY_COUNT = 0; initHls(CURRENT_HLS_URL); }
+    });
+  }
 }
 
 function closePlayer() {
- E.playerOverlay.classList.remove("visible");
- setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
- cleanupPlayer();
- if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  E.playerOverlay.classList.remove("visible");
+  setTimeout(() => { E.playerOverlay.style.display = "none"; document.body.style.overflow = ""; }, 300);
+  cleanupPlayer();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
 function togglePlay() {
@@ -1378,12 +1467,14 @@ function initPlayer() {
  setupDTZone(E.dtZoneCenter, "center");
  setupDTZone(E.dtZoneRight, "right");
 
- // Video events
- E.playerVideo.addEventListener("timeupdate", updateProg);
- E.playerVideo.addEventListener("play", () => { setPlayIcon(true); if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden"); });
- E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden"); });
- E.playerVideo.addEventListener("waiting", () => { if (E.playerLoader) E.playerLoader.classList.remove("hidden"); });
- E.playerVideo.addEventListener("playing", () => { if (E.playerLoader) E.playerLoader.classList.add("hidden"); });
+// Video events
+  E.playerVideo.addEventListener("timeupdate", updateProg);
+  E.playerVideo.addEventListener("play", () => { setPlayIcon(true); if (E.bigPlayBtn) E.bigPlayBtn.classList.add("hidden"); if (PLAYER_STATE !== 'error' && PLAYER_STATE !== 'ended') setPlayerState('playing'); });
+  E.playerVideo.addEventListener("pause", () => { setPlayIcon(false); if (E.bigPlayBtn) E.bigPlayBtn.classList.remove("hidden"); if (PLAYER_STATE !== 'error' && PLAYER_STATE !== 'ended') setPlayerState('paused'); });
+  E.playerVideo.addEventListener("waiting", () => { if (PLAYER_STATE !== 'error' && PLAYER_STATE !== 'ended') setPlayerState('waiting'); });
+  E.playerVideo.addEventListener("playing", () => { if (PLAYER_STATE !== 'error' && PLAYER_STATE !== 'ended') setPlayerState('playing'); });
+  E.playerVideo.addEventListener("ended", () => { if (IS_LIVE) { seekToLiveEdge(); E.playerVideo.play().catch(() => {}); } else { setPlayerState('ended'); } });
+  E.playerVideo.addEventListener("error", () => { const code = E.playerVideo.error?.code; let msg = 'خطأ في تشغيل الفيديو'; if (code === 1) msg = 'تم إلغاء تحميل الفيديو'; else if (code === 2) msg = 'خطأ في الشبكة'; else if (code === 3) msg = 'خطأ في فك الترميز'; else if (code === 4) msg = 'تنسيق غير مدعوم'; setPlayerState('error'); showPlayerError(msg, true); });
 
  E.playerOverlay.addEventListener("click", (e) => {
   if (e.target.closest(".player-controls") || e.target.closest(".player-header") || e.target.closest(".dt-zone") || e.target.closest(".settings-menu")) return;
