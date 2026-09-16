@@ -5,3 +5,10 @@ compatibility_date = "2026-09-03"
 [assets]
 directory = "."
 binding = "ASSETS"
+
+# PHASE 1 - LOCAL SUBSCRIPTIONS (KV only, no static JSON file).
+# Create the namespace once, then paste the id below:
+#   wrangler kv namespace create SUBS
+[[kv_namespaces]]
+binding = "SUBS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
