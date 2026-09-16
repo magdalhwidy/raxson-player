@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>إدارة الاشتراكات</title>
+<style>
+:root{--c-p:#e91e63;--c-bg:#0a0a0f;--c-sf:#14141f;--c-t:#fff;--c-t2:#a0a0b0;--c-ok:#00ff99;--c-err:#ef4444;--c-warn:#f59e0b;--g-b:rgba(255,255,255,0.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--c-bg);color:var(--c-t);min-height:100vh;padding:16px}
+.wrap{max-width:900px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{font-size:12px;color:var(--c-t2);margin-bottom:16px}
+.card{background:var(--c-sf);border:1px solid var(--g-b);border-radius:12px;padding:16px;margin-bottom:12px}
+label{font-size:12px;color:var(--c-t2);display:block;margin-bottom:4px}
+input,select{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--g-b);border-radius:8px;padding:10px 12px;color:var(--c-t);font-size:14px;margin-bottom:10px}
+input:focus,select:focus{border-color:var(--c-p);outline:none}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;border:none;background:linear-gradient(135deg,var(--c-p),#c2185b);color:#fff}
+.btn:disabled{opacity:0.5;cursor:default}
+.btn-ghost{background:rgba(255,255,255,0.06);border:1px solid var(--g-b)}
+.btn-danger{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);color:#ff8080}
+.btn-sm{padding:6px 12px;font-size:12px}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.toolbar input{flex:1;min-width:180px;margin-bottom:0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--g-b);text-align:right;vertical-align:top}
+th{color:var(--c-t2);font-size:11px;font-weight:600}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px;white-space:nowrap}
+.b-ok{background:rgba(0,255,153,0.12);color:var(--c-ok)}
+.b-err{background:rgba(239,68,68,0.12);color:#ff8080}
+.b-warn{background:rgba(245,158,11,0.12);color:var(--c-warn)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.msg{min-height:20px;font-size:13px;margin-top:8px}
+.msg.err{color:#ff8080}.msg.ok{color:var(--c-ok)}
+.hidden{display:none!important}
+.muted{font-size:11px;color:var(--c-t2)}
+.mono{direction:ltr;unicode-bidi:embed;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>إدارة الاشتراكات المحلية</h1>
+<div class="sub">التوكن يُدخل كل جلسة ولا يُحفظ في المتصفح. لا تُعرض كلمات المرور الأصلية هنا أبدًا.</div>
+
+<div class="card" id="gateCard">
+<label>ADMIN_TOKEN</label>
+<input type="password" id="tokenInput" placeholder="الصق توكن الإدارة" autocomplete="off">
+<button class="btn" id="connectBtn">اتصال</button>
+<div class="msg" id="gateMsg"></div>
+</div>
+
+<div id="mainArea" class="hidden">
+<div class="toolbar">
+<input type="text" id="searchInput" placeholder="بحث باسم المستخدم...">
+<button class="btn btn-ghost btn-sm" id="refreshBtn">تحديث</button>
+<button class="btn btn-sm" id="newBtn">+ اشتراك جديد</button>
+<button class="btn btn-ghost btn-sm" id="disconnectBtn">قطع الاتصال</button>
+</div>
+<div class="msg" id="listMsg"></div>
+
+<div class="card hidden" id="formCard">
+<h3 id="formTitle" style="font-size:15px;margin-bottom:12px;">اشتراك جديد</h3>
+<div class="row">
+<div><label>اسم المستخدم (3-64: أحرف/أرقام/._-)</label><input type="text" id="fUser" autocomplete="off"></div>
+<div><label id="fPassLabel">كلمة المرور (4 أحرف على الأقل)</label><input type="password" id="fPass" autocomplete="new-password"></div>
+</div>
+<div class="row">
+<div><label>المدة</label><select id="fDur">
+<option value="24h">24 ساعة</option>
+<option value="30d" selected>30 يومًا</option>
+<option value="90d">3 أشهر</option>
+<option value="365d">سنة</option>
+<option value="custom">مخصصة</option>
+</select></div>
+<div><label>الحالة</label><select id="fActive"><option value="1">فعّال</option><option value="0">معطّل</option></select></div>
+</div>
+<div class="row hidden" id="customRow">
+<div><label>بداية مخصصة</label><input type="datetime-local" id="fStart"></div>
+<div><label>نهاية مخصصة</label><input type="datetime-local" id="fEnd"></div>
+</div>
+<div><label>serverProfile</label><input type="text" id="fProfile" value="main" autocomplete="off"></div>
+<div class="actions">
+<button class="btn" id="saveBtn">حفظ</button>
+<button class="btn btn-ghost" id="cancelBtn">إلغاء</button>
+</div>
+<div class="msg" id="formMsg"></div>
+</div>
+
+<div class="card">
+<table>
+<thead><tr><th>المستخدم</th><th>الحالة</th><th>البداية</th><th>النهاية</th><th>الملف</th><th>إجراءات</th></tr></thead>
+<tbody id="subsBody"></tbody>
+</table>
+<div class="muted" id="countLine" style="margin-top:8px;"></div>
+</div>
+</div>
+</div>
+
+<script>
+"use strict";
+// التوكن في ذاكرة الصفحة فقط — لا localStorage ولا sessionStorage ولا كوكيز.
+let ADMIN_TOKEN_MEM = null;
+let EDITING_USER = null;
+let CACHE = [];
+
+const $ = id => document.getElementById(id);
+const gateCard = $("gateCard"), mainArea = $("mainArea");
+const gateMsg = $("gateMsg"), listMsg = $("listMsg"), formMsg = $("formMsg");
+const formCard = $("formCard"), formTitle = $("formTitle");
+
+function setMsg(el, text, kind) {
+  el.textContent = text || "";
+  el.className = "msg" + (kind ? " " + kind : "");
+}
+
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleString("ar", { dateStyle: "medium", timeStyle: "short" }); }
+  catch (e) { return iso || "--"; }
+}
+
+function subStatus(s) {
+  if (s.active !== true) return { t: "معطّل", c: "b-err" };
+  const now = Date.now();
+  const st = Date.parse(s.startDate), en = Date.parse(s.endDate);
+  if (Number.isFinite(st) && now < st) return { t: "لم يبدأ", c: "b-warn" };
+  if (Number.isFinite(en) && now > en) return { t: "منتهي", c: "b-err" };
+  return { t: "نشط", c: "b-ok" };
+}
+
+function esc(t) {
+  const d = document.createElement("div");
+  d.textContent = t === null || t === undefined ? "" : String(t);
+  return d.innerHTML;
+}
+
+async function apiCall(method, query, body) {
+  const res = await fetch("/api/admin/subs" + (query || ""), {
+    method: method,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + ADMIN_TOKEN_MEM
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 401) {
+    disconnect("التوكن غير صالح أو منتهي — أُنهيت الجلسة.");
+    throw new Error("unauthorized");
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  if (!res.ok) throw new Error((data && (data.error || data.code)) || ("HTTP " + res.status));
+  return data;
+}
+
+function disconnect(msg) {
+  ADMIN_TOKEN_MEM = null; EDITING_USER = null; CACHE = [];
+  $("tokenInput").value = "";
+  mainArea.classList.add("hidden");
+  gateCard.classList.remove("hidden");
+  formCard.classList.add("hidden");
+  if (msg) setMsg(gateMsg, msg, "err"); else setMsg(gateMsg, "", "");
+}
+
+async function loadList() {
+  setMsg(listMsg, "جاري التحميل...", "");
+  try {
+    const data = await apiCall("GET", "");
+    CACHE = (data && data.subscriptions) || [];
+    renderList();
+    setMsg(listMsg, "", "");
+  } catch (e) {
+    if (e.message !== "unauthorized") setMsg(listMsg, "فشل التحميل: " + e.message, "err");
+  }
+}
+
+function renderList() {
+  const q = ($("searchInput").value || "").trim().toLowerCase();
+  const body = $("subsBody");
+  body.innerHTML = "";
+  const rows = CACHE.filter(s => !q || String(s.username).toLowerCase().includes(q));
+  rows.forEach(s => {
+    const st = subStatus(s);
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td><b class="mono">' + esc(s.username) + '</b></td>' +
+      '<td><span class="badge ' + st.c + '">' + esc(st.t) + '</span></td>' +
+      '<td class="muted">' + esc(fmtDate(s.startDate)) + '</td>' +
+      '<td class="muted">' + esc(fmtDate(s.endDate)) + '</td>' +
+      '<td class="muted mono">' + esc(s.serverProfile) + '</td>' +
+      '<td><div class="actions">' +
+      '<button class="btn btn-ghost btn-sm" data-act="renew">تمديد</button>' +
+      '<button class="btn btn-ghost btn-sm" data-act="edit">تعديل</button>' +
+      '<button class="btn btn-ghost btn-sm" data-act="toggle">' + (s.active ? "تعطيل" : "تفعيل") + '</button>' +
+      '<button class="btn btn-danger btn-sm" data-act="del">حذف</button>' +
+      '</div></td>';
+    tr.querySelectorAll("button").forEach(b => {
+      b.addEventListener("click", () => handleAction(s.username, b.dataset.act));
+    });
+    body.appendChild(tr);
+  });
+  $("countLine").textContent = "العدد: " + rows.length + " / " + CACHE.length;
+}
+
+async function handleAction(username, act) {
+  try {
+    if (act === "del") {
+      if (!confirm("حذف الاشتراك " + username + " نهائيًا؟ (جلساته تُبطل تلقائيًا)")) return;
+      await apiCall("DELETE", "?user=" + encodeURIComponent(username));
+      setMsg(listMsg, "تم الحذف.", "ok");
+    } else if (act === "toggle") {
+      const cur = CACHE.find(s => s.username === username);
+      await apiCall("PUT", "?user=" + encodeURIComponent(username), { active: !(cur && cur.active) });
+      setMsg(listMsg, "تم تحديث الحالة.", "ok");
+    } else if (act === "renew" || act === "edit") {
+      openForm(username, act === "renew");
+      return;
+    }
+    await loadList();
+  } catch (e) {
+    if (e.message !== "unauthorized") setMsg(listMsg, "خطأ: " + e.message, "err");
+  }
+}
+
+function openForm(username, isRenew) {
+  EDITING_USER = username || null;
+  setMsg(formMsg, "", "");
+  if (!username) {
+    formTitle.textContent = "اشتراك جديد";
+    $("fUser").value = ""; $("fUser").disabled = false;
+    $("fPass").value = ""; $("fPassLabel").textContent = "كلمة المرور (4 أحرف على الأقل)";
+    $("fDur").value = "30d"; $("fActive").value = "1"; $("fProfile").value = "main";
+    $("fStart").value = ""; $("fEnd").value = "";
+    $("customRow").classList.add("hidden");
+  } else {
+    const s = CACHE.find(x => x.username === username) || {};
+    formTitle.textContent = (isRenew ? "تمديد: " : "تعديل: ") + username;
+    $("fUser").value = username; $("fUser").disabled = true;
+    $("fPass").value = "";
+    $("fPassLabel").textContent = "كلمة مرور جديدة (اتركها فارغة للإبقاء)";
+    $("fDur").value = isRenew ? "30d" : "custom";
+    $("fActive").value = s.active ? "1" : "0";
+    $("fProfile").value = s.serverProfile || "main";
+    try {
+      $("fEnd").value = s.endDate ? new Date(s.endDate).toISOString().slice(0, 16) : "";
+      $("fStart").value = s.startDate ? new Date(s.startDate).toISOString().slice(0, 16) : "";
+    } catch (e) { $("fEnd").value = ""; $("fStart").value = ""; }
+    $("customRow").classList.toggle("hidden", isRenew);
+  }
+  formCard.classList.remove("hidden");
+  formCard.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function saveForm() {
+  setMsg(formMsg, "", "");
+  try {
+    const dur = $("fDur").value;
+    if (!EDITING_USER) {
+      const payload = {
+        username: $("fUser").value.trim(),
+        password: $("fPass").value,
+        active: $("fActive").value === "1",
+        serverProfile: $("fProfile").value.trim() || "main"
+      };
+      if (dur === "custom") {
+        if (!$("fStart").value || !$("fEnd").value) { setMsg(formMsg, "حدد البداية والنهاية المخصصتين.", "err"); return; }
+        payload.startDate = new Date($("fStart").value).toISOString();
+        payload.endDate = new Date($("fEnd").value).toISOString();
+      } else {
+        payload.duration = dur;
+      }
+      await apiCall("POST", "", payload);
+      setMsg(formMsg, "تم إنشاء الاشتراك.", "ok");
+    } else {
+      const payload = {};
+      if ($("fPass").value) payload.password = $("fPass").value;
+      payload.active = $("fActive").value === "1";
+      payload.serverProfile = $("fProfile").value.trim() || "main";
+      if (dur === "custom") {
+        if ($("fStart").value) payload.startDate = new Date($("fStart").value).toISOString();
+        if ($("fEnd").value) payload.endDate = new Date($("fEnd").value).toISOString();
+        if (!payload.startDate && !payload.endDate) { setMsg(formMsg, "حدد تاريخًا مخصصًا أو اختر مدة للتمديد.", "err"); return; }
+      } else {
+        payload.extendDuration = dur;
+      }
+      await apiCall("PUT", "?user=" + encodeURIComponent(EDITING_USER), payload);
+      setMsg(formMsg, "تم الحفظ.", "ok");
+    }
+    await loadList();
+  } catch (e) {
+    if (e.message !== "unauthorized") setMsg(formMsg, "خطأ: " + e.message, "err");
+  }
+}
+
+$("connectBtn").addEventListener("click", async () => {
+  const tok = $("tokenInput").value.trim();
+  if (!tok) { setMsg(gateMsg, "أدخل التوكن.", "err"); return; }
+  ADMIN_TOKEN_MEM = tok;
+  $("tokenInput").value = "";
+  setMsg(gateMsg, "جاري التحقق...", "");
+  try {
+    await apiCall("GET", "");
+    setMsg(gateMsg, "", "");
+    gateCard.classList.add("hidden");
+    mainArea.classList.remove("hidden");
+    await loadList();
+  } catch (e) {
+    ADMIN_TOKEN_MEM = null;
+    if (e.message !== "unauthorized") setMsg(gateMsg, "فشل الاتصال: " + e.message, "err");
+  }
+});
+
+$("disconnectBtn").addEventListener("click", () => disconnect(""));
+$("refreshBtn").addEventListener("click", loadList);
+$("searchInput").addEventListener("input", renderList);
+$("newBtn").addEventListener("click", () => openForm(null, false));
+$("cancelBtn").addEventListener("click", () => { EDITING_USER = null; formCard.classList.add("hidden"); });
+$("saveBtn").addEventListener("click", saveForm);
+$("fDur").addEventListener("change", () => {
+  $("customRow").classList.toggle("hidden", $("fDur").value !== "custom");
+});
+window.addEventListener("beforeunload", () => { ADMIN_TOKEN_MEM = null; });
+</script>
+</body>
+</html>
