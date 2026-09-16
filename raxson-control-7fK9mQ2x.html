@@ -137,7 +137,7 @@ function esc(t) {
 }
 
 async function apiCall(method, query, body) {
-  const res = await fetch("/api/admin/subs" + (query || ""), {
+  const res = await fetch("https://player.raxson.online/api/admin/subs" + (query || ""), {
     method: method,
     headers: {
       "Content-Type": "application/json",
