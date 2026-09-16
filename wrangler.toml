@@ -11,4 +11,4 @@ binding = "ASSETS"
 #   wrangler kv namespace create SUBS
 [[kv_namespaces]]
 binding = "SUBS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "7d65ae7d73164685970eefbe8a1f89f4"
