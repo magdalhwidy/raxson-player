@@ -693,9 +693,9 @@ async function doLogin() {
         localStorage.setItem("rp_p", p);
       }
 
-      SUB_EXPIRY = info.user_info.exp_date
-        ? new Date(info.user_info.exp_date * 1000).toLocaleDateString("ar-SA")
-        : "غير محدد";
+      SUB_EXPIRY = localData.subscriptionExpiresAt
+  ? new Date(localData.subscriptionExpiresAt).toLocaleDateString("ar-SA")
+  : "غير محدد";
 
       setStatus(SUB_EXPIRY, "ok");
 
