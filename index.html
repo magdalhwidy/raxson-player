@@ -388,6 +388,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 <script>
 const DEFAULT_HOST = "http://barqtv.website:80";
 const AUTH = { host: DEFAULT_HOST, user: "", pass: "" };
+let LOCAL_MODE = false;
+let LOCAL_SESSION = "";
 let STATE = { tab: "live", cat: "all", search: "", count: 30, seriesView: false, seriesInfo: null };
 let DATA = { live: { cats: [], items: [], ok: false, loading: false, error: null }, vod: { cats: [], items: [], ok: false, loading: false, error: null }, series: { cats: [], items: [], ok: false, loading: false, error: null } };
 let HLS = null, SUB_EXPIRY = "", WATCHED = [];
@@ -611,22 +613,107 @@ function hideInstallOverlay() {
 function initLogin() { E.loginBtn.addEventListener("click", doLogin); }
 
 async function doLogin() {
- const u = E.username.value.trim(), p = E.password.value.trim();
- if (!u || !p) { showErr("اكمل البيانات"); return; }
- showErr(""); setBtnLoad(true);
- AUTH.user = u; AUTH.pass = p;
- try {
-  const info = await api("get_account_info");
-  if (info?.user_info?.status === "Active") {
-   if (E.remember.checked) { localStorage.setItem("rp_u", u); localStorage.setItem("rp_p", p); }
-   SUB_EXPIRY = info.user_info.exp_date ? new Date(info.user_info.exp_date * 1000).toLocaleDateString("ar-SA") : "غير محدد";
-   setStatus(SUB_EXPIRY, "ok");
-   E.loginScreen.style.display = "none"; E.appScreen.style.display = "flex"; E.appScreen.classList.add("active");
-   await loadTabData("live");
-  } else { showErr("الاشتراك منتهي أو غير نشط"); setBtnLoad(false); }
- } catch (err) { showErr(err.message || "خطأ في تسجيل الدخول"); setBtnLoad(false); }
-}
+  const u = E.username.value.trim();
+  const p = E.password.value.trim();
 
+  if (!u || !p) {
+    showErr("اكمل البيانات");
+    return;
+  }
+
+  showErr("");
+  setBtnLoad(true);
+
+  try {
+    // =====================================================
+    // 1) محاولة تسجيل الدخول كاشتراك محلي
+    // =====================================================
+    const localRes = await fetch("/api/local-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: u,
+        password: p
+      })
+    });
+
+    const localData = await localRes.json().catch(() => ({}));
+
+    // اشتراك محلي ناجح
+    if (localRes.ok && localData.ok && localData.session) {
+      LOCAL_MODE = true;
+      LOCAL_SESSION = localData.session;
+
+      AUTH.user = "";
+      AUTH.pass = "";
+
+      if (E.remember.checked) {
+        localStorage.setItem("rp_session", LOCAL_SESSION);
+        localStorage.setItem("rp_user", u);
+        sessionStorage.removeItem("rp_session");
+        sessionStorage.removeItem("rp_user");
+      } else {
+        sessionStorage.setItem("rp_session", LOCAL_SESSION);
+        sessionStorage.setItem("rp_user", u);
+        localStorage.removeItem("rp_session");
+        localStorage.removeItem("rp_user");
+      }
+
+      SUB_EXPIRY = localData.expiresAt
+        ? new Date(localData.expiresAt).toLocaleDateString("ar-SA")
+        : "نشط";
+
+      setStatus(SUB_EXPIRY, "ok");
+
+      E.loginScreen.style.display = "none";
+      E.appScreen.style.display = "flex";
+      E.appScreen.classList.add("active");
+
+      await loadTabData("live");
+      return;
+    }
+
+    // =====================================================
+    // 2) إذا لم يكن اشتراكاً محلياً → الحساب الحقيقي
+    // =====================================================
+    LOCAL_MODE = false;
+    LOCAL_SESSION = "";
+
+    AUTH.user = u;
+    AUTH.pass = p;
+
+    const info = await api("get_account_info");
+
+    if (info?.user_info?.status === "Active") {
+
+      if (E.remember.checked) {
+        localStorage.setItem("rp_u", u);
+        localStorage.setItem("rp_p", p);
+      }
+
+      SUB_EXPIRY = info.user_info.exp_date
+        ? new Date(info.user_info.exp_date * 1000).toLocaleDateString("ar-SA")
+        : "غير محدد";
+
+      setStatus(SUB_EXPIRY, "ok");
+
+      E.loginScreen.style.display = "none";
+      E.appScreen.style.display = "flex";
+      E.appScreen.classList.add("active");
+
+      await loadTabData("live");
+
+    } else {
+      throw new Error("الاشتراك منتهي أو غير نشط");
+    }
+
+  } catch (err) {
+    showErr(err.message || "خطأ في تسجيل الدخول");
+    setBtnLoad(false);
+  }
+}
 function showErr(msg) { E.loginError.textContent = msg; E.loginError.classList.toggle("show", !!msg); }
 function setBtnLoad(v) { E.loginBtn.disabled = v; E.btnText.style.display = v ? "none" : "inline"; E.btnLoader.style.display = v ? "inline-block" : "none"; }
 function setStatus(t, type) { E.statusText.textContent = t; E.statusDot.className = "status-dot" + (type === "ok" ? "" : type === "warn" ? " warn" : " err"); }
@@ -641,20 +728,92 @@ function friendlyError(err) {
 }
 
 async function api(action, extra = "") {
- const url = "/api?host=" + encodeURIComponent(AUTH.host)
-      + "&user=" + encodeURIComponent(AUTH.user)
-      + "&pass=" + encodeURIComponent(AUTH.pass)
-      + "&action=" + encodeURIComponent(action)
-      + "&extra=" + encodeURIComponent(extra);
- const ctrl = new AbortController();
- const isHeavy = ["get_live_streams","get_vod_streams","get_series"].includes(action);
- const to = setTimeout(() => ctrl.abort(), isHeavy ? 90000 : 40000);
- try {
-  const res = await fetch(url, { signal: ctrl.signal });
-  clearTimeout(to);
-  if (!res.ok) { throw new Error("HTTP " + res.status); }
-  return await res.json();
- } catch (e) { clearTimeout(to); throw new Error(friendlyError(e)); }
+
+  // =====================================================
+  // الحساب المحلي
+  // =====================================================
+  if (LOCAL_MODE) {
+
+    if (!LOCAL_SESSION) {
+      throw new Error("انتهت الجلسة، سجل الدخول مرة أخرى");
+    }
+
+    const url =
+      "/api/local?session=" +
+      encodeURIComponent(LOCAL_SESSION) +
+      "&action=" +
+      encodeURIComponent(action) +
+      "&extra=" +
+      encodeURIComponent(extra);
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer " + LOCAL_SESSION
+      }
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      LOCAL_MODE = false;
+      LOCAL_SESSION = "";
+      throw new Error("انتهت الجلسة أو الاشتراك");
+    }
+
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
+    }
+
+    return await res.json();
+  }
+
+  // =====================================================
+  // الحساب الحقيقي - لا نغير النظام القديم
+  // =====================================================
+  const url =
+    "/api?host=" +
+    encodeURIComponent(AUTH.host) +
+    "&user=" +
+    encodeURIComponent(AUTH.user) +
+    "&pass=" +
+    encodeURIComponent(AUTH.pass) +
+    "&action=" +
+    encodeURIComponent(action) +
+    "&extra=" +
+    encodeURIComponent(extra);
+
+  const ctrl = new AbortController();
+
+  const isHeavy = [
+    "get_live_streams",
+    "get_vod_streams",
+    "get_series"
+  ].includes(action);
+
+  const to = setTimeout(
+    () => ctrl.abort(),
+    isHeavy ? 90000 : 40000
+  );
+
+  try {
+
+    const res = await fetch(url, {
+      signal: ctrl.signal
+    });
+
+    clearTimeout(to);
+
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
+    }
+
+    return await res.json();
+
+  } catch (e) {
+
+    clearTimeout(to);
+    throw new Error(friendlyError(e));
+
+  }
 }
 
 async function loadTabData(tabKey) {
@@ -822,8 +981,36 @@ async function handleClick(item, tab) {
   } catch (e) { alert("خطأ: " + e.message); }
   showLoad(false); return;
  }
- const streamUrl = tab === "live" ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8" : tab === "vod" ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4" : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
- openPlayer(streamUrl, name, tab === "live", item);
+ let streamUrl;
+
+if (LOCAL_MODE) {
+
+  const mediaType =
+    tab === "live"
+      ? "live"
+      : tab === "vod"
+        ? "movie"
+        : "series";
+
+  streamUrl =
+    "/local/stream?type=" +
+    encodeURIComponent(mediaType) +
+    "&id=" +
+    encodeURIComponent(id) +
+    "&session=" +
+    encodeURIComponent(LOCAL_SESSION);
+
+} else {
+
+  streamUrl =
+    tab === "live"
+      ? AUTH.host + "/live/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".m3u8"
+      : tab === "vod"
+        ? AUTH.host + "/movie/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4"
+        : AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + id + ".mp4";
+}
+
+openPlayer(streamUrl, name, tab === "live", item);
 }
 
 function renderEps(info, sname) {
@@ -842,7 +1029,25 @@ function renderEps(info, sname) {
    const en = ep.title || ep.name || "حلقة " + ep.episode_num;
    const btn = document.createElement("button"); btn.className = "ep-btn";
    btn.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:4px;">حلقة ' + ep.episode_num + '</div><div style="font-size:12px;">' + esc(en) + '</div>';
-   const epStreamUrl = AUTH.host + "/series/" + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4";
+   let epStreamUrl;
+
+if (LOCAL_MODE) {
+  epStreamUrl =
+    "/local/stream?type=series&id=" +
+    encodeURIComponent(ep.id) +
+    "&session=" +
+    encodeURIComponent(LOCAL_SESSION);
+} else {
+  epStreamUrl =
+    AUTH.host +
+    "/series/" +
+    AUTH.user +
+    "/" +
+    AUTH.pass +
+    "/" +
+    ep.id +
+    ".mp4";
+} + AUTH.user + "/" + AUTH.pass + "/" + ep.id + ".mp4";
    btn.addEventListener("click", () => openPlayer(epStreamUrl, sname + " - " + en, false, ep));
    grid.appendChild(btn);
   });
