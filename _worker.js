@@ -3,9 +3,6 @@
 import { connect } from "cloudflare:sockets";
 
 
-// ============================================================
-// WORKER ENTRY
-// ============================================================
 
 export default {
   async fetch(request, env, ctx) {
