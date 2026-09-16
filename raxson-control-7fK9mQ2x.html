@@ -166,13 +166,26 @@ function disconnect(msg) {
 
 async function loadList() {
   setMsg(listMsg, "جاري التحميل...", "");
+
   try {
     const data = await apiCall("GET", "");
-    CACHE = (data && data.subscriptions) || [];
+
+    console.log("ADMIN DATA:", data);
+
+    CACHE = Array.isArray(data)
+      ? data
+      : Array.isArray(data && data.subscriptions)
+        ? data.subscriptions
+        : [];
+
+    console.log("ADMIN CACHE:", CACHE);
+
     renderList();
     setMsg(listMsg, "", "");
   } catch (e) {
-    if (e.message !== "unauthorized") setMsg(listMsg, "فشل التحميل: " + e.message, "err");
+    if (e.message !== "unauthorized") {
+      setMsg(listMsg, "فشل التحميل: " + e.message, "err");
+    }
   }
 }
 
