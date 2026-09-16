@@ -5391,10 +5391,7 @@ async function handleLocalLogin(request, env, cors) {
 
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
   const token = localHexFromBytes(tokenBytes);
-  const exp = Math.min(
-    Math.floor(end / 1000),
-    Math.floor(now / 1000) + LOCAL_SESSION_TTL_SECONDS
-  );
+  const exp = Math.floor(end / 1000);
 
   await kv.put(
     LOCAL_SESS_KEY_PREFIX + token,
@@ -5408,15 +5405,20 @@ async function handleLocalLogin(request, env, cors) {
   );
 
   return json(
-    {
-      ok: true,
-      user: username,
-      session: token,
-      expiresAt: new Date(exp * 1000).toISOString(),
-    },
-    200,
-    cors
-  );
+  {
+    ok: true,
+    user: username,
+    session: token,
+
+    // انتهاء جلسة الدخول
+    expiresAt: new Date(exp * 1000).toISOString(),
+
+    // انتهاء الاشتراك الحقيقي
+    subscriptionExpiresAt: sub.endDate,
+  },
+  200,
+  cors
+);
 }
 
 
